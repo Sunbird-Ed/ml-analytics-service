@@ -59,9 +59,9 @@ try:
  def get_keyclock_accesstoken():
     url_getkeyclock = config.get("URL","url_getkeyclock")
     headers_getkeyclock = {'Content-Type': 'application/x-www-form-urlencoded'}
-    body_getkeyclock = {"grant_type":config.get("API_HEADESRS","grant_type"),
-                        "client_id":config.get("API_HEADESRS","client_id"),
-                        "refresh_token":config.get("API_HEADESRS","refresh_token")}
+    body_getkeyclock = {"grant_type":config.get("API_HEADERS","grant_type"),
+                        "client_id":config.get("API_HEADERS","client_id"),
+                        "refresh_token":config.get("API_HEADERS","refresh_token")}
 
     responsegetkeyclock = requests.post(url_getkeyclock, data=body_getkeyclock,headers=headers_getkeyclock)
     if responsegetkeyclock.status_code == 200:
@@ -81,7 +81,7 @@ try:
                   + "/" + str(userId) + queryStringReadUser
     headersReadUser ={
           'Content-Type': config.get("API_HEADERS","content_type"),
-          'Authorization': "Bearer "+ config.get("API_HEADESRS","authorization"),
+          'Authorization': "Bearer "+ config.get("API_HEADERS","authorization"),
           'X-authenticated-user-token': accessToken
     }
 
