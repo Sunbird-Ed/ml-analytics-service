@@ -92,9 +92,9 @@ try:
  def get_keyclock_accesstoken():
     url_getkeyclock = config.get("URL","url_getkeyclock")
     headers_getkeyclock = {'Content-Type': 'application/x-www-form-urlencoded'}
-    body_getkeyclock = {"grant_type":config.get("API_HEADESRS","grant_type"),
-                        "client_id":config.get("API_HEADESRS","client_id"),
-                        "refresh_token":config.get("API_HEADESRS","refresh_token")}
+    body_getkeyclock = {"grant_type":config.get("API_HEADERS","grant_type"),
+                        "client_id":config.get("API_HEADERS","client_id"),
+                        "refresh_token":config.get("API_HEADERS","refresh_token")}
 
     responsegetkeyclock = requests.post(url_getkeyclock, data=body_getkeyclock,headers=headers_getkeyclock)
     if responsegetkeyclock.status_code == 200:
@@ -112,9 +112,9 @@ try:
           urlEntityRelated = config.get("URL","base_url") + "/" + config.get("URL","url_entity_related") + str(entityId)
           headersEntityRelated ={
           'Content-Type': config.get("API_HEADERS","content_type"),
-          'Authorization': "Bearer "+ config.get("API_HEADESRS","authorization"),
+          'Authorization': "Bearer "+ config.get("API_HEADERS","authorization"),
           'X-authenticated-user-token': accessToken,
-          'X-Channel-id' : config.get("API_HEADESRS","channel-id")
+          'X-Channel-id' : config.get("API_HEADERS","channel-id")
           }
           responseEntityRelated = requests.get(urlEntityRelated, headers=headersEntityRelated)
           if responseEntityRelated.status_code == 200 :
@@ -132,9 +132,9 @@ try:
     urlSyncUser = config.get("URL","sunbird_api_base_url_ip") + "/" + config.get("URL","sunbrid_api_url_syncuser")
     headersSyncUser ={
           'Content-Type': config.get("API_HEADERS","content_type"),
-          'Authorization': "Bearer "+ config.get("API_HEADESRS","authorization"),
+          'Authorization': "Bearer "+ config.get("API_HEADERS","authorization"),
           'X-authenticated-user-token': accessToken,
-          'X-Channel-id' : config.get("API_HEADESRS","channel-id")
+          'X-Channel-id' : config.get("API_HEADERS","channel-id")
     }
     body_sync_user = {"params": {},"request": {"objectType": "user","objectIds": [userId]}}
     responseSyncUser = requests.post(urlSyncUser, headers=headersSyncUser,data=json.dumps(body_sync_user))
@@ -155,9 +155,9 @@ try:
                   + "/" + str(userId) + queryStringReadUser
     headersReadUser ={
           'Content-Type': config.get("API_HEADERS","content_type"),
-          'Authorization': "Bearer "+ config.get("API_HEADESRS","authorization"),
+          'Authorization': "Bearer "+ config.get("API_HEADERS","authorization"),
           'X-authenticated-user-token': accessToken,
-          'X-Channel-id' : config.get("API_HEADESRS","channel-id")
+          'X-Channel-id' : config.get("API_HEADERS","channel-id")
     }
     responseReadUser = requests.get(urlReadUser, headers=headersReadUser)
     if responseReadUser.status_code == 200 :
@@ -181,10 +181,10 @@ try:
  def getUserRoles(userId,accessToken):
           urlUserRoles = config.get("URL","base_url") + "/" + config.get("URL","url_user_profile_api") + str(userId)
           headersUserRoles ={
-          'Content-Type': config.get("API_HEADESRS","content_type"),
-          'Authorization': "Bearer "+ config.get("API_HEADESRS","authorization"),
+          'Content-Type': config.get("API_HEADERS","content_type"),
+          'Authorization': "Bearer "+ config.get("API_HEADERS","authorization"),
           'X-authenticated-user-token': accessToken,
-          'X-Channel-id' : config.get("API_HEADESRS","channel-id")
+          'X-Channel-id' : config.get("API_HEADERS","channel-id")
           }
           responseUserRoles = requests.get(urlUserRoles, headers=headersUserRoles)
           if responseUserRoles.status_code == 200 :
