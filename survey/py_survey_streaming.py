@@ -112,7 +112,7 @@ try:
             'Content-Type': config.get("COMMON", "content_type"),
             'Authorization': "Bearer " + config.get("COMMON", "authorization"),
             'X-authenticated-user-token': access_token,
-            'X-Channel-id': config.get("COMMON", "channel-id")
+            'X-Channel-id': config.get("COMMON", "parent_channel")
         }
         responseReadUser = requests.get(urlReadUser, headers=headersReadUser)
         if responseReadUser.status_code == 200:
