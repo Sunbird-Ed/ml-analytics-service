@@ -51,6 +51,18 @@ errorHandler.setFormatter(formatter)
 errorLogger.addHandler(errorHandler)
 errorLogger.addHandler(errorBackuphandler)
 
+# db production
+clientqa = MongoClient(config.get('MONGO', 'url'))
+dbqa = clientqa[config.get('MONGO', 'db')]
+
+surveySubmissionsCollec = dbqa[config.get('MONGO', 'surveySubmissionsCollec')]
+solutionsDevCollec = dbqa[config.get('MONGO', 'solutionsCollec')]
+surveysCollec = dbqa[config.get('MONGO', 'surveysCollec')]
+entityTypeDevCollec = dbqa[config.get('MONGO', 'entityTypeCollec')]
+questionsDevCollec = dbqa[config.get('MONGO', 'questionsCollec')]
+criteriaDevCollec = dbqa[config.get('MONGO', 'criteriaCollec')]
+entitiesDevCollec = dbqa[config.get('MONGO', 'entitiesCollec')]
+    
 try:
     app = faust.App(
         'sl_py_survey_evidence_prod',
@@ -61,18 +73,6 @@ try:
 
     kafka_url = (config.get("KAFKA", "url"))
     producer = KafkaProducer(bootstrap_servers=[kafka_url])
-
-    # db production
-    clientqa = MongoClient(config.get('MONGO', 'url'))
-    dbqa = clientqa[config.get('MONGO', 'db')]
-
-    surveySubmissionsCollec = dbqa[config.get('MONGO', 'surveySubmissionsCollec')]
-    solutionsDevCollec = dbqa[config.get('MONGO', 'solutionsCollec')]
-    surveysCollec = dbqa[config.get('MONGO', 'surveysCollec')]
-    entityTypeDevCollec = dbqa[config.get('MONGO', 'entityTypeCollec')]
-    questionsDevCollec = dbqa[config.get('MONGO', 'questionsCollec')]
-    criteriaDevCollec = dbqa[config.get('MONGO', 'criteriaCollec')]
-    entitiesDevCollec = dbqa[config.get('MONGO', 'entitiesCollec')]
 except Exception as e:
     errorLogger.error(e, exc_info=True)
 
