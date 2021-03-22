@@ -37,10 +37,9 @@ url_getkeyclock = https://<YOUR_APPLICATION_URL>/auth/realms/sunbird/protocol/op
 url_entity_related = assessment/api/v1/entities/relatedEntities/
 url_entity_relatedapi = http://<INTERNAL_IP>:<PORT_NUMBER>/assessment/api/v1/entities/relatedEntities/
 
-
 sunbird_api_base_url_ip = http://<INTERNAL_IP>:<PORT_NUMBER>/api
-sunbrid_api_url_readuser = user/v1/read
-sunbrid_api_url_syncuser = data/v1/index/sync
+sunbird_api_url_readuser = user/v1/read
+sunbird_api_url_syncuser = data/v1/index/sync
 
 url_user_profile_api = assessment/api/v1/userExtension/getProfile/
 
