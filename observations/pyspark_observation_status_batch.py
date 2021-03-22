@@ -129,13 +129,13 @@ except Exception as e:
 clientProd = MongoClient(config.get('MONGO','mongo_url'))
 dbProd = clientProd[config.get('MONGO','database_name')]
 
-obsSubmissionsCollec = dbProd[config.get('MONGO','observation_submissions_collec')]
+obsSubmissionsCollec = dbProd[config.get('MONGO','observation_sub_collec')]
 
-solutionCollec = dbProd[config.get('MONGO','solution_collec')]
+solutionCollec = dbProd[config.get('MONGO','solutions_collec')]
 
 userRolesCollec = dbProd[config.get("MONGO","user_roles_collection")]
 
-programCollec = dbProd[config.get("MONGO","program_collec")]
+programCollec = dbProd[config.get("MONGO","programs_collec")]
 
 #observation submission dataframe
 obs_sub_cursorMongo = obsSubmissionsCollec.aggregate([{"$project": {"_id": {"$toString": "$_id"},
@@ -165,7 +165,7 @@ obs_sub_schema = StructType([
                               StructField('programExternalId', StringType(), True),
                               StructField('_id', StringType(), True),
                               StructField('updatedAt', TimestampType(), True),
-                              StructField('entityInformtion',StructType([
+                              StructField('entityInformation',StructType([
                                                             StructField('name', StringType(), True)
                                                                       ])),
                               StructField('appInformation',StructType([
@@ -546,7 +546,7 @@ for files in os.listdir(local_path):
 
 datasources = ["sl-observation-status"]
 
-sl_status_spec = config.get("DRUID","sl_observation_status_spec")
+sl_status_spec = config.get("DRUID","observation_status_spec")
 
 ingestion_specs = [sl_status_spec]
 
