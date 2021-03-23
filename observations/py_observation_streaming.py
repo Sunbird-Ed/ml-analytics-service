@@ -129,7 +129,7 @@ except Exception as e:
 
 try:
  def syncUser(userId,accessToken):
-    urlSyncUser = config.get("URL","sunbird_api_base_url_ip") + "/" + config.get("URL","sunbrid_api_url_syncuser")
+    urlSyncUser = config.get("URL","sunbird_api_base_url_ip") + "/" + config.get("URL","sunbird_api_url_syncuser")
     headersSyncUser ={
           'Content-Type': config.get("API_HEADERS","content_type"),
           'Authorization': "Bearer "+ config.get("API_HEADERS","authorization"),
@@ -151,7 +151,7 @@ except Exception as e:
 try:
  def readUser(userId,accessToken,userSyncCnt):
     queryStringReadUser = "?fields=completeness%2CmissingFields%2ClastLoginTime%2Ctopics%2Corganisations%2Croles%2Clocations%2Cdeclarations"
-    urlReadUser = config.get("URL","sunbird_api_base_url_ip") + "/" + config.get("URL","sunbrid_api_url_readuser") \
+    urlReadUser = config.get("URL","sunbird_api_base_url_ip") + "/" + config.get("URL","sunbird_api_url_readuser") \
                   + "/" + str(userId) + queryStringReadUser
     headersReadUser ={
           'Content-Type': config.get("API_HEADERS","content_type"),
