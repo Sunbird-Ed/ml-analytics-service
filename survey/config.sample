@@ -17,7 +17,7 @@ base_url_ip = http://<IP_OR_HOST>/api
 [ENDPOINT]
 # --------------------
 
-read_user = user/v1/read
+read_user = user/v3/read
 
 # --------------------
 [STORAGE]
