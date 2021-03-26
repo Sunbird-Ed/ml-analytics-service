@@ -53,6 +53,19 @@ errorHandler.setFormatter(formatter)
 errorLogger.addHandler(errorHandler)
 errorLogger.addHandler(errorBackuphandler)
 
+# db production
+clientqa = MongoClient(config.get('MONGO', 'url'))
+dbqa = clientqa[config.get('MONGO', 'db')]
+
+surveySubmissionsQACollec = dbqa[config.get('MONGO', 'surveySubmissionsCollec')]
+solutionsQACollec = dbqa[config.get('MONGO', 'solutionsCollec')]
+surveyQACollec = dbqa[config.get('MONGO', 'surveysCollec')]
+entityTypeQACollec = dbqa[config.get('MONGO', 'entityTypeCollec')]
+questionsQACollec = dbqa[config.get('MONGO', 'questionsCollec')]
+criteriaQACollec = dbqa[config.get('MONGO', 'criteriaCollec')]
+entitiesQACollec = dbqa[config.get('MONGO', 'entitiesCollec')]
+programsQACollec = dbqa[config.get('MONGO', 'programsCollec')]
+    
 try:
     kafka_url = (config.get("KAFKA", "url"))
 
@@ -65,18 +78,6 @@ try:
     )
     rawTopicName = app.topic(config.get("KAFKA", "raw_data_topic"))
     producer = KafkaProducer(bootstrap_servers=[config.get("KAFKA", "url")])
-    # db production
-    clientqa = MongoClient(config.get('MONGO', 'url'))
-    dbqa = clientqa[config.get('MONGO', 'db')]
-
-    surveySubmissionsQACollec = dbqa[config.get('MONGO', 'surveySubmissionsCollec')]
-    solutionsQACollec = dbqa[config.get('MONGO', 'solutionsCollec')]
-    surveyQACollec = dbqa[config.get('MONGO', 'surveysCollec')]
-    entityTypeQACollec = dbqa[config.get('MONGO', 'entityTypeCollec')]
-    questionsQACollec = dbqa[config.get('MONGO', 'questionsCollec')]
-    criteriaQACollec = dbqa[config.get('MONGO', 'criteriaCollec')]
-    entitiesQACollec = dbqa[config.get('MONGO', 'entitiesCollec')]
-    programsQACollec = dbqa[config.get('MONGO', 'programsCollec')]
 except Exception as e:
     errorLogger.error(e, exc_info=True)
 
