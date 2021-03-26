@@ -1,0 +1,70 @@
+# --------------------
+[KEYCLOAK]
+# --------------------
+
+url = http://<IP_OR_HOST>/auth/realms/sunbird/protocol/openid-connect/token
+grant_type = refresh_token
+client_id = android
+refresh_token = <REFRESH_TOKEN>
+
+# --------------------
+[SUNBIRD]
+# --------------------
+
+base_url_ip = http://<IP_OR_HOST>/api
+
+# --------------------
+[ENDPOINT]
+# --------------------
+
+read_user = user/v3/read
+
+# --------------------
+[STORAGE]
+# --------------------
+
+base_url = https://<STORAGE_PATH>/
+
+# --------------------
+[COMMON]
+# --------------------
+
+parent_channel = <CHANNEL_NAME>
+content_type = application/json
+authorization = <AUTHORISATION_TOKEN>
+diksha_survey_app_name = <APP_NAME>
+
+# --------------------
+[MONGO]
+# --------------------
+
+url =  mongodb://<URL>:27017
+db = <DB_NAME>
+
+solutionsCollec = solutions
+entityTypeCollec = entityTypes
+questionsCollec = questions
+criteriaCollec = criteria
+entitiesCollec = entities
+programsCollec = programs
+surveysCollec = surveys
+surveySubmissionsCollec = surveySubmissions
+
+# --------------------
+[KAFKA]
+# --------------------
+
+url = <IP_NAME>:9092
+raw_data_topic = <RAW_TOPIC_NAME>
+druid_topic = <DRUID_TOPIC_NAME>
+evidence_druid_topic = <EVIDENCE_DRUID_TOPIC_NAME>
+dev_topic = <DEV_TOPIC_NAME>
+
+# --------------------
+[LOG_FILE]
+# --------------------
+
+survey_streaming_success_log_filename = <SUCCESS_LOG_FILE_PATH>
+survey_streaming_error_log_filename = <ERROR_LOG_FILE_PATH>
+survey_evidence_streaming_success_log_filename = <EVIDENCE_SUCCESS_LOG_FILE_PATH>
+survey_evidence_streaming_error_log_filename = <EVIDENCE_ERROR_LOG_FILE_PATH>
