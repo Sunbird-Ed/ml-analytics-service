@@ -105,9 +105,10 @@ except Exception as e:
 
 try:
     def read_user(user_id, access_token):
+        queryStringReadUser = "?fields=completeness%2CmissingFields%2ClastLoginTime%2Ctopics%2Corganisations%2Croles%2Clocations%2Cdeclarations"
         urlReadUser = config.get("SUNBIRD", "base_url_ip") + "/" + \
                       config.get("ENDPOINT", "read_user") + "/" + \
-                      str(user_id)
+                      str(user_id) + queryStringReadUser
         headersReadUser = {
             'Content-Type': config.get("COMMON", "content_type"),
             'Authorization': "Bearer " + config.get("COMMON", "authorization"),
