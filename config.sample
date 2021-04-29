@@ -13,6 +13,7 @@ observation_status_output_dir = <FOLDER_PATH>
 headers_getkeyclock = {'Content-Type': 'application/x-www-form-urlencoded'}
 client_id = <CLIENT_ID>
 grant_type = refresh_token
+internal_access_token = <ACCESS_TOKEN>
 
 # --------------------
 # Header API variables
@@ -45,6 +46,7 @@ url_user_profile_api = assessment/api/v1/userExtension/getProfile/
 
 sunbird_api_url_searchuser = user/v1/search
 
+evidence_base_url = <EVIDENCE_BASE_URL>
 
 [MONGO]
 
@@ -60,59 +62,29 @@ mongo_url = mongodb://<INTERNAL_IP>:<PORT_NUMBER>
 
 database_name = <DATABASE_NAME>
 
-# -------------------------------------
-# Mongo observationSubmission Collection
-# -------------------------------------
+# -------------------
+# Mongo Collections
+# -------------------
 
 observation_sub_collec = <OBSERVATION_SUB_COLLECTION_NAME>
 
-# -------------------------
-# Mongo solutions Collection
-# --------------------------
-
 solutions_collec = <SOLUTION_COLLECTION_NAME>
-
-# ----------------------------
-# Mongo observations Collection
-# -----------------------------
 
 observations_collec = <OBSERVATION_COLLECTION_NAME>
 
-# ---------------------------
-# Mongo entityTypes Collection
-# ----------------------------
-
 entity_type_collec = <ENTITY_TYPE_COLLECTION_NAME>
-
-# -------------------------
-# Mongo questions Collection
-# -------------------------
 
 questions_collec = <QUESTION_COLLECTION_NAME>
 
-# ------------------------
-# Mongo criteria Collection
-# -----------------------
-
 criteria_collec = <CRITERIA_COLLECTION_NAME>
-
-# -----------------------
-# Mongo entities Collection
-# -----------------------
 
 entities_collec = <ENTITIES_COLLECTION_NAME>
 
-# -----------------------
-# Mongo programs Collection
-# -----------------------
-
 programs_collec = <PROGRAM_COLLECTION_NAME>
 
-# -----------------------
-# Mongo user_roles Collection
-# -----------------------
-
 user_roles_collection = <USERROLES_COLLECTION_NAME>
+
+criteria_questions_collection = <CRITERIA_QUESRIONS_COLLECTION_NAME>
 
 [DRUID]
 
