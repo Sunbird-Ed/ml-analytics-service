@@ -86,6 +86,12 @@ user_roles_collection = <USERROLES_COLLECTION_NAME>
 
 criteria_questions_collection = <CRITERIA_QUESRIONS_COLLECTION_NAME>
 
+projects_collection = <PROJECTS_COLLECTION_NAME>
+
+survey_submissions_collection = <SURVEY_SUBMISSIONS_COLLECTION>
+
+survey_collection = <SURVEY_COLLECTION>
+
 [DRUID]
 
 urlQuery = http://<INTERNAL_IP>:<PORT_NUMBER>/druid/indexer/v1/supervisor
@@ -100,6 +106,8 @@ observation_spec = <OBSERVATION_SPEC>
 
 observation_evidence_spec = <OBSERVATION_EVIDENCE_SPEC>
 
+general_unnati_spec = <PROJECT_SPEC>
+
 [KAFKA]
 
 kafka_url = <KAFKA_INTERNAL_IP>:<PORT>
@@ -109,6 +117,8 @@ kafka_raw_data_topic = <TOPIC_NAME>
 kafka_druid_topic = <DRUID_TOPIC_NAME>
 
 kafka_evidence_druid_topic =  <EVIDENCE_TOPIC_NAME>
+
+kafka_dev_topic = <DEV_TOPIC_NAME>
 
 [LOGS]
 
@@ -123,6 +133,18 @@ observation_streaming_evidence_error_log_filename = <FOLDER_PATH>/error.log
 observation_status_success_log_filename = <FOLDER_PATH>/status/success.log
 
 observation_status_error_log_filename = <FOLDER_PATH>/status/error.log
+
+project_success_log_filename = <SUCCESS_LOG_FILE_PATH>
+
+project_error_log_filename = <ERROR_LOG_FILE_PATH>
+
+survey_evidence_streaming_success_log_filename = <EVIDENCE_SUCCESS_LOG_FILE_PATH>
+
+survey_evidence_streaming_error_log_filename = <EVIDENCE_ERROR_LOG_FILE_PATH>
+
+survey_streaming_success_log_filename = <SUCCESS_LOG_FILE_PATH>
+
+survey_streaming_error_log_filename = <ERROR_LOG_FILE_PATH>
 
 [ELASTICSEARCH]
 
@@ -145,3 +167,15 @@ sas_token = <SAS_TOKEN>
 container_name = <CONTAINER_NAME>
 
 blob_path = <BLOB_PATH>
+
+[REDIS]
+
+host = <HOST_ADDRESS>
+
+port = <PORT>
+
+db_name = <REDIS_DB_NAME>
+
+[OUTPUT_DIR]
+
+projects_folder = <PROJECTS_OUTPUT_DIR>
