@@ -71,22 +71,22 @@ try:
   rawTopicName = app.topic(config.get("KAFKA", "kafka_raw_data_topic"))
   producer = KafkaProducer(bootstrap_servers=[kafka_url])
   #db production
-  client = MongoClient(config.get('MONGO','mongo_url'))
-  db = client[config.get('MONGO','database_name')]
-  obsSubCollec = db[config.get('MONGO','observation_sub_collec')]
-  solCollec = db[config.get('MONGO','solutions_collec')]
-  obsCollec = db[config.get('MONGO','observations_collec')]
-  questionsCollec = db[config.get('MONGO','questions_collec')]
-  entitiesCollec = db[config.get('MONGO','entities_collec')]
-  criteriaQuestionsCollec = db[config.get('MONGO','criteria_questions_collection')]
-  criteriaCollec = db[config.get('MONGO','criteria_collec')]
-  programsCollec = db[config.get('MONGO','programs_collec')]
+  client = MongoClient(config.get('MONGO', 'mongo_url'))
+  db = client[config.get('MONGO', 'database_name')]
+  obsSubCollec = db[config.get('MONGO', 'observation_sub_collec')]
+  solCollec = db[config.get('MONGO', 'solutions_collec')]
+  obsCollec = db[config.get('MONGO', 'observations_collec')]
+  questionsCollec = db[config.get('MONGO', 'questions_collec')]
+  entitiesCollec = db[config.get('MONGO', 'entities_collec')]
+  criteriaQuestionsCollec = db[config.get('MONGO', 'criteria_questions_collection')]
+  criteriaCollec = db[config.get('MONGO', 'criteria_collec')]
+  programsCollec = db[config.get('MONGO', 'programs_collec')]
   # redis cache connection 
   redis_connection = redis.ConnectionPool(
-    host=config.get("REDIS","host"), 
+    host=config.get("REDIS", "host"), 
     decode_responses=True, 
-    port=config.get("REDIS","port_no"), 
-    db=config.get("REDIS","database_name")
+    port=config.get("REDIS", "port_no"), 
+    db=config.get("REDIS", "database_name")
   )
   datastore = redis.StrictRedis(connection_pool=redis_connection)
 except Exception as e:
@@ -123,7 +123,7 @@ try:
       errorLogger.error(responseEntityRelated)
       errorLogger.error(responseEntityRelated.text)
 except Exception as e:
-  errorLogger.error(e,exc_info=True)
+  errorLogger.error(e, exc_info=True)
 
 try:
   def getUserRoles(userId):
@@ -217,7 +217,7 @@ def fetchingQuestiondetails(ansFn, instNumber, entityLatitudeQuesFn, entityLongi
               )
               if finalObj["completedDate"]:
                 producer.send(
-                  (config.get("KAFKA","kafka_druid_topic")), 
+                  (config.get("KAFKA", "kafka_druid_topic")), 
                   json.dumps(finalObj).encode('utf-8')
                 )
                 producer.flush()
@@ -235,7 +235,7 @@ def fetchingQuestiondetails(ansFn, instNumber, entityLatitudeQuesFn, entityLongi
             ) 
             if finalObj["completedDate"]:
               producer.send(
-                (config.get("KAFKA","kafka_druid_topic")), 
+                (config.get("KAFKA", "kafka_druid_topic")), 
                 json.dumps(finalObj).encode('utf-8')
               )
               producer.flush()
@@ -263,7 +263,7 @@ def fetchingQuestiondetails(ansFn, instNumber, entityLatitudeQuesFn, entityLongi
                   )
                   if finalObj["completedDate"]:
                     producer.send(
-                      (config.get("KAFKA","kafka_druid_topic")), 
+                      (config.get("KAFKA", "kafka_druid_topic")), 
                       json.dumps(finalObj).encode('utf-8')
                     )
                     producer.flush()
@@ -281,7 +281,7 @@ def fetchingQuestiondetails(ansFn, instNumber, entityLatitudeQuesFn, entityLongi
                 )
                 if finalObj["completedDate"]:
                   producer.send(
-                    (config.get("KAFKA","kafka_druid_topic")), 
+                    (config.get("KAFKA", "kafka_druid_topic")), 
                     json.dumps(finalObj).encode('utf-8')
                   )
                   producer.flush()  
@@ -305,7 +305,7 @@ def fetchingQuestiondetails(ansFn, instNumber, entityLatitudeQuesFn, entityLongi
                     )
                     if finalObj["completedDate"]:
                       producer.send(
-                        (config.get("KAFKA","kafka_druid_topic")), 
+                        (config.get("KAFKA", "kafka_druid_topic")), 
                         json.dumps(finalObj).encode('utf-8')
                       )
                       producer.flush() 
@@ -324,7 +324,7 @@ def fetchingQuestiondetails(ansFn, instNumber, entityLatitudeQuesFn, entityLongi
                   )
                   if finalObj["completedDate"]:
                     producer.send(
-                      (config.get("KAFKA","kafka_druid_topic")), 
+                      (config.get("KAFKA", "kafka_druid_topic")), 
                       json.dumps(finalObj).encode('utf-8')
                     )
                     producer.flush() 
@@ -350,7 +350,7 @@ def fetchingQuestiondetails(ansFn, instNumber, entityLatitudeQuesFn, entityLongi
             )
             if finalObj["completedDate"]:
               producer.send(
-                (config.get("KAFKA","kafka_druid_topic")), 
+                (config.get("KAFKA", "kafka_druid_topic")), 
                 json.dumps(finalObj).encode('utf-8')
               )
               producer.flush() 
@@ -369,7 +369,7 @@ def fetchingQuestiondetails(ansFn, instNumber, entityLatitudeQuesFn, entityLongi
           )
           if finalObj["completedDate"]:
             producer.send(
-              (config.get("KAFKA","kafka_druid_topic")), 
+              (config.get("KAFKA", "kafka_druid_topic")), 
               json.dumps(finalObj).encode('utf-8')
             )
             producer.flush()

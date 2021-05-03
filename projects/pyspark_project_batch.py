@@ -479,7 +479,7 @@ final_projects_df = projects_df_cols.join(
 final_projects_df = final_projects_df.dropDuplicates()
 
 final_projects_df.coalesce(1).write.format("json").mode("overwrite").save(
-    config.get("OUTPUT_DIR"," projects_folder") + "/"
+    config.get("OUTPUT_DIR", "projects_folder") + "/"
 )
 
 for filename in os.listdir(config.get("OUTPUT_DIR", "projects_folder")+"/"):
@@ -495,7 +495,7 @@ blob_service_client = BlockBlobService(
 )
 container_name = config.get("AZURE", "container_name")
 local_path = config.get("OUTPUT_DIR", "projects_folder")
-blob_path = config.get("AZURE", "blob_path")
+blob_path = config.get("AZURE", "projects_blob_path")
 
 for files in os.listdir(local_path):
     if "sl_projects.json" in files:

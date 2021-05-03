@@ -641,14 +641,14 @@ final_df = obs_sub_status_df_integrated_app.unionByName(obs_sub_status_df_survey
 final_df = final_df.dropDuplicates()
 
 final_df.coalesce(1).write.format("json").mode("overwrite").save(
-   config.get("COMMON", "observation_status_output_dir")+"/"
+   config.get("OUTPUT_DIR", "observation_status_output_dir")+"/"
 )
 
-for filename in os.listdir(config.get("COMMON", "observation_status_output_dir")+"/"):
+for filename in os.listdir(config.get("OUTPUT_DIR", "observation_status_output_dir")+"/"):
    if filename.endswith(".json"):
       os.rename(
-         config.get("COMMON", "observation_status_output_dir") + "/" + filename, 
-         config.get("COMMON", "observation_status_output_dir") + "/sl_observation_status.json"
+         config.get("OUTPUT_DIR", "observation_status_output_dir") + "/" + filename, 
+         config.get("OUTPUT_DIR", "observation_status_output_dir") + "/sl_observation_status.json"
       )
 
 blob_service_client = BlockBlobService(
@@ -656,7 +656,7 @@ blob_service_client = BlockBlobService(
    sas_token=config.get("AZURE", "sas_token")
 )
 container_name = config.get("AZURE", "container_name")
-local_path = config.get("COMMON", "observation_status_output_dir")
+local_path = config.get("OUTPUT_DIR", "observation_status_output_dir")
 blob_path = config.get("AZURE", "blob_path")
 
 for files in os.listdir(local_path):

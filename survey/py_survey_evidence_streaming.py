@@ -152,7 +152,7 @@ try:
                 surveySubQuestionsObj['fileSourcePath'] = convert(fileSourcePath)
                 if evidenceCount > 0:
                     producer.send(
-                        (config.get("KAFKA", "kafka_evidence_druid_topic")), 
+                        (config.get("KAFKA", "kafka_evidence_survey_druid_topic")), 
                         json.dumps(surveySubQuestionsObj).encode('utf-8')
                     )
                     producer.flush()
@@ -163,7 +163,7 @@ except Exception as e:
 
 try:
     #loop the consumer messages and produce it to another topic
-    @app.agent(config.get("KAFKA", "kafka_dev_topic"))
+    @app.agent(config.get("KAFKA", "kafka_raw_survey_topic"))
     async def survey_Faust(consumer) :
         async for msg in consumer:
             msg_val = msg.decode('utf-8')

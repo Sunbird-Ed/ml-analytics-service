@@ -71,7 +71,7 @@ try:
         web_port=7004,
         broker_max_poll_records=500
     )
-    rawTopicName = app.topic(config.get("KAFKA", "kafka_raw_data_topic"))
+    rawTopicName = app.topic(config.get("KAFKA", "kafka_raw_survey_topic"))
     producer = KafkaProducer(bootstrap_servers=[config.get("KAFKA", "kafka_url")])
 
     #db production
@@ -111,7 +111,7 @@ def fetchingQuestiondetails(ansFn,instNumber):
                         ansFn['payload']['labels'][0]
                     )
                     producer.send(
-                        (config.get("KAFKA", "kafka_druid_topic")), 
+                        (config.get("KAFKA", "kafka_survey_druid_topic")), 
                         json.dumps(finalObj).encode('utf-8')
                     )
                     producer.flush()
@@ -132,7 +132,7 @@ def fetchingQuestiondetails(ansFn,instNumber):
                                 ansFn['payload']['labels'][0]
                             )
                             producer.send(
-                                (config.get("KAFKA", "kafka_druid_topic")), 
+                                (config.get("KAFKA", "kafka_survey_druid_topic")), 
                                 json.dumps(finalObj).encode('utf-8')
                             )
                             producer.flush()
@@ -148,7 +148,7 @@ def fetchingQuestiondetails(ansFn,instNumber):
                                     quesOpt['label']
                                 )
                                 producer.send(
-                                    (config.get("KAFKA", "kafka_druid_topic")), 
+                                    (config.get("KAFKA", "kafka_survey_druid_topic")), 
                                     json.dumps(finalObj).encode('utf-8')
                                 )
                                 producer.flush()
@@ -165,7 +165,7 @@ def fetchingQuestiondetails(ansFn,instNumber):
                 )
                 #print(finalObj)
                 producer.send(
-                    (config.get("KAFKA", "kafka_druid_topic")), 
+                    (config.get("KAFKA", "kafka_survey_druid_topic")), 
                     json.dumps(finalObj).encode('utf-8')
                 )
                 producer.flush()
@@ -369,27 +369,27 @@ try:
                 except KeyError :
                     rootOrgId = ''
                 if 'answers' in obSub.keys() :  
-                        answersArr = [v for v in obSub['answers'].values()]
-                        for ans in answersArr:
-                            try:
-                                if len(ans['fileName']):
-                                    evidence_sub_count = evidence_sub_count + len(ans['fileName'])
-                            except KeyError:
-                                pass
-                        for ans in answersArr:
-                            if (
-                                ans['responseType'] == 'text' or ans['responseType'] == 'radio' or 
-                                ans['responseType'] == 'multiselect' or ans['responseType'] == 'slider' or 
-                                ans['responseType'] == 'number' or ans['responseType'] == 'date'
-                            ):   
-                                inst_cnt = ''
-                                fetchingQuestiondetails(ans, inst_cnt)
-                            elif ans['responseType'] == 'matrix' and len(ans['value']) > 0:
-                                inst_cnt =0
-                                for instances in ans['value']:
-                                    inst_cnt = inst_cnt + 1
-                                    for instance in instances.values():
-                                        fetchingQuestiondetails(instance,inst_cnt)
+                    answersArr = [v for v in obSub['answers'].values()]
+                    for ans in answersArr:
+                        try:
+                            if len(ans['fileName']):
+                                evidence_sub_count = evidence_sub_count + len(ans['fileName'])
+                        except KeyError:
+                            pass
+                    for ans in answersArr:
+                        if (
+                            ans['responseType'] == 'text' or ans['responseType'] == 'radio' or 
+                            ans['responseType'] == 'multiselect' or ans['responseType'] == 'slider' or 
+                            ans['responseType'] == 'number' or ans['responseType'] == 'date'
+                        ):   
+                            inst_cnt = ''
+                            fetchingQuestiondetails(ans, inst_cnt)
+                        elif ans['responseType'] == 'matrix' and len(ans['value']) > 0:
+                            inst_cnt =0
+                            for instances in ans['value']:
+                                inst_cnt = inst_cnt + 1
+                                for instance in instances.values():
+                                    fetchingQuestiondetails(instance,inst_cnt)
 
         cursorMongo.close()
 except Exception as e:
