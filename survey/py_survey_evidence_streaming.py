@@ -46,7 +46,7 @@ successLogger.addHandler(successBackuphandler)
 errorLogger = logging.getLogger('error log')
 errorLogger.setLevel(logging.ERROR)
 errorHandler = logging.handlers.RotatingFileHandler(
-    onfig.get('LOGS', 'survey_evidence_streaming_error_log_filename')
+    config.get('LOGS', 'survey_evidence_streaming_error_log_filename')
 )
 errorBackuphandler = TimedRotatingFileHandler(
     config.get('LOGS', 'survey_evidence_streaming_error_log_filename'),
@@ -159,7 +159,6 @@ try:
                     successLogger.debug("Send Obj to Kafka")
 except Exception as e:
     errorLogger.error(e, exc_info=True)
-
 
 try:
     #loop the consumer messages and produce it to another topic
