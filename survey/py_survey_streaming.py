@@ -97,242 +97,6 @@ except Exception as e:
     errorLogger.error(e, exc_info=True)
 
 
-# fetching the question details from questions collection
-def fetchingQuestiondetails(ansFn,instNumber):        
-    for ques in questionsCollec.find({'_id':ObjectId(ansFn['qid'])}):
-        if len(ques['options']) == 0:
-            try:
-                if len(ansFn['payload']['labels']) > 0:
-                    finalObj = {}
-                    finalObj =  creatingObj(
-                        ansFn,ques['externalId'],
-                        ansFn['value'],
-                        instNumber,
-                        ansFn['payload']['labels'][0]
-                    )
-                    producer.send(
-                        (config.get("KAFKA", "kafka_survey_druid_topic")), 
-                        json.dumps(finalObj).encode('utf-8')
-                    )
-                    producer.flush()
-                    successLogger.debug("Send Obj to Kafka")
-            except KeyError :
-                pass 
-        else:
-            labelIndex = 0
-            for quesOpt in ques['options']:
-                try:
-                    if type(ansFn['value']) == str or type(ansFn['value']) == int:
-                        if quesOpt['value'] == ansFn['value'] :
-                            finalObj = {}
-                            finalObj =  creatingObj(
-                                ansFn,ques['externalId'],
-                                ansFn['value'],
-                                instNumber,
-                                ansFn['payload']['labels'][0]
-                            )
-                            producer.send(
-                                (config.get("KAFKA", "kafka_survey_druid_topic")), 
-                                json.dumps(finalObj).encode('utf-8')
-                            )
-                            producer.flush()
-                            successLogger.debug("Send Obj to Kafka") 
-                    elif type(ansFn['value']) == list:
-                        for ansArr in ansFn['value']:
-                            if quesOpt['value'] == ansArr:
-                                finalObj = {}
-                                finalObj =  creatingObj(
-                                    ansFn,ques['externalId'],
-                                    ansArr,
-                                    instNumber,
-                                    quesOpt['label']
-                                )
-                                producer.send(
-                                    (config.get("KAFKA", "kafka_survey_druid_topic")), 
-                                    json.dumps(finalObj).encode('utf-8')
-                                )
-                                producer.flush()
-                                successLogger.debug("Send Obj to Kafka")
-                except KeyError:
-                    pass
-                
-        #to check the value is null ie is not answered
-        try:
-            if type(ansFn['value']) == str and ansFn['value'] == '':
-                finalObj = {}
-                finalObj =  creatingObj(
-                    ansFn,ques['externalId'], ansFn['value'], instNumber, None
-                )
-                #print(finalObj)
-                producer.send(
-                    (config.get("KAFKA", "kafka_survey_druid_topic")), 
-                    json.dumps(finalObj).encode('utf-8')
-                )
-                producer.flush()
-                successLogger.debug("Send Obj to Kafka")
-        except KeyError:
-            pass
-
-
-def creatingObj(answer,quesexternalId,ans_val,instNumber,responseLabel):
-    surveySubQuestionsObj = {}
-    try:
-        surveySubQuestionsObj['appName'] = obSub["appInformation"]["appName"].lower()
-    except KeyError :
-        surveySubQuestionsObj['appName'] = config.get("COMMON", "diksha_survey_app_name")
-
-    surveySubQuestionsObj['surveySubmissionId'] = str(obSub['_id'])
-
-    surveySubQuestionsObj['createdBy'] = obSub['createdBy']
-
-    try:
-        if obSub['isAPrivateProgram']:
-            surveySubQuestionsObj['isAPrivateProgram'] = obSub['isAPrivateProgram']
-        else:
-            surveySubQuestionsObj['isAPrivateProgram'] = False
-    except KeyError:
-        surveySubQuestionsObj['isAPrivateProgram'] = False
-        pass
-
-    try:
-        surveySubQuestionsObj['programExternalId'] = obSub['programExternalId']
-    except KeyError :
-        surveySubQuestionsObj['programExternalId'] = None
-    try:
-        surveySubQuestionsObj['programId'] = str(obSub['programId'])
-    except KeyError :
-        surveySubQuestionsObj['programId'] = None
-    try:
-        for program in programsCollec.find({'externalId':obSub['programExternalId']}):
-            surveySubQuestionsObj['programName'] = program['name']
-    except KeyError :
-        surveySubQuestionsObj['programName'] = None
-
-    surveySubQuestionsObj['solutionExternalId'] = obSub['solutionExternalId']
-    surveySubQuestionsObj['surveyId'] = str(obSub['surveyId'])
-    for solu in solutionsCollec.find({'_id':ObjectId(obSub['solutionId'])}):
-        surveySubQuestionsObj['solutionId'] = str(solu["_id"])
-        surveySubQuestionsObj['solutionName'] = solu['name']
-        section = [k for k in solu['sections'].keys()]
-        surveySubQuestionsObj['section'] = section[0]
-        surveySubQuestionsObj['questionSequenceByEcm']= sequenceNumber(quesexternalId, answer)
-        try:
-            if solu['scoringSystem'] == 'pointsBasedScoring':
-                try:
-                    surveySubQuestionsObj['totalScore'] = obSub['pointsBasedMaxScore']
-                except KeyError :
-                    surveySubQuestionsObj['totalScore'] = ''
-                try:
-                    surveySubQuestionsObj['scoreAchieved'] = obSub['pointsBasedScoreAchieved']
-                except KeyError :
-                    surveySubQuestionsObj['scoreAchieved'] = ''
-                try:
-                    surveySubQuestionsObj['totalpercentage'] = obSub['pointsBasedPercentageScore']
-                except KeyError :
-                    surveySubQuestionsObj['totalpercentage'] = ''
-                try:
-                    surveySubQuestionsObj['maxScore'] = answer['maxScore']
-                except KeyError :
-                    surveySubQuestionsObj['maxScore'] = ''
-                try:
-                    surveySubQuestionsObj['minScore'] = answer['scoreAchieved']
-                except KeyError :
-                    surveySubQuestionsObj['minScore'] = ''
-                try:
-                    surveySubQuestionsObj['percentageScore'] = answer['percentageScore']
-                except KeyError :
-                    surveySubQuestionsObj['percentageScore'] = ''
-                try:
-                    surveySubQuestionsObj['pointsBasedScoreInParent'] = answer['pointsBasedScoreInParent']
-                except KeyError :
-                    surveySubQuestionsObj['pointsBasedScoreInParent'] = ''
-        except KeyError:
-            surveySubQuestionsObj['totalScore'] = ''
-            surveySubQuestionsObj['scoreAchieved'] = ''
-            surveySubQuestionsObj['totalpercentage'] = ''
-            surveySubQuestionsObj['maxScore'] = ''
-            surveySubQuestionsObj['minScore'] = ''
-            surveySubQuestionsObj['percentageScore'] = ''
-            surveySubQuestionsObj['pointsBasedScoreInParent'] = ''
-
-    for ob in surveyCollec.find({'_id':obSub['surveyId']}):
-        surveySubQuestionsObj['surveyName'] = ob['name']
-    surveySubQuestionsObj['questionId'] = str(answer['qid'])
-    surveySubQuestionsObj['questionAnswer'] = ans_val
-    surveySubQuestionsObj['questionResponseType'] = answer['responseType']
-    if answer['responseType'] == 'number':
-        if answer['payload']['labels']:
-            surveySubQuestionsObj['questionResponseLabel_number'] = responseLabel
-        else:
-            surveySubQuestionsObj['questionResponseLabel_number'] = ''
-    if answer['payload']['labels']:
-        surveySubQuestionsObj['questionResponseLabel'] = responseLabel
-    else:
-        surveySubQuestionsObj['questionResponseLabel'] = ''
-    surveySubQuestionsObj['questionExternalId'] = quesexternalId
-    surveySubQuestionsObj['questionName'] = answer['payload']['question'][0]
-    surveySubQuestionsObj['questionECM'] = answer['evidenceMethod']
-    surveySubQuestionsObj['criteriaId'] = str(answer['criteriaId'])
-    for crit in criteriaCollec.find({'_id':ObjectId(answer['criteriaId'])}):
-        surveySubQuestionsObj['criteriaExternalId'] = crit['externalId']
-        surveySubQuestionsObj['criteriaName'] = crit['name']
-    surveySubQuestionsObj['completedDate'] = completedDate
-    surveySubQuestionsObj['createdAt'] = createdAt
-    surveySubQuestionsObj['updatedAt'] = updatedAt
-    surveySubQuestionsObj['remarks'] = answer['remarks']
-    if len(answer['fileName']):
-        multipleFiles = None
-        fileCnt = 1
-        for filedetail in answer['fileName']:
-            if fileCnt == 1:
-                multipleFiles = 'https://storage.cloud.google.com/sl-prod-storage/' + filedetail['sourcePath']
-                fileCnt = fileCnt + 1
-            else:
-                multipleFiles = multipleFiles + ' , ' + 'https://storage.cloud.google.com/sl-prod-storage/' + filedetail['sourcePath']
-        surveySubQuestionsObj['evidences'] = multipleFiles                                  
-        surveySubQuestionsObj['evidence_count'] = len(answer['fileName'])
-    surveySubQuestionsObj['total_evidences'] = evidence_sub_count
-    # to fetch the parent question of matrix
-    if ans['responseType']=='matrix':
-        surveySubQuestionsObj['instanceParentQuestion'] = ans['payload']['question'][0]
-        surveySubQuestionsObj['instanceParentId'] = ans['qid']
-        surveySubQuestionsObj['instanceParentResponsetype'] =ans['responseType']
-        surveySubQuestionsObj['instanceParentCriteriaId'] =ans['criteriaId']
-        for crit in criteriaCollec.find({'_id':ObjectId(ans['criteriaId'])}):
-            surveySubQuestionsObj['instanceParentCriteriaExternalId'] = crit['externalId']
-            surveySubQuestionsObj['instanceParentCriteriaName'] = crit['name']
-        surveySubQuestionsObj['instanceId'] = instNumber
-        for ques in questionsCollec.find({'_id':ObjectId(ans['qid'])}):
-            surveySubQuestionsObj['instanceParentExternalId'] = ques['externalId']
-        surveySubQuestionsObj['instanceParentEcmSequence']= sequenceNumber(
-            observationSubQuestionsObj['instanceParentExternalId'], answer
-        )
-    else:
-        surveySubQuestionsObj['instanceParentQuestion'] = ''
-        surveySubQuestionsObj['instanceParentId'] = ''
-        surveySubQuestionsObj['instanceParentResponsetype'] =''
-        surveySubQuestionsObj['instanceId'] = instNumber
-        surveySubQuestionsObj['instanceParentExternalId'] = ''
-        surveySubQuestionsObj['instanceParentEcmSequence'] = '' 
-    surveySubQuestionsObj['channel'] = rootOrgId 
-    surveySubQuestionsObj['parent_channel'] = "SHIKSHALOKAM"
-    return surveySubQuestionsObj
-
-
-def sequenceNumber(externalId,answer):
-    for solu in solutionsCollec.find({'_id':ObjectId(obSub['solutionId'])}):
-        section =  [k for k in solu['sections'].keys()]
-        # parsing through questionSequencebyecm to get the sequence number
-        try:
-            for num in range(
-                len(solu['questionSequenceByEcm'][answer['evidenceMethod']][section[0]])
-            ):
-                if solu['questionSequenceByEcm'][answer['evidenceMethod']][section[0]][num] == externalId:
-                    return num + 1
-        except KeyError:
-            pass
-
-
 try:
     def obj_creation(msg_id):
         successLogger.debug("Survey Submission Id : " + str(msg_id))
@@ -377,6 +141,239 @@ try:
                         except KeyError:
                             pass
                     for ans in answersArr:
+                        def sequenceNumber(externalId,answer):
+                            for solu in solutionsCollec.find({'_id':ObjectId(obSub['solutionId'])}):
+                                section =  [k for k in solu['sections'].keys()]
+                                # parsing through questionSequencebyecm to get the sequence number
+                                try:
+                                    for num in range(
+                                        len(solu['questionSequenceByEcm'][answer['evidenceMethod']][section[0]])
+                                    ):
+                                        if solu['questionSequenceByEcm'][answer['evidenceMethod']][section[0]][num] == externalId:
+                                            return num + 1
+                                except KeyError:
+                                    pass
+                        
+                        def creatingObj(answer,quesexternalId,ans_val,instNumber,responseLabel):
+                            surveySubQuestionsObj = {}
+                            try:
+                                surveySubQuestionsObj['appName'] = obSub["appInformation"]["appName"].lower()
+                            except KeyError :
+                                surveySubQuestionsObj['appName'] = config.get("COMMON", "diksha_survey_app_name")
+
+                            surveySubQuestionsObj['surveySubmissionId'] = str(obSub['_id'])
+
+                            surveySubQuestionsObj['createdBy'] = obSub['createdBy']
+
+                            try:
+                                if obSub['isAPrivateProgram']:
+                                    surveySubQuestionsObj['isAPrivateProgram'] = obSub['isAPrivateProgram']
+                                else:
+                                    surveySubQuestionsObj['isAPrivateProgram'] = False
+                            except KeyError:
+                                surveySubQuestionsObj['isAPrivateProgram'] = False
+                                pass
+
+                            try:
+                                surveySubQuestionsObj['programExternalId'] = obSub['programExternalId']
+                            except KeyError :
+                                surveySubQuestionsObj['programExternalId'] = None
+                            try:
+                                surveySubQuestionsObj['programId'] = str(obSub['programId'])
+                            except KeyError :
+                                surveySubQuestionsObj['programId'] = None
+                            try:
+                                for program in programsCollec.find({'externalId':obSub['programExternalId']}):
+                                    surveySubQuestionsObj['programName'] = program['name']
+                            except KeyError :
+                                surveySubQuestionsObj['programName'] = None
+
+                            surveySubQuestionsObj['solutionExternalId'] = obSub['solutionExternalId']
+                            surveySubQuestionsObj['surveyId'] = str(obSub['surveyId'])
+                            for solu in solutionsCollec.find({'_id':ObjectId(obSub['solutionId'])}):
+                                surveySubQuestionsObj['solutionId'] = str(solu["_id"])
+                                surveySubQuestionsObj['solutionName'] = solu['name']
+                                section = [k for k in solu['sections'].keys()]
+                                surveySubQuestionsObj['section'] = section[0]
+                                surveySubQuestionsObj['questionSequenceByEcm']= sequenceNumber(quesexternalId, answer)
+                                try:
+                                    if solu['scoringSystem'] == 'pointsBasedScoring':
+                                        try:
+                                            surveySubQuestionsObj['totalScore'] = obSub['pointsBasedMaxScore']
+                                        except KeyError :
+                                            surveySubQuestionsObj['totalScore'] = ''
+                                        try:
+                                            surveySubQuestionsObj['scoreAchieved'] = obSub['pointsBasedScoreAchieved']
+                                        except KeyError :
+                                            surveySubQuestionsObj['scoreAchieved'] = ''
+                                        try:
+                                            surveySubQuestionsObj['totalpercentage'] = obSub['pointsBasedPercentageScore']
+                                        except KeyError :
+                                            surveySubQuestionsObj['totalpercentage'] = ''
+                                        try:
+                                            surveySubQuestionsObj['maxScore'] = answer['maxScore']
+                                        except KeyError :
+                                            surveySubQuestionsObj['maxScore'] = ''
+                                        try:
+                                            surveySubQuestionsObj['minScore'] = answer['scoreAchieved']
+                                        except KeyError :
+                                            surveySubQuestionsObj['minScore'] = ''
+                                        try:
+                                            surveySubQuestionsObj['percentageScore'] = answer['percentageScore']
+                                        except KeyError :
+                                            surveySubQuestionsObj['percentageScore'] = ''
+                                        try:
+                                            surveySubQuestionsObj['pointsBasedScoreInParent'] = answer['pointsBasedScoreInParent']
+                                        except KeyError :
+                                            surveySubQuestionsObj['pointsBasedScoreInParent'] = ''
+                                except KeyError:
+                                    surveySubQuestionsObj['totalScore'] = ''
+                                    surveySubQuestionsObj['scoreAchieved'] = ''
+                                    surveySubQuestionsObj['totalpercentage'] = ''
+                                    surveySubQuestionsObj['maxScore'] = ''
+                                    surveySubQuestionsObj['minScore'] = ''
+                                    surveySubQuestionsObj['percentageScore'] = ''
+                                    surveySubQuestionsObj['pointsBasedScoreInParent'] = ''
+
+                            for ob in surveyCollec.find({'_id':obSub['surveyId']}):
+                                surveySubQuestionsObj['surveyName'] = ob['name']
+                            surveySubQuestionsObj['questionId'] = str(answer['qid'])
+                            surveySubQuestionsObj['questionAnswer'] = ans_val
+                            surveySubQuestionsObj['questionResponseType'] = answer['responseType']
+                            if answer['responseType'] == 'number':
+                                if answer['payload']['labels']:
+                                    surveySubQuestionsObj['questionResponseLabel_number'] = responseLabel
+                                else:
+                                    surveySubQuestionsObj['questionResponseLabel_number'] = ''
+                            if answer['payload']['labels']:
+                                surveySubQuestionsObj['questionResponseLabel'] = responseLabel
+                            else:
+                                surveySubQuestionsObj['questionResponseLabel'] = ''
+                            surveySubQuestionsObj['questionExternalId'] = quesexternalId
+                            surveySubQuestionsObj['questionName'] = answer['payload']['question'][0]
+                            surveySubQuestionsObj['questionECM'] = answer['evidenceMethod']
+                            surveySubQuestionsObj['criteriaId'] = str(answer['criteriaId'])
+                            for crit in criteriaCollec.find({'_id':ObjectId(answer['criteriaId'])}):
+                                surveySubQuestionsObj['criteriaExternalId'] = crit['externalId']
+                                surveySubQuestionsObj['criteriaName'] = crit['name']
+                            surveySubQuestionsObj['completedDate'] = completedDate
+                            surveySubQuestionsObj['createdAt'] = createdAt
+                            surveySubQuestionsObj['updatedAt'] = updatedAt
+                            surveySubQuestionsObj['remarks'] = answer['remarks']
+                            if len(answer['fileName']):
+                                multipleFiles = None
+                                fileCnt = 1
+                                for filedetail in answer['fileName']:
+                                    if fileCnt == 1:
+                                        multipleFiles = 'https://storage.cloud.google.com/sl-prod-storage/' + filedetail['sourcePath']
+                                        fileCnt = fileCnt + 1
+                                    else:
+                                        multipleFiles = multipleFiles + ' , ' + 'https://storage.cloud.google.com/sl-prod-storage/' + filedetail['sourcePath']
+                                surveySubQuestionsObj['evidences'] = multipleFiles                                  
+                                surveySubQuestionsObj['evidence_count'] = len(answer['fileName'])
+                            surveySubQuestionsObj['total_evidences'] = evidence_sub_count
+                            # to fetch the parent question of matrix
+                            if ans['responseType']=='matrix':
+                                surveySubQuestionsObj['instanceParentQuestion'] = ans['payload']['question'][0]
+                                surveySubQuestionsObj['instanceParentId'] = ans['qid']
+                                surveySubQuestionsObj['instanceParentResponsetype'] =ans['responseType']
+                                surveySubQuestionsObj['instanceParentCriteriaId'] =ans['criteriaId']
+                                for crit in criteriaCollec.find({'_id':ObjectId(ans['criteriaId'])}):
+                                    surveySubQuestionsObj['instanceParentCriteriaExternalId'] = crit['externalId']
+                                    surveySubQuestionsObj['instanceParentCriteriaName'] = crit['name']
+                                surveySubQuestionsObj['instanceId'] = instNumber
+                                for ques in questionsCollec.find({'_id':ObjectId(ans['qid'])}):
+                                    surveySubQuestionsObj['instanceParentExternalId'] = ques['externalId']
+                                surveySubQuestionsObj['instanceParentEcmSequence']= sequenceNumber(
+                                    observationSubQuestionsObj['instanceParentExternalId'], answer
+                                )
+                            else:
+                                surveySubQuestionsObj['instanceParentQuestion'] = ''
+                                surveySubQuestionsObj['instanceParentId'] = ''
+                                surveySubQuestionsObj['instanceParentResponsetype'] =''
+                                surveySubQuestionsObj['instanceId'] = instNumber
+                                surveySubQuestionsObj['instanceParentExternalId'] = ''
+                                surveySubQuestionsObj['instanceParentEcmSequence'] = '' 
+                            surveySubQuestionsObj['channel'] = rootOrgId 
+                            surveySubQuestionsObj['parent_channel'] = "SHIKSHALOKAM"
+                            return surveySubQuestionsObj
+
+                        # fetching the question details from questions collection
+                        def fetchingQuestiondetails(ansFn,instNumber):        
+                            for ques in questionsCollec.find({'_id':ObjectId(ansFn['qid'])}):
+                                if len(ques['options']) == 0:
+                                    try:
+                                        if len(ansFn['payload']['labels']) > 0:
+                                            finalObj = {}
+                                            finalObj =  creatingObj(
+                                                ansFn,ques['externalId'],
+                                                ansFn['value'],
+                                                instNumber,
+                                                ansFn['payload']['labels'][0]
+                                            )
+                                            producer.send(
+                                                (config.get("KAFKA", "kafka_survey_druid_topic")), 
+                                                json.dumps(finalObj).encode('utf-8')
+                                            )
+                                            producer.flush()
+                                            successLogger.debug("Send Obj to Kafka")
+                                    except KeyError :
+                                        pass 
+                                else:
+                                    labelIndex = 0
+                                    for quesOpt in ques['options']:
+                                        try:
+                                            if type(ansFn['value']) == str or type(ansFn['value']) == int:
+                                                if quesOpt['value'] == ansFn['value'] :
+                                                    finalObj = {}
+                                                    finalObj =  creatingObj(
+                                                        ansFn,ques['externalId'],
+                                                        ansFn['value'],
+                                                        instNumber,
+                                                        ansFn['payload']['labels'][0]
+                                                    )
+                                                    producer.send(
+                                                        (config.get("KAFKA", "kafka_survey_druid_topic")), 
+                                                        json.dumps(finalObj).encode('utf-8')
+                                                    )
+                                                    producer.flush()
+                                                    successLogger.debug("Send Obj to Kafka") 
+                                            elif type(ansFn['value']) == list:
+                                                for ansArr in ansFn['value']:
+                                                    if quesOpt['value'] == ansArr:
+                                                        finalObj = {}
+                                                        finalObj =  creatingObj(
+                                                            ansFn,ques['externalId'],
+                                                            ansArr,
+                                                            instNumber,
+                                                            quesOpt['label']
+                                                        )
+                                                        producer.send(
+                                                            (config.get("KAFKA", "kafka_survey_druid_topic")), 
+                                                            json.dumps(finalObj).encode('utf-8')
+                                                        )
+                                                        producer.flush()
+                                                        successLogger.debug("Send Obj to Kafka")
+                                        except KeyError:
+                                            pass
+                                        
+                                #to check the value is null ie is not answered
+                                try:
+                                    if type(ansFn['value']) == str and ansFn['value'] == '':
+                                        finalObj = {}
+                                        finalObj =  creatingObj(
+                                            ansFn,ques['externalId'], ansFn['value'], instNumber, None
+                                        )
+                                        print(finalObj)
+                                        producer.send(
+                                            (config.get("KAFKA", "kafka_survey_druid_topic")), 
+                                            json.dumps(finalObj).encode('utf-8')
+                                        )
+                                        producer.flush()
+                                        successLogger.debug("Send Obj to Kafka")
+                                except KeyError:
+                                    pass
+
                         if (
                             ans['responseType'] == 'text' or ans['responseType'] == 'radio' or 
                             ans['responseType'] == 'multiselect' or ans['responseType'] == 'slider' or 
@@ -394,7 +391,6 @@ try:
         cursorMongo.close()
 except Exception as e:
     errorLogger.error(e, exc_info=True)
-
 
 try :
     @app.agent(rawTopicName)
