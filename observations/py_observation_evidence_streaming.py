@@ -171,7 +171,6 @@ try:
 except Exception as e:
   errorLogger.error(e, exc_info=True)
 
-
 try:
   @app.agent(rawTopicName)
   async def observationEvidenceFaust(consumer):
