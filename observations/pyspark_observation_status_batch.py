@@ -90,10 +90,10 @@ except Exception as e:
 
 clientProd = MongoClient(config.get('MONGO', 'mongo_url'))
 db = clientProd[config.get('MONGO', 'database_name')]
-obsSubmissionsCollec = db[config.get('MONGO',' observation_sub_collec')]
+obsSubmissionsCollec = db[config.get('MONGO', 'observation_sub_collec')]
 solutionCollec = db[config.get('MONGO', 'solutions_collec')]
-userRolesCollec = db[config.get("MONGO", "user_roles_collection")]
-programCollec = db[config.get("MONGO", "programs_collec")]
+userRolesCollec = db[config.get("MONGO", 'user_roles_collection')]
+programCollec = db[config.get("MONGO", 'programs_collec')]
 
 # redis cache connection 
 redis_connection = redis.ConnectionPool(
