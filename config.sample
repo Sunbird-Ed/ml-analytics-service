@@ -1,50 +1,26 @@
 [COMMON]
 
 diksha_survey_app_name = <SURVEY_APP_NAME>
+
 diksha_integrated_app_name = <INTEGRATED_APP_NAME>
-observation_status_output_dir = <FOLDER_PATH>
 
 [API_HEADERS]
 
-# --------------------------------
-# API variables 
-# --------------------------------
-
-headers_getkeyclock = {'Content-Type': 'application/x-www-form-urlencoded'}
-client_id = <CLIENT_ID>
-grant_type = refresh_token
-
-# --------------------
-# Header API variables
-# --------------------
-
 content_type = application/json
+
 authorization = <AUTHORIZATION_KEY>
-refresh_token = <REFRESH_TOKEN>
 
-# -----------------------
-# Channel Id
-# -----------------------
-
-channel-id = <CHANNEL_ID>
-
+internal_access_token = <ACCESS_TOKEN>
 
 [URL]
 
 base_url = http://<INTERNAL_IP>:<PORT_NUMBER>
-url_getkeyclock = https://<YOUR_APPLICATION_URL>/auth/realms/sunbird/protocol/openid-connect/token
 
 url_entity_related = assessment/api/v1/entities/relatedEntities/
-url_entity_relatedapi = http://<INTERNAL_IP>:<PORT_NUMBER>/assessment/api/v1/entities/relatedEntities/
-
-sunbird_api_base_url_ip = http://<INTERNAL_IP>:<PORT_NUMBER>/api
-sunbird_api_url_readuser = user/v1/read
-sunbird_api_url_syncuser = data/v1/index/sync
 
 url_user_profile_api = assessment/api/v1/userExtension/getProfile/
 
-sunbird_api_url_searchuser = user/v1/search
-
+evidence_base_url = <EVIDENCE_BASE_URL>
 
 [MONGO]
 
@@ -60,63 +36,37 @@ mongo_url = mongodb://<INTERNAL_IP>:<PORT_NUMBER>
 
 database_name = <DATABASE_NAME>
 
-# -------------------------------------
-# Mongo observationSubmission Collection
-# -------------------------------------
+# -------------------
+# Mongo Collections
+# -------------------
 
 observation_sub_collec = <OBSERVATION_SUB_COLLECTION_NAME>
 
-# -------------------------
-# Mongo solutions Collection
-# --------------------------
-
 solutions_collec = <SOLUTION_COLLECTION_NAME>
-
-# ----------------------------
-# Mongo observations Collection
-# -----------------------------
 
 observations_collec = <OBSERVATION_COLLECTION_NAME>
 
-# ---------------------------
-# Mongo entityTypes Collection
-# ----------------------------
-
 entity_type_collec = <ENTITY_TYPE_COLLECTION_NAME>
-
-# -------------------------
-# Mongo questions Collection
-# -------------------------
 
 questions_collec = <QUESTION_COLLECTION_NAME>
 
-# ------------------------
-# Mongo criteria Collection
-# -----------------------
-
 criteria_collec = <CRITERIA_COLLECTION_NAME>
-
-# -----------------------
-# Mongo entities Collection
-# -----------------------
 
 entities_collec = <ENTITIES_COLLECTION_NAME>
 
-# -----------------------
-# Mongo programs Collection
-# -----------------------
-
 programs_collec = <PROGRAM_COLLECTION_NAME>
-
-# -----------------------
-# Mongo user_roles Collection
-# -----------------------
 
 user_roles_collection = <USERROLES_COLLECTION_NAME>
 
-[DRUID]
+criteria_questions_collection = <CRITERIA_QUESRIONS_COLLECTION_NAME>
 
-urlQuery = http://<INTERNAL_IP>:<PORT_NUMBER>/druid/indexer/v1/supervisor
+projects_collection = <PROJECTS_COLLECTION_NAME>
+
+survey_submissions_collection = <SURVEY_SUBMISSIONS_COLLECTION>
+
+survey_collection = <SURVEY_COLLECTION>
+
+[DRUID]
 
 druid_end_point = http://<INTERNAL_IP>:<PORT_NUMBER>/druid/coordinator/v1/datasources/
 
@@ -124,19 +74,23 @@ druid_batch_end_point = http://<INTERNAL_IP>:<PORT_NUMBER>/druid/indexer/v1/task
 
 observation_status_spec = <OBSERVATION_STATUS_SPEC>
 
-observation_spec = <OBSERVATION_SPEC>
-
-observation_evidence_spec = <OBSERVATION_EVIDENCE_SPEC>
+general_unnati_spec = <PROJECT_SPEC>
 
 [KAFKA]
 
 kafka_url = <KAFKA_INTERNAL_IP>:<PORT>
 
-kafka_raw_data_topic = <TOPIC_NAME>
+kafka_raw_data_topic = <OBS_TOPIC_NAME>
 
-kafka_druid_topic = <DRUID_TOPIC_NAME>
+kafka_druid_topic = <OBS_DRUID_TOPIC_NAME>
 
-kafka_evidence_druid_topic =  <EVIDENCE_TOPIC_NAME>
+kafka_evidence_druid_topic =  <OBS_EVIDENCE_TOPIC_NAME>
+
+kafka_evidence_survey_druid_topic = <SURVEY_EVIDENCE_TOPIC_NAME>
+
+kafka_raw_survey_topic = <SURVEY_TOPIC_NAME>
+
+kafka_survey_druid_topic = <SURVEY_DRUID_TOPIC_NAME>
 
 [LOGS]
 
@@ -151,6 +105,18 @@ observation_streaming_evidence_error_log_filename = <FOLDER_PATH>/error.log
 observation_status_success_log_filename = <FOLDER_PATH>/status/success.log
 
 observation_status_error_log_filename = <FOLDER_PATH>/status/error.log
+
+project_success_log_filename = <SUCCESS_LOG_FILE_PATH>
+
+project_error_log_filename = <ERROR_LOG_FILE_PATH>
+
+survey_evidence_streaming_success_log_filename = <EVIDENCE_SUCCESS_LOG_FILE_PATH>
+
+survey_evidence_streaming_error_log_filename = <EVIDENCE_ERROR_LOG_FILE_PATH>
+
+survey_streaming_success_log_filename = <SUCCESS_LOG_FILE_PATH>
+
+survey_streaming_error_log_filename = <ERROR_LOG_FILE_PATH>
 
 [ELASTICSEARCH]
 
@@ -172,4 +138,20 @@ sas_token = <SAS_TOKEN>
 
 container_name = <CONTAINER_NAME>
 
-blob_path = <BLOB_PATH>
+blob_path = <OBS_BLOB_PATH>
+
+projects_blob_path = <PROJECTS_BLOB_PATH>
+
+[REDIS]
+
+host = <HOST_ADDRESS>
+
+port = <PORT>
+
+db_name = <REDIS_DB_NAME>
+
+[OUTPUT_DIR]
+
+projects_folder = <PROJECTS_OUTPUT_DIR>
+
+observation_status_output_dir = <OBS_STATUS_OUTPUT_DIR>
