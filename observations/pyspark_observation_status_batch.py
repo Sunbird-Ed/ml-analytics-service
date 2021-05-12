@@ -121,7 +121,8 @@ obs_sub_cursorMongo = obsSubmissionsCollec.aggregate(
          "programId": {"$toString": "$programId"},
          "programExternalId": 1,
          "appInformation": {"appName": 1},
-         "isAPrivateProgram": 1
+         "isAPrivateProgram": 1,
+         "isRubricDriven":1
       }
    }]
 )
@@ -148,7 +149,8 @@ obs_sub_schema = StructType(
       StructField(
          'appInformation',
          StructType([StructField('appName', StringType(), True)])
-      )
+      ),
+      StructField('isRubricDriven',StringType(),True)
    ]
 )
 
@@ -203,6 +205,19 @@ obs_sub_df1 = obs_sub_df1.withColumn(
    ).otherwise("false")
 )
 
+obs_sub_df1 = obs_sub_df1.withColumn(
+   "solution_type",
+   F.when(
+      (obs_sub_df1["isRubricDriven"].isNotNull() == True) & 
+      (obs_sub_df1["isRubricDriven"] == True),
+      "observation_with_rubric"
+   ).when(
+      (obs_sub_df1["isRubricDriven"].isNotNull() == True) & 
+      (obs_sub_df1["isRubricDriven"] == False), 
+      "observation_with_out_rubric"
+   ).otherwise("observation_with_out_rubric")
+)
+
 obs_sub_df1 =  obs_sub_df1.withColumn(
    "completedDate", 
    F.concat(F.col("date"), F.lit("T"), F.col("time"), F.lit(".000Z"))
@@ -222,7 +237,8 @@ obs_sub_df = obs_sub_df1.select(
    obs_sub_df1["programId"].alias("program_id"),
    obs_sub_df1["programExternalId"].alias("program_externalId"),
    obs_sub_df1["app_name"],
-   obs_sub_df1["private_program"]
+   obs_sub_df1["private_program"],
+   obs_sub_df1["solution_type"]
 )
 obs_sub_cursorMongo.close()
 
@@ -667,11 +683,10 @@ for files in os.listdir(local_path):
          local_path + "/" + files
       )
 
-datasources = ["sl_observation_status"]
-
-sl_status_spec = config.get("DRUID", "observation_status_spec")
-
-ingestion_specs = [sl_status_spec]
+sl_status_spec = {}
+sl_status_spec = json.loads(config.get("DRUID","observation_status_spec"))
+datasources = [sl_status_spec["spec"]["dataSchema"]["dataSource"]]
+ingestion_specs = [json.dumps(sl_status_spec)]
 
 for i,j in zip(datasources,ingestion_specs):
    druid_end_point = config.get("DRUID", "druid_end_point") + i
