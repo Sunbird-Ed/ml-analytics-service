@@ -18,4 +18,4 @@ Run the following command to install all the dependencies `pip install -r requir
 
 For programs that start with `py_*` are a general ones. So use `python <PATH-TO-PROGRAM>`
 
-For programs that start with `pyspark_*` use `spark-submit <PATH-TO-PROGRAM>` for execution
+For programs that start with `pyspark_*` use `spark-submit <PATH-TO-PROGRAM>`
