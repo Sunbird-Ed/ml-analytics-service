@@ -14,7 +14,7 @@ Activate the virtual environment created earlier by running the following comman
 
 Run the following command to install all the dependencies `pip install -r requirements.txt`
 
-#### Execution
+#### Execution of Programs
 
 For programs that start with `py_*` are a general ones. So use `python <PATH-TO-PROGRAM>`
 

@@ -377,6 +377,13 @@ try:
               observationSubQuestionsObj = {}
               observationSubQuestionsObj['observationSubmissionId'] = str(obSub['_id'])
               observationSubQuestionsObj['appName'] = obsAppName
+              try :
+                if obSub["isRubricDriven"] == True :
+                  observationSubQuestionsObj['solution_type'] = "observation_with_rubric"
+                else :
+                  observationSubQuestionsObj['solution_type'] = "observation_with_out_rubric"
+              except KeyError :
+                observationSubQuestionsObj['solution_type'] = "observation_with_out_rubric"
               # geo tag validation , question answered within 200 meters of the selected entity
               if entityLatitudeCreateObjFn and entityLongitudeCreateObjFn :
                 entityGeoFencing = (entityLatitudeCreateObjFn,entityLongitudeCreateObjFn)

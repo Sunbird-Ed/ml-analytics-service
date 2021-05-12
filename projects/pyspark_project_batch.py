@@ -524,10 +524,10 @@ submissionReportColumnNamesArr = [
 
 dimensionsArr.extend(submissionReportColumnNamesArr)
 
-datasources = ["sl_projects"]
 payload = {}
-payload = json.loads(config.get("DRUID", "general_unnati_spec"))
+payload = json.loads(config.get("DRUID","project_spec"))
 payload["spec"]["dataSchema"]["dimensionsSpec"]["dimensions"] = dimensionsArr
+datasources = [payload["spec"]["dataSchema"]["dataSource"]]
 ingestion_specs = [json.dumps(payload)]
 
 for i, j in zip(datasources,ingestion_specs):

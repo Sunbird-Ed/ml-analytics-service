@@ -74,7 +74,7 @@ druid_batch_end_point = http://<INTERNAL_IP>:<PORT_NUMBER>/druid/indexer/v1/task
 
 observation_status_spec = <OBSERVATION_STATUS_SPEC>
 
-general_unnati_spec = <PROJECT_SPEC>
+project_spec = <PROJECT_SPEC>
 
 [KAFKA]
 
