@@ -185,6 +185,7 @@ projects_schema = StructType([
                 StructField('syncedAt', TimestampType(), True),
                 StructField('status', StringType(), True),
                 StructField('isDeleted', BooleanType(), True),
+                StructField('remarks',StringType(),True),
                 StructField(
                     'children',
                     ArrayType(
@@ -371,7 +372,8 @@ projects_df_cols = projects_df.select(
     projects_df["private_program"],
     projects_df["task_deleted_flag"],
     projects_df["sub_task_deleted_flag"],
-    projects_df["project_terms_and_condition"]
+    projects_df["project_terms_and_condition"],
+    projects_df["exploded_tasks"]["remarks"].alias("task_remarks")
 )
 
 projects_df_cols = projects_df_cols.dropDuplicates()
@@ -519,7 +521,7 @@ submissionReportColumnNamesArr = [
     "project_created_type", "task_assigned_to", 'channel', 'parent_channel', 'program_id',
     'program_name', 'project_updated_date', 'createdBy', 'project_title_editable', 
     'project_duration', 'program_externalId', 'private_program', 'task_deleted_flag',
-    'sub_task_deleted_flag', 'project_terms_and_condition'
+    'sub_task_deleted_flag', 'project_terms_and_condition','task_remarks'
 ]
 
 dimensionsArr.extend(submissionReportColumnNamesArr)
