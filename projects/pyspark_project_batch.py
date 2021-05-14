@@ -467,6 +467,10 @@ for usr in uniqueuserId_arr:
                 userInfoObj["designation"] = userRoles
         except KeyError :
             userInfoObj["designation"] = ''
+        try:
+            userInfoObj["organisation_name"] = userObj["orgname"]
+        except KeyError:
+            userInfoObj["organisation_name"] = ''
         user_info_arr.append(userInfoObj)
 
 user_df = ks.DataFrame(user_info_arr)
@@ -515,13 +519,14 @@ dimensionsArr = list(set(entitiesArr))
 submissionReportColumnNamesArr = [
     'project_title', 'project_goal', 'project_created_date', 'project_last_sync',
     'area_of_improvement', 'status_of_project', 'tasks', 'tasks_date', 'tasks_status',
-    'sub_task', 'sub_task_status', 'sub_task_date', "task_start_date", "task_end_date",
-    "sub_task_start_date", "sub_task_end_date", "designation", "project_deleted_flag",
-    "task_evidence", "task_evidence_status", "project_id", "task_id", "sub_task_id",
-    "project_created_type", "task_assigned_to", 'channel', 'parent_channel', 'program_id',
+    'sub_task', 'sub_task_status', 'sub_task_date', 'task_start_date', 'task_end_date',
+    'sub_task_start_date', 'sub_task_end_date', 'designation', 'project_deleted_flag',
+    'task_evidence', 'task_evidence_status', 'project_id', 'task_id', 'sub_task_id',
+    'project_created_type', 'task_assigned_to', 'channel', 'parent_channel', 'program_id',
     'program_name', 'project_updated_date', 'createdBy', 'project_title_editable', 
     'project_duration', 'program_externalId', 'private_program', 'task_deleted_flag',
-    'sub_task_deleted_flag', 'project_terms_and_condition','task_remarks'
+    'sub_task_deleted_flag', 'project_terms_and_condition','task_remarks',
+    'organisation_name'
 ]
 
 dimensionsArr.extend(submissionReportColumnNamesArr)
