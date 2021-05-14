@@ -58,6 +58,7 @@ protobuf==3.13.0
 psycopg2-binary==2.8.4
 py4j==0.10.7
 pyaes==1.6.1
+pypandoc==1.5
 pyarrow==0.17.1
 pyasn1==0.4.8
 pyasn1-modules==0.2.8
