@@ -202,7 +202,7 @@ obs_sub_df1 = obs_sub_df1.withColumn(
       (obs_sub_df1["isAPrivateProgram"].isNotNull() == True) & 
       (obs_sub_df1["isAPrivateProgram"] == False),
       "false"
-   ).otherwise("false")
+   ).otherwise("true")
 )
 
 obs_sub_df1 = obs_sub_df1.withColumn(
