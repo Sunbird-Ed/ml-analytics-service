@@ -449,9 +449,9 @@ try:
                 if obSub['isAPrivateProgram']:
                   observationSubQuestionsObj['isAPrivateProgram'] = obSub['isAPrivateProgram']
                 else:
-                  observationSubQuestionsObj['isAPrivateProgram'] = False
+                  observationSubQuestionsObj['isAPrivateProgram'] = True
               except KeyError:
-                observationSubQuestionsObj['isAPrivateProgram'] = False
+                observationSubQuestionsObj['isAPrivateProgram'] = True
 
               try:
                 observationSubQuestionsObj['programExternalId'] = obSub['programExternalId']

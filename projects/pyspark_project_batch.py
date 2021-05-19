@@ -115,7 +115,7 @@ projects_cursorMongo = projectsCollec.aggregate(
             "title": 1,
             "programId": {"$toString": "$programId"},
             "programInformation": {"name": 1},
-            "metaInformation": {"duration": 1},
+            "metaInformation": {"duration": 1,"goal":1},
             "syncedAt": 1,
             "updatedAt": 1,
             "isDeleted": 1,
@@ -148,7 +148,9 @@ projects_schema = StructType([
     ),
     StructField(
         'metaInformation',
-        StructType([StructField('duration', StringType(), True)])
+        StructType([StructField('duration', StringType(), True),
+                    StructField('goal', StringType(), True)
+                    ])
     ),
     StructField('updatedAt', TimestampType(), True),
     StructField('syncedAt', TimestampType(), True),
@@ -259,7 +261,7 @@ projects_df = projects_df.withColumn(
         (projects_df["isAPrivateProgram"].isNotNull() == True) & 
         (projects_df["isAPrivateProgram"] == False),
         "false"
-    ).otherwise("false")
+    ).otherwise("true")
 )
 
 projects_df = projects_df.withColumn(
@@ -352,7 +354,8 @@ projects_df_cols = projects_df.select(
     projects_df["exploded_categories"]["name"].alias("area_of_improvement"),
     projects_df["status"].alias("status_of_project"),
     projects_df["userId"].alias("createdBy"),
-    projects_df["description"].alias("project_goal"),
+    projects_df["description"].alias("project_description"),
+    projects_df["metaInformation"]["goal"].alias("project_goal"),
     projects_df["parent_channel"],
     projects_df["createdAt"].alias("project_created_date"),
     projects_df["exploded_tasks"]["_id"].alias("task_id"),
@@ -526,7 +529,7 @@ submissionReportColumnNamesArr = [
     'program_name', 'project_updated_date', 'createdBy', 'project_title_editable', 
     'project_duration', 'program_externalId', 'private_program', 'task_deleted_flag',
     'sub_task_deleted_flag', 'project_terms_and_condition','task_remarks',
-    'organisation_name'
+    'organisation_name','project_description'
 ]
 
 dimensionsArr.extend(submissionReportColumnNamesArr)
