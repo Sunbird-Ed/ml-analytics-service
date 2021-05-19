@@ -128,10 +128,15 @@ try:
             userObj = datastore.hgetall("user:" + obSub["createdBy"])
             if userObj :
                 rootOrgId = None
+                orgName = None
                 try:
                     rootOrgId = userObj["rootorgid"]
                 except KeyError :
                     rootOrgId = ''
+                try:
+                    orgName = userObj["orgname"]
+                except KeyError:
+                    orgName = ''
                 if 'answers' in obSub.keys() :  
                     answersArr = [v for v in obSub['answers'].values()]
                     for ans in answersArr:
@@ -285,7 +290,7 @@ try:
                                 for ques in questionsCollec.find({'_id':ObjectId(ans['qid'])}):
                                     surveySubQuestionsObj['instanceParentExternalId'] = ques['externalId']
                                 surveySubQuestionsObj['instanceParentEcmSequence']= sequenceNumber(
-                                    observationSubQuestionsObj['instanceParentExternalId'], answer
+                                    surveySubQuestionsObj['instanceParentExternalId'], answer
                                 )
                             else:
                                 surveySubQuestionsObj['instanceParentQuestion'] = ''
@@ -296,6 +301,7 @@ try:
                                 surveySubQuestionsObj['instanceParentEcmSequence'] = '' 
                             surveySubQuestionsObj['channel'] = rootOrgId 
                             surveySubQuestionsObj['parent_channel'] = "SHIKSHALOKAM"
+                            surveySubQuestionsObj['organisation_name'] = orgName
                             return surveySubQuestionsObj
 
                         # fetching the question details from questions collection

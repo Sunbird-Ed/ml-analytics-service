@@ -240,7 +240,7 @@ try:
         userSchool = None
         userSchoolUDISE = None
         userSchoolName = None
-
+        orgName = None
         try:
           userSchool = userObj["school"]
         except KeyError :
@@ -285,6 +285,10 @@ try:
           rootOrgId = userObj["rootorgid"]
         except KeyError :
           rootOrgId = ''
+        try:
+          orgName = userObj["orgname"]
+        except KeyError:
+          orgName = ''
 
         userRoles = {}
         obsAppName = None
@@ -308,6 +312,7 @@ try:
                       userEntityRelatedResultKeyCheck = None
                       roleObj = {}
                       roleObj["role_title"] = rol["title"]
+                      roleObj["organisation_name"] = orgName
                       if userEntityRelated:
                         userEntityRelatedResultKeyCheck = "result" in userEntityRelated
                         if userEntityRelatedResultKeyCheck == True:
@@ -341,6 +346,7 @@ try:
           roleObj["user_schoolName"] = userSchoolName
           roleObj["user_schoolId"] = userSchool
           roleObj["user_schoolUDISE_code"] = userSchoolUDISE
+          roleObj["organisation_name"] = orgName
           userRolesArrUnique.append(roleObj)
         entityRelated = None
         entityRelated = getRelatedEntity(entityId)
