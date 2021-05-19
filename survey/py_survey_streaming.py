@@ -169,9 +169,9 @@ try:
                                 if obSub['isAPrivateProgram']:
                                     surveySubQuestionsObj['isAPrivateProgram'] = obSub['isAPrivateProgram']
                                 else:
-                                    surveySubQuestionsObj['isAPrivateProgram'] = False
+                                    surveySubQuestionsObj['isAPrivateProgram'] = True
                             except KeyError:
-                                surveySubQuestionsObj['isAPrivateProgram'] = False
+                                surveySubQuestionsObj['isAPrivateProgram'] = True
                                 pass
 
                             try:
