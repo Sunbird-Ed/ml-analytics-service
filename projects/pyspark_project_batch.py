@@ -278,6 +278,14 @@ projects_df = projects_df.withColumn(
 )
 
 projects_df = projects_df.withColumn(
+    "project_completed_date",
+    F.when(
+        projects_df["status"] == "completed",
+        projects_df["updatedAt"]
+    ).otherwise(None)
+)
+
+projects_df = projects_df.withColumn(
     "exploded_categories", F.explode_outer(F.col("categories"))
 )
 
@@ -376,7 +384,8 @@ projects_df_cols = projects_df.select(
     projects_df["task_deleted_flag"],
     projects_df["sub_task_deleted_flag"],
     projects_df["project_terms_and_condition"],
-    projects_df["exploded_tasks"]["remarks"].alias("task_remarks")
+    projects_df["exploded_tasks"]["remarks"].alias("task_remarks"),
+    projects_df["project_completed_date"]
 )
 
 projects_df_cols = projects_df_cols.dropDuplicates()
@@ -529,7 +538,7 @@ submissionReportColumnNamesArr = [
     'program_name', 'project_updated_date', 'createdBy', 'project_title_editable', 
     'project_duration', 'program_externalId', 'private_program', 'task_deleted_flag',
     'sub_task_deleted_flag', 'project_terms_and_condition','task_remarks',
-    'organisation_name','project_description'
+    'organisation_name','project_description','project_completed_date'
 ]
 
 dimensionsArr.extend(submissionReportColumnNamesArr)
