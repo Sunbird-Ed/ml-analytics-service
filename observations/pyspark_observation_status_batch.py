@@ -122,7 +122,8 @@ obs_sub_cursorMongo = obsSubmissionsCollec.aggregate(
          "programExternalId": 1,
          "appInformation": {"appName": 1},
          "isAPrivateProgram": 1,
-         "isRubricDriven":1
+         "isRubricDriven":1,
+         "criteriaLevelReport":1
       }
    }]
 )
@@ -150,7 +151,8 @@ obs_sub_schema = StructType(
          'appInformation',
          StructType([StructField('appName', StringType(), True)])
       ),
-      StructField('isRubricDriven',StringType(),True)
+      StructField('isRubricDriven',StringType(),True),
+      StructField('criteriaLevelReport',StringType(),True)
    ]
 )
 
@@ -209,8 +211,14 @@ obs_sub_df1 = obs_sub_df1.withColumn(
    "solution_type",
    F.when(
       (obs_sub_df1["isRubricDriven"].isNotNull() == True) & 
-      (obs_sub_df1["isRubricDriven"] == True),
+      (obs_sub_df1["isRubricDriven"] == True) &
+      (obs_sub_df1["criteriaLevelReport"] == True),
       "observation_with_rubric"
+   ).when(
+      (obs_sub_df1["isRubricDriven"].isNotNull() == True) &
+      (obs_sub_df1["isRubricDriven"] == True) &
+      (obs_sub_df1["criteriaLevelReport"] == False),
+      "observation_with_out_rubric"
    ).when(
       (obs_sub_df1["isRubricDriven"].isNotNull() == True) & 
       (obs_sub_df1["isRubricDriven"] == False), 
