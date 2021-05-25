@@ -171,13 +171,9 @@ try:
                             surveySubQuestionsObj['createdBy'] = obSub['createdBy']
 
                             try:
-                                if obSub['isAPrivateProgram']:
-                                    surveySubQuestionsObj['isAPrivateProgram'] = obSub['isAPrivateProgram']
-                                else:
-                                    surveySubQuestionsObj['isAPrivateProgram'] = True
+                                surveySubQuestionsObj['isAPrivateProgram'] = obSub['isAPrivateProgram']
                             except KeyError:
-                                surveySubQuestionsObj['isAPrivateProgram'] = True
-                                pass
+                                surveySubQuestionsObj['isAPrivateProgram'] = False
 
                             try:
                                 surveySubQuestionsObj['programExternalId'] = obSub['programExternalId']
