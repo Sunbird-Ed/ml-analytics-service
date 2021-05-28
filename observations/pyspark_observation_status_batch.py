@@ -123,7 +123,20 @@ obs_sub_cursorMongo = obsSubmissionsCollec.aggregate(
          "appInformation": {"appName": 1},
          "isAPrivateProgram": 1,
          "isRubricDriven":1,
-         "criteriaLevelReport":1
+         "criteriaLevelReport":1,
+         "ecm_marked_na": {
+            "$reduce": {
+               "input": "$evidencesStatus",
+               "initialValue": "",
+               "in": {
+                  "$cond": [
+                     {"$eq": [{"$toBool":"$$this.notApplicable"},True]}, 
+                     {"$concat" : ["$$value", "$$this.name", ";"]}, 
+                     "$$value"
+                  ]
+               }
+            }
+         }
       }
    }]
 )
@@ -152,7 +165,8 @@ obs_sub_schema = StructType(
          StructType([StructField('appName', StringType(), True)])
       ),
       StructField('isRubricDriven',StringType(),True),
-      StructField('criteriaLevelReport',StringType(),True)
+      StructField('criteriaLevelReport',StringType(),True),
+      StructField('ecm_marked_na', StringType(), True)
    ]
 )
 
@@ -246,7 +260,8 @@ obs_sub_df = obs_sub_df1.select(
    obs_sub_df1["programExternalId"].alias("program_externalId"),
    obs_sub_df1["app_name"],
    obs_sub_df1["private_program"],
-   obs_sub_df1["solution_type"]
+   obs_sub_df1["solution_type"],
+   obs_sub_df1["ecm_marked_na"]
 )
 obs_sub_cursorMongo.close()
 
