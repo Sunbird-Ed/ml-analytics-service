@@ -39,10 +39,10 @@ successLogger.setLevel(logging.DEBUG)
 
 # Add the log message handler to the logger
 successHandler = logging.handlers.RotatingFileHandler(
-   config.get('LOGS','observation_status_success_log_filename')
+   config.get('LOGS','observation_status_success')
 )
 successBackuphandler = TimedRotatingFileHandler(
-   config.get('LOGS','observation_status_success_log_filename'),
+   config.get('LOGS','observation_status_success'),
    when="w0",
    backupCount=1
 )
@@ -53,10 +53,10 @@ successLogger.addHandler(successBackuphandler)
 errorLogger = logging.getLogger('error log')
 errorLogger.setLevel(logging.ERROR)
 errorHandler = logging.handlers.RotatingFileHandler(
-   config.get('LOGS','observation_status_error_log_filename')
+   config.get('LOGS','observation_status_error')
 )
 errorBackuphandler = TimedRotatingFileHandler(
-   config.get('LOGS','observation_status_error_log_filename'),
+   config.get('LOGS','observation_status_error'),
    when="w0",
    backupCount=1
 )
@@ -90,10 +90,10 @@ except Exception as e:
 
 clientProd = MongoClient(config.get('MONGO', 'mongo_url'))
 db = clientProd[config.get('MONGO', 'database_name')]
-obsSubmissionsCollec = db[config.get('MONGO', 'observation_sub_collec')]
-solutionCollec = db[config.get('MONGO', 'solutions_collec')]
+obsSubmissionsCollec = db[config.get('MONGO', 'observation_sub_collection')]
+solutionCollec = db[config.get('MONGO', 'solutions_collection')]
 userRolesCollec = db[config.get("MONGO", 'user_roles_collection')]
-programCollec = db[config.get("MONGO", 'programs_collec')]
+programCollec = db[config.get("MONGO", 'programs_collection')]
 
 # redis cache connection 
 redis_connection = redis.ConnectionPool(
@@ -202,7 +202,7 @@ obs_sub_df1 = obs_sub_df1.withColumn(
    "app_name", 
    F.when(
       obs_sub_df1["appInformation"]["appName"].isNull(), 
-      F.lit(config.get("COMMON", "diksha_survey_app_name"))
+      F.lit(config.get("ML_APP_NAME", "survey_app"))
    ).otherwise(
       lower(obs_sub_df1["appInformation"]["appName"])
    )
@@ -498,7 +498,7 @@ while user_data:
       'scroll': '1m',
       'scroll_id': user_scroll_id
    })
-   user_scroll_api_url = config.get("ELASTICSEARCH", "url_user_scroll")
+   user_scroll_api_url = config.get("ELASTICSEARCH", "url_scroll")
    user_scroll_response = requests.post(
       user_scroll_api_url, headers=headers_user, data = user_scroll_payload
    )
@@ -580,7 +580,7 @@ while entity_data:
       'scroll': '1m',
       'scroll_id': entity_scroll_id
    })
-   entity_scroll_api_url = config.get("ELASTICSEARCH", "url_user_scroll")
+   entity_scroll_api_url = config.get("ELASTICSEARCH", "url_scroll")
    entity_scroll_response = requests.post(
       entity_scroll_api_url, headers=headers_entity, data=entity_scroll_payload
    )
@@ -642,7 +642,7 @@ obs_sub_status_df_survey = obs_sub_pgm_df.join(
    user_df,
    [
       obs_sub_pgm_df.user_id==user_df.id, 
-      obs_sub_pgm_df.app_name==config.get("COMMON", "diksha_survey_app_name")
+      obs_sub_pgm_df.app_name==config.get("ML_APP_NAME", "survey_app")
    ],
    'inner'
 ).drop(user_df["id"]).drop(user_df["entity_id"])
@@ -651,7 +651,7 @@ obs_sub_status_df_integrated_app = obs_sub_pgm_df.join(
    user_df_integrated_app,
    [
       obs_sub_pgm_df.user_id==user_df_integrated_app.id,
-      obs_sub_pgm_df.app_name==config.get("COMMON", "diksha_integrated_app_name")
+      obs_sub_pgm_df.app_name==config.get("ML_APP_NAME", "integrated_app")
    ],
    'inner'
 ).drop(user_df_integrated_app["id"])
@@ -686,14 +686,14 @@ final_df = obs_sub_status_df_integrated_app.unionByName(obs_sub_status_df_survey
 final_df = final_df.dropDuplicates()
 
 final_df.coalesce(1).write.format("json").mode("overwrite").save(
-   config.get("OUTPUT_DIR", "observation_status_output_dir")+"/"
+   config.get("OUTPUT_DIR", "observation_status")+"/"
 )
 
-for filename in os.listdir(config.get("OUTPUT_DIR", "observation_status_output_dir")+"/"):
+for filename in os.listdir(config.get("OUTPUT_DIR", "observation_status")+"/"):
    if filename.endswith(".json"):
       os.rename(
-         config.get("OUTPUT_DIR", "observation_status_output_dir") + "/" + filename, 
-         config.get("OUTPUT_DIR", "observation_status_output_dir") + "/sl_observation_status.json"
+         config.get("OUTPUT_DIR", "observation_status") + "/" + filename, 
+         config.get("OUTPUT_DIR", "observation_status") + "/sl_observation_status.json"
       )
 
 blob_service_client = BlockBlobService(
@@ -701,8 +701,8 @@ blob_service_client = BlockBlobService(
    sas_token=config.get("AZURE", "sas_token")
 )
 container_name = config.get("AZURE", "container_name")
-local_path = config.get("OUTPUT_DIR", "observation_status_output_dir")
-blob_path = config.get("AZURE", "blob_path")
+local_path = config.get("OUTPUT_DIR", "observation_status")
+blob_path = config.get("AZURE", "observation_blob_path")
 
 for files in os.listdir(local_path):
    if "sl_observation_status.json" in files:
@@ -713,13 +713,13 @@ for files in os.listdir(local_path):
       )
 
 sl_status_spec = {}
-sl_status_spec = json.loads(config.get("DRUID","observation_status_spec"))
+sl_status_spec = json.loads(config.get("DRUID","observation_status_injestion_spec"))
 datasources = [sl_status_spec["spec"]["dataSchema"]["dataSource"]]
 ingestion_specs = [json.dumps(sl_status_spec)]
 
 for i,j in zip(datasources,ingestion_specs):
-   druid_end_point = config.get("DRUID", "druid_end_point") + i
-   druid_batch_end_point = config.get("DRUID", "druid_batch_end_point")
+   druid_end_point = config.get("DRUID", "metadata_url") + i
+   druid_batch_end_point = config.get("DRUID", "batch_url")
    headers = {'Content-Type': 'application/json'}
    get_timestamp = requests.get(druid_end_point, headers=headers)
    successLogger.debug(get_timestamp)

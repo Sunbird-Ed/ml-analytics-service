@@ -1,157 +1,157 @@
-[COMMON]
+[ML_APP_NAME]
 
-diksha_survey_app_name = <SURVEY_APP_NAME>
+survey_app = {{ ML_SURVEY_APP_NAME }}
 
-diksha_integrated_app_name = <INTEGRATED_APP_NAME>
+integrated_app = {{ ML_INTEGRATED_APP_NAME }}
 
 [API_HEADERS]
 
 content_type = application/json
 
-authorization = <AUTHORIZATION_KEY>
+authorization = {{ API_AUTHORIZATION_KEY }}
 
-internal_access_token = <ACCESS_TOKEN>
+internal_access_token = {{ API_ACCESS_TOKEN }}
 
-[URL]
+[ML_SURVEY_SERVICE_URL]
 
-base_url = http://<INTERNAL_IP>:<PORT_NUMBER>
+url = http://{{ ML_SURVEY_SERVICE_IP }}:{{ ML_SURVEY_SERVICE_PORT }}
 
-url_entity_related = assessment/api/v1/entities/relatedEntities/
+entity_related_end_point = assessment/api/v1/entities/relatedEntities/
 
-url_user_profile_api = assessment/api/v1/userExtension/getProfile/
+user_profile_end_point = assessment/api/v1/userExtension/getProfile/
 
-evidence_base_url = <EVIDENCE_BASE_URL>
+evidence_base_url = {{ EVIDENCE_BASE_URL }}
 
 [MONGO]
 
 # --------------
-# Mongo prod url
+# Mongo  url
 #---------------
 
-mongo_url = mongodb://<INTERNAL_IP>:<PORT_NUMBER>
+url = mongodb://{{ MONGO_IP }}:{{ MONGO_PORT }}
 
 # -----------------------
 # Mongo database name
 # -----------------------
 
-database_name = <DATABASE_NAME>
+database_name = {{ MONGO_DB_NAME }}
 
 # -------------------
 # Mongo Collections
 # -------------------
 
-observation_sub_collec = <OBSERVATION_SUB_COLLECTION_NAME>
+observation_sub_collection = {{ MONGO_OBSERVATION_SUBMISSION_COLLECTION }}
 
-solutions_collec = <SOLUTION_COLLECTION_NAME>
+solutions_collection = {{ MONGO_SOLUTION_COLLECTION }}
 
-observations_collec = <OBSERVATION_COLLECTION_NAME>
+observations_collection = {{ MONGO_OBSERVATION_COLLECTION }}
 
-entity_type_collec = <ENTITY_TYPE_COLLECTION_NAME>
+entity_type_collection = {{ MONGO_ENTITY_TYPE_COLLECTION }}
 
-questions_collec = <QUESTION_COLLECTION_NAME>
+questions_collection = {{ MONGO_QUESTION_COLLECTION }}
 
-criteria_collec = <CRITERIA_COLLECTION_NAME>
+criteria_collection = {{ MONGO_CRITERIA_COLLECTION }}
 
-entities_collec = <ENTITIES_COLLECTION_NAME>
+entities_collection = {{ MONGO_ENTITIES_COLLECTION }}
 
-programs_collec = <PROGRAM_COLLECTION_NAME>
+programs_collection = {{ MONGO_PROGRAM_COLLECTION }}
 
-user_roles_collection = <USERROLES_COLLECTION_NAME>
+user_roles_collection = {{ MONGO_USERROLES_COLLECTION }}
 
-criteria_questions_collection = <CRITERIA_QUESRIONS_COLLECTION_NAME>
+criteria_questions_collection = {{ MONGO_CRITERIA_QUESTIONS_COLLECTION }}
 
-projects_collection = <PROJECTS_COLLECTION_NAME>
+projects_collection = {{ MONGO_PROJECTS_COLLECTION }}
 
-survey_submissions_collection = <SURVEY_SUBMISSIONS_COLLECTION>
+survey_submissions_collection = {{ MONGO_SURVEY_SUBMISSIONS_COLLECTION }}
 
-survey_collection = <SURVEY_COLLECTION>
+survey_collection = {{ MONGO_SURVEY_COLLECTION }}
 
 [DRUID]
 
-druid_end_point = http://<INTERNAL_IP>:<PORT_NUMBER>/druid/coordinator/v1/datasources/
+metadata_url = http://{{ DRUID_IP }}:{{ DRUID_PORT }}/druid/coordinator/v1/datasources/
 
-druid_batch_end_point = http://<INTERNAL_IP>:<PORT_NUMBER>/druid/indexer/v1/task
+batch_url = http://{{ DRUID_IP }}:{{ DRUID_PORT }}/druid/indexer/v1/task
 
-observation_status_spec = <OBSERVATION_STATUS_SPEC>
+observation_status_injestion_spec = {{ DRUID_OBSERVATION_STATUS_INJESTION_SPEC }}
 
-project_spec = <PROJECT_SPEC>
+project_injestion_spec = {{ DRUID_PROJECT_INJESTION_SPEC }}
 
 [KAFKA]
 
-kafka_url = <KAFKA_INTERNAL_IP>:<PORT>
+url = {{ KAFKA_IP }}:{{ KAFKA_PORT }}
 
-kafka_raw_data_topic = <OBS_TOPIC_NAME>
+observation_raw_topic = {{ KAFKA_OBSERVATION_TOPIC_NAME }}
 
-kafka_druid_topic = <OBS_DRUID_TOPIC_NAME>
+observation_druid_topic = {{ KAFKA_OBSERVATION_DRUID_TOPIC_NAME }}
 
-kafka_evidence_druid_topic =  <OBS_EVIDENCE_TOPIC_NAME>
+observation_evidence_druid_topic =  {{ KAFKA_OBSERVATION_EVIDENCE_TOPIC_NAME }}
 
-kafka_evidence_survey_druid_topic = <SURVEY_EVIDENCE_TOPIC_NAME>
+survey_evidence_druid_topic = {{ KAFKA_SURVEY_EVIDENCE_TOPIC_NAME }}
 
-kafka_raw_survey_topic = <SURVEY_TOPIC_NAME>
+survey_raw_topic = {{ KAFKA_SURVEY_TOPIC_NAME }}
 
-kafka_survey_druid_topic = <SURVEY_DRUID_TOPIC_NAME>
+survey_druid_topic = {{ KAFKA_SURVEY_DRUID_TOPIC_NAME }}
 
 [LOGS]
 
-observation_streaming_success_log_filename = <FOLDER_PATH>/success.log
+observation_streaming_success = {{ OBSERVATION_LOG_FOLDER_PATH }}/success.log
 
-observation_streaming_error_log_filename = <FOLDER_PATH>/error.log
+observation_streaming_error = {{ OBSERVATION_LOG_FOLDER_PATH }}/error.log
 
-observation_streaming_evidence_success_log_filename = <FOLDER_PATH>/success.log
+observation_streaming_evidence_success = {{ OBSERVATION_LOG_FOLDER_PATH }}/evidence/success.log
 
-observation_streaming_evidence_error_log_filename = <FOLDER_PATH>/error.log
+observation_streaming_evidence_error = {{ OBSERVATION_LOG_FOLDER_PATH }}/evidence/error.log
 
-observation_status_success_log_filename = <FOLDER_PATH>/status/success.log
+observation_status_success = {{ OBSERVATION_LOG_FOLDER_PATH }}/status/success.log
 
-observation_status_error_log_filename = <FOLDER_PATH>/status/error.log
+observation_status_error = {{ OBSERVATION_LOG_FOLDER_PATH }}/status/error.log
 
-project_success_log_filename = <SUCCESS_LOG_FILE_PATH>
+project_success = {{ PROJECT_LOG_FOLDER_PATH }}/success.log
 
-project_error_log_filename = <ERROR_LOG_FILE_PATH>
+project_error = {{ PROJECT_LOG_FOLDER_PATH }}/error.log
 
-survey_evidence_streaming_success_log_filename = <EVIDENCE_SUCCESS_LOG_FILE_PATH>
+survey_evidence_streaming_success = {{ SURVEY_LOG_FOLDER_PATH }}/evidence/success.log
 
-survey_evidence_streaming_error_log_filename = <EVIDENCE_ERROR_LOG_FILE_PATH>
+survey_evidence_streaming_error = {{ SURVEY_LOG_FOLDER_PATH }}/evidence/error.log
 
-survey_streaming_success_log_filename = <SUCCESS_LOG_FILE_PATH>
+survey_streaming_success = {{ SURVEY_LOG_FOLDER_PATH }}/success.log
 
-survey_streaming_error_log_filename = <ERROR_LOG_FILE_PATH>
+survey_streaming_error = {{ SURVEY_LOG_FOLDER_PATH }}/error.log
 
 [ELASTICSEARCH]
 
 header = {'Content-Type': 'application/json'}
 
-url_user = http://<INTERNAL_IP>:<PORT_NUMBER>/users/_search/?scroll=1m
+url_user = http://{{ ES_IP }}:{{ ES_PORT }}/users/_search/?scroll=1m
 
 user_body = {"size": 10000,"query":{"bool":{"must":[{"match":{"_type":"common"}}]}}}
 
-url_user_scroll = http://<INTERNAL_IP>:<PORT_NUMBER>/_search/scroll
+url_scroll = http://{{ ES_IP }}:{{ ES_PORT }}/_search/scroll
 
-url_entity = http://<INTERNAL_IP>:<PORT_NUMBER>/entities/_search/?scroll=1m
+url_entity = http://{{ ES_IP }}:{{ ES_PORT }}/entities/_search/?scroll=1m
 
 [AZURE]
 
-account_name = <ACCOUNT_NAME>
+account_name = {{ AZURE_ACCOUNT_NAME }}
 
-sas_token = <SAS_TOKEN>
+sas_token = {{ AZURE_SAS_TOKEN }}
 
-container_name = <CONTAINER_NAME>
+container_name = {{ AZURE_CONTAINER_NAME }}
 
-blob_path = <OBS_BLOB_PATH>
+observation_blob_path = {{ OBSERVATION_AZURE_BLOB_PATH }}
 
-projects_blob_path = <PROJECTS_BLOB_PATH>
+projects_blob_path = {{ PROJECT_AZURE_BLOB_PATH }}
 
 [REDIS]
 
-host = <HOST_ADDRESS>
+host = {{ REDIS_HOST }}
 
-port = <PORT>
+port = {{ REDIS_PORT }}
 
-db_name = <REDIS_DB_NAME>
+db_name = {{ REDIS_DB_NAME }}
 
 [OUTPUT_DIR]
 
-projects_folder = <PROJECTS_OUTPUT_DIR>
+project = {{ PROJECT_OUTPUT_DIR }}
 
-observation_status_output_dir = <OBS_STATUS_OUTPUT_DIR>
+observation_status = {{ OBSERVATION_STATUS_OUTPUT_DIR }}

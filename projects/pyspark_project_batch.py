@@ -38,10 +38,10 @@ successLogger.setLevel(logging.DEBUG)
 
 # Add the log message handler to the logger
 successHandler = logging.handlers.RotatingFileHandler(
-    config.get('LOGS', 'project_success_log_filename')
+    config.get('LOGS', 'project_success')
 )
 successBackuphandler = TimedRotatingFileHandler(
-    config.get('LOGS','project_success_log_filename'),
+    config.get('LOGS','project_success'),
     when="w0",
     backupCount=1
 )
@@ -52,10 +52,10 @@ successLogger.addHandler(successBackuphandler)
 errorLogger = logging.getLogger('error log')
 errorLogger.setLevel(logging.ERROR)
 errorHandler = logging.handlers.RotatingFileHandler(
-    config.get('LOGS', 'project_error_log_filename')
+    config.get('LOGS', 'project_error')
 )
 errorBackuphandler = TimedRotatingFileHandler(
-    config.get('LOGS', 'project_error_log_filename'),
+    config.get('LOGS', 'project_error'),
     when="w0",
     backupCount=1
 )
@@ -497,14 +497,14 @@ final_projects_df = projects_df_cols.join(
 final_projects_df = final_projects_df.dropDuplicates()
 
 final_projects_df.coalesce(1).write.format("json").mode("overwrite").save(
-    config.get("OUTPUT_DIR", "projects_folder") + "/"
+    config.get("OUTPUT_DIR", "project") + "/"
 )
 
-for filename in os.listdir(config.get("OUTPUT_DIR", "projects_folder")+"/"):
+for filename in os.listdir(config.get("OUTPUT_DIR", "project")+"/"):
     if filename.endswith(".json"):
        os.rename(
-           config.get("OUTPUT_DIR", "projects_folder") + "/" + filename,
-           config.get("OUTPUT_DIR", "projects_folder") + "/sl_projects.json"
+           config.get("OUTPUT_DIR", "project") + "/" + filename,
+           config.get("OUTPUT_DIR", "project") + "/sl_projects.json"
         )
 
 blob_service_client = BlockBlobService(
@@ -512,7 +512,7 @@ blob_service_client = BlockBlobService(
     sas_token=config.get("AZURE", "sas_token")
 )
 container_name = config.get("AZURE", "container_name")
-local_path = config.get("OUTPUT_DIR", "projects_folder")
+local_path = config.get("OUTPUT_DIR", "project")
 blob_path = config.get("AZURE", "projects_blob_path")
 
 for files in os.listdir(local_path):
@@ -523,7 +523,7 @@ for files in os.listdir(local_path):
             local_path + "/" + files
         )
 
-os.remove(config.get("OUTPUT_DIR", "projects_folder") + "/sl_projects.json")
+os.remove(config.get("OUTPUT_DIR", "project") + "/sl_projects.json")
 
 dimensionsArr = []
 dimensionsArr = list(set(entitiesArr))
@@ -544,14 +544,14 @@ submissionReportColumnNamesArr = [
 dimensionsArr.extend(submissionReportColumnNamesArr)
 
 payload = {}
-payload = json.loads(config.get("DRUID","project_spec"))
+payload = json.loads(config.get("DRUID","project_injestion_spec"))
 payload["spec"]["dataSchema"]["dimensionsSpec"]["dimensions"] = dimensionsArr
 datasources = [payload["spec"]["dataSchema"]["dataSource"]]
 ingestion_specs = [json.dumps(payload)]
 
 for i, j in zip(datasources,ingestion_specs):
-    druid_end_point = config.get("DRUID", "druid_end_point") + i
-    druid_batch_end_point = config.get("DRUID", "druid_batch_end_point")
+    druid_end_point = config.get("DRUID", "metadata_url") + i
+    druid_batch_end_point = config.get("DRUID", "batch_url")
     headers = {'Content-Type' : 'application/json'}
     get_timestamp = requests.get(druid_end_point, headers=headers)
     if get_timestamp.status_code == 200:
