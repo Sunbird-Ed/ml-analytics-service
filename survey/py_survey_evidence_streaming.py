@@ -59,10 +59,11 @@ errorLogger.addHandler(errorBackuphandler)
 
 try:
     app = faust.App(
-        'sl_py_survey_evidence_prod',
+        'ml_survey_evidence_faust',
         broker='kafka://'+config.get("KAFKA", "url"),
         value_serializer='raw',
-        web_port=7005
+        web_port=7004,
+        broker_max_poll_records=500
     )
 
     kafka_url = config.get("KAFKA", "url")
