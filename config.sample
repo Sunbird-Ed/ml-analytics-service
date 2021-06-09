@@ -14,7 +14,7 @@ internal_access_token = {{ API_ACCESS_TOKEN }}
 
 [ML_SURVEY_SERVICE_URL]
 
-url = http://{{ ML_SURVEY_SERVICE_IP }}:{{ ML_SURVEY_SERVICE_PORT }}
+url = {{ ML_SURVEY_SERVICE }}
 
 entity_related_end_point = assessment/api/v1/entities/relatedEntities/
 
@@ -28,7 +28,7 @@ evidence_base_url = {{ EVIDENCE_BASE_URL }}
 # Mongo  url
 #---------------
 
-url = mongodb://{{ MONGO_IP }}:{{ MONGO_PORT }}
+url = mongodb://{{ MONGODB_URL }}
 
 # -----------------------
 # Mongo database name
@@ -68,9 +68,9 @@ survey_collection = {{ MONGO_SURVEY_COLLECTION }}
 
 [DRUID]
 
-metadata_url = http://{{ DRUID_IP }}:{{ DRUID_PORT }}/druid/coordinator/v1/datasources/
+metadata_url = http://{{ DRUID_URL }}/druid/coordinator/v1/datasources/
 
-batch_url = http://{{ DRUID_IP }}:{{ DRUID_PORT }}/druid/indexer/v1/task
+batch_url = http://{{ DRUID_URL }}/druid/indexer/v1/task
 
 observation_status_injestion_spec = {{ DRUID_OBSERVATION_STATUS_INJESTION_SPEC }}
 
@@ -78,7 +78,7 @@ project_injestion_spec = {{ DRUID_PROJECT_INJESTION_SPEC }}
 
 [KAFKA]
 
-url = {{ KAFKA_IP }}:{{ KAFKA_PORT }}
+url = {{ KAFKA_URL }}
 
 observation_raw_topic = {{ KAFKA_OBSERVATION_TOPIC_NAME }}
 
@@ -122,13 +122,13 @@ survey_streaming_error = {{ SURVEY_LOG_FOLDER_PATH }}/error.log
 
 header = {'Content-Type': 'application/json'}
 
-url_user = http://{{ ES_IP }}:{{ ES_PORT }}/users/_search/?scroll=1m
+url_user = http://{{ ES_URL }}/users/_search/?scroll=1m
 
 user_body = {"size": 10000,"query":{"bool":{"must":[{"match":{"_type":"common"}}]}}}
 
-url_scroll = http://{{ ES_IP }}:{{ ES_PORT }}/_search/scroll
+url_scroll = http://{{ ES_URL }}/_search/scroll
 
-url_entity = http://{{ ES_IP }}:{{ ES_PORT }}/entities/_search/?scroll=1m
+url_entity = http://{{ ES_URL }}/entities/_search/?scroll=1m
 
 [AZURE]
 

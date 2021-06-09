@@ -61,7 +61,7 @@ domArr = []
 kafka_url = config.get("KAFKA", "url")
 #consume the message from kafka topic
 app = faust.App(
-  'sl_observation_diksha_faust',
+  'ml_observation_faust',
   broker='kafka://'+kafka_url,
   value_serializer='raw',
   web_port=7001,

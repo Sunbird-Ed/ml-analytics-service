@@ -65,10 +65,10 @@ errorLogger.addHandler(errorBackuphandler)
 try:
     kafka_url = (config.get("KAFKA", "url"))
     app = faust.App(
-        'sl_survey_prod_faust',
+        'ml_survey_faust',
         broker='kafka://'+kafka_url,
         value_serializer='raw',
-        web_port=7004,
+        web_port=7003,
         broker_max_poll_records=500
     )
     rawTopicName = app.topic(config.get("KAFKA", "survey_raw_topic"))

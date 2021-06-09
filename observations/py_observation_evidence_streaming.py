@@ -55,7 +55,7 @@ errorLogger.addHandler(errorBackuphandler)
 try:
   kafka_url = config.get("KAFKA", "url")
   app = faust.App(
-    'sl_observation_evidences_diksha_faust',
+    'ml_observation_evidence_faust',
     broker='kafka://'+kafka_url,
     value_serializer='raw',
     web_port=7002,
