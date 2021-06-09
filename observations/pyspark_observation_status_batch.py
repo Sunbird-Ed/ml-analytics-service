@@ -118,6 +118,7 @@ obs_sub_cursorMongo = obsSubmissionsCollec.aggregate(
          "solutionId": {"$toString": "$solutionId"},
          "solutionExternalId": 1,
          "updatedAt": 1, 
+         "completedDate": 1,
          "programId": {"$toString": "$programId"},
          "programExternalId": 1,
          "appInformation": {"appName": 1},
@@ -155,6 +156,7 @@ obs_sub_schema = StructType(
       StructField('programExternalId', StringType(), True),
       StructField('_id', StringType(), True),
       StructField('updatedAt', TimestampType(), True),
+      StructField('completedDate', TimestampType(), True),
       StructField('isAPrivateProgram', BooleanType(), True),
       StructField(
          'entityInformation', 
@@ -199,6 +201,18 @@ obs_sub_df1 = obs_sub_df1.withColumn(
 )
 
 obs_sub_df1 = obs_sub_df1.withColumn(
+   "completed_date_time", 
+   to_timestamp(obs_sub_df1["completedDate"], 'yyyy-MM-dd HH:mm:ss')
+)
+
+obs_sub_df1 = obs_sub_df1.withColumn(
+   "completed_date", F.split(obs_sub_df1["completed_date_time"], ' ')[0]
+)
+obs_sub_df1 = obs_sub_df1.withColumn(
+   "completed_time", F.split(obs_sub_df1["completed_date_time"], ' ')[1]
+)
+
+obs_sub_df1 = obs_sub_df1.withColumn(
    "app_name", 
    F.when(
       obs_sub_df1["appInformation"]["appName"].isNull(), 
@@ -240,8 +254,18 @@ obs_sub_df1 = obs_sub_df1.withColumn(
    ).otherwise("observation_with_out_rubric")
 )
 
-obs_sub_df1 =  obs_sub_df1.withColumn(
+obs_sub_df1 = obs_sub_df1.withColumn(
    "completedDate", 
+   F.when(
+      obs_sub_df1["status"] == "completed", 
+      F.concat(
+         F.col("completed_date"), F.lit("T"), F.col("completed_time"), F.lit(".000Z")
+      )
+   ).otherwise(None)
+)
+
+obs_sub_df1 =  obs_sub_df1.withColumn(
+   "updatedAt", 
    F.concat(F.col("date"), F.lit("T"), F.col("time"), F.lit(".000Z"))
 )
 
@@ -261,7 +285,8 @@ obs_sub_df = obs_sub_df1.select(
    obs_sub_df1["app_name"],
    obs_sub_df1["private_program"],
    obs_sub_df1["solution_type"],
-   obs_sub_df1["ecm_marked_na"]
+   obs_sub_df1["ecm_marked_na"],
+   "updatedAt"
 )
 obs_sub_cursorMongo.close()
 
