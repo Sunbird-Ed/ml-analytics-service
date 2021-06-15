@@ -201,18 +201,6 @@ obs_sub_df1 = obs_sub_df1.withColumn(
 )
 
 obs_sub_df1 = obs_sub_df1.withColumn(
-   "completed_date_time", 
-   to_timestamp(obs_sub_df1["completedDate"], 'yyyy-MM-dd HH:mm:ss')
-)
-
-obs_sub_df1 = obs_sub_df1.withColumn(
-   "completed_date", F.split(obs_sub_df1["completed_date_time"], ' ')[0]
-)
-obs_sub_df1 = obs_sub_df1.withColumn(
-   "completed_time", F.split(obs_sub_df1["completed_date_time"], ' ')[1]
-)
-
-obs_sub_df1 = obs_sub_df1.withColumn(
    "app_name", 
    F.when(
       obs_sub_df1["appInformation"]["appName"].isNull(), 
@@ -252,16 +240,6 @@ obs_sub_df1 = obs_sub_df1.withColumn(
       (obs_sub_df1["isRubricDriven"] == False), 
       "observation_with_out_rubric"
    ).otherwise("observation_with_out_rubric")
-)
-
-obs_sub_df1 = obs_sub_df1.withColumn(
-   "completedDate", 
-   F.when(
-      obs_sub_df1["status"] == "completed", 
-      F.concat(
-         F.col("completed_date"), F.lit("T"), F.col("completed_time"), F.lit(".000Z")
-      )
-   ).otherwise(None)
 )
 
 obs_sub_df1 =  obs_sub_df1.withColumn(
