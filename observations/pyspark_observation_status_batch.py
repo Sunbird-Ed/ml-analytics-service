@@ -118,6 +118,7 @@ obs_sub_cursorMongo = obsSubmissionsCollec.aggregate(
          "solutionId": {"$toString": "$solutionId"},
          "solutionExternalId": 1,
          "updatedAt": 1, 
+         "completedDate": 1,
          "programId": {"$toString": "$programId"},
          "programExternalId": 1,
          "appInformation": {"appName": 1},
@@ -155,6 +156,7 @@ obs_sub_schema = StructType(
       StructField('programExternalId', StringType(), True),
       StructField('_id', StringType(), True),
       StructField('updatedAt', TimestampType(), True),
+      StructField('completedDate', TimestampType(), True),
       StructField('isAPrivateProgram', BooleanType(), True),
       StructField(
          'entityInformation', 
@@ -241,7 +243,7 @@ obs_sub_df1 = obs_sub_df1.withColumn(
 )
 
 obs_sub_df1 =  obs_sub_df1.withColumn(
-   "completedDate", 
+   "updatedAt", 
    F.concat(F.col("date"), F.lit("T"), F.col("time"), F.lit(".000Z"))
 )
 
@@ -261,7 +263,8 @@ obs_sub_df = obs_sub_df1.select(
    obs_sub_df1["app_name"],
    obs_sub_df1["private_program"],
    obs_sub_df1["solution_type"],
-   obs_sub_df1["ecm_marked_na"]
+   obs_sub_df1["ecm_marked_na"],
+   "updatedAt"
 )
 obs_sub_cursorMongo.close()
 
