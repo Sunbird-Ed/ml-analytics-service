@@ -111,7 +111,7 @@ projects_cursorMongo = projectsCollec.aggregate(
         "$project": {
             "_id": {"$toString": "$_id"},
             "projectTemplateId": {"$toString": "$projectTemplateId"},
-            "solutionInformation": {"name": 1},
+            "solutionInformation": {"name": 1,"_id":{"$toString": "$_id"}},
             "title": 1,
             "programId": {"$toString": "$programId"},
             "programInformation": {"name": 1},
@@ -137,7 +137,8 @@ projects_schema = StructType([
     StructField('projectTemplateId', StringType(), True),
     StructField(
         'solutionInformation',
-        StructType([StructField('name', StringType(), True)])
+        StructType([StructField('name', StringType(), True),
+          StructField('_id', StringType(), True)])
     ),
     StructField('title', StringType(), True),
     StructField('programId', StringType(), True),
@@ -385,7 +386,8 @@ projects_df_cols = projects_df.select(
     projects_df["sub_task_deleted_flag"],
     projects_df["project_terms_and_condition"],
     projects_df["exploded_tasks"]["remarks"].alias("task_remarks"),
-    projects_df["project_completed_date"]
+    projects_df["project_completed_date"],
+    projects_df["solutionInformation"]["_id"].alias("solution_id")
 )
 
 projects_df_cols = projects_df_cols.dropDuplicates()
@@ -538,7 +540,7 @@ submissionReportColumnNamesArr = [
     'program_name', 'project_updated_date', 'createdBy', 'project_title_editable', 
     'project_duration', 'program_externalId', 'private_program', 'task_deleted_flag',
     'sub_task_deleted_flag', 'project_terms_and_condition','task_remarks',
-    'organisation_name','project_description','project_completed_date'
+    'organisation_name','project_description','project_completed_date','solution_id'
 ]
 
 dimensionsArr.extend(submissionReportColumnNamesArr)
