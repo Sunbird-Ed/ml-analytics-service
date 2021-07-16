@@ -556,10 +556,13 @@ try:
                   observationSubQuestionsObj['questionResponseLabel_number'] = responseLabel
                 else:
                   observationSubQuestionsObj['questionResponseLabel_number'] = 0
-              if answer['payload']['labels']:
-                observationSubQuestionsObj['questionResponseLabel'] = responseLabel
-              else:
-                observationSubQuestionsObj['questionResponseLabel'] = ''
+              try:
+               if answer['payload']['labels']:
+                 observationSubQuestionsObj['questionResponseLabel'] = responseLabel
+               else:
+                 observationSubQuestionsObj['questionResponseLabel'] = ''
+              except KeyError :
+                 observationSubQuestionsObj['questionResponseLabel'] = ''
               observationSubQuestionsObj['questionExternalId'] = quesexternalId
               observationSubQuestionsObj['questionName'] = answer['payload']['question'][0]
               observationSubQuestionsObj['questionECM'] = answer['evidenceMethod']
@@ -756,7 +759,8 @@ try:
               for ques in questionsCollec.find({'_id':ObjectId(ansFn['qid'])}):
                 if len(ques['options']) == 0:
                   try:
-                    if len(ansFn['payload']['labels']) > 0:
+                    if type(ansFn['payload']['labels']) == list:
+                     if len(ansFn['payload']['labels']) > 0:
                       if(len(userRolesArrUnique)) > 0:
                         for usrRol in userRolesArrUnique :
                           finalObj = {}
@@ -788,6 +792,46 @@ try:
                         if finalObj["completedDate"]:
                           producer.send(
                             (config.get("KAFKA", "observation_druid_topic")), 
+                            json.dumps(finalObj).encode('utf-8')
+                          )
+                          producer.flush()
+                          successLogger.debug("Send Obj to Kafka")
+                    else:
+                      if (len(userRolesArrUnique)) > 0:
+                        for usrRol in userRolesArrUnique:
+                          finalObj = {}
+                          finalObj = creatingObj(
+                            ansFn,
+                            ques['externalId'],
+                            ansFn['value'],
+                            instNumber,
+                            ansFn['payload']['labels'],
+                            entityLatitudeQuesFn,
+                            entityLongitudeQuesFn,
+                            usrRol
+                          )
+                          if finalObj["completedDate"]:
+                            producer.send(
+                              (config.get("kafka", "kafka_druid_topic")),
+                              json.dumps(finalObj).encode('utf-8')
+                            )
+                            producer.flush()
+                            successLogger.debug("Send Obj to Kafka")
+                      else:
+                        finalObj = {}
+                        finalObj = creatingObj(
+                          ansFn,
+                          ques['externalId'],
+                          ansFn['value'],
+                          instNumber,
+                          ansFn['payload']['labels'],
+                          entityLatitudeQuesFn,
+                          entityLongitudeQuesFn,
+                          None
+                        )
+                        if finalObj["completedDate"]:
+                          producer.send(
+                            (config.get("kafka", "kafka_druid_topic")),
                             json.dumps(finalObj).encode('utf-8')
                           )
                           producer.flush()
