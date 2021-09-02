@@ -27,10 +27,10 @@ successLogger.setLevel(logging.DEBUG)
 
 # Add the log message handler to the logger
 successHandler = logging.handlers.RotatingFileHandler(
-  config.get('LOGS','observation_streaming_evidence_success_log_filename')
+  config.get('LOGS','observation_streaming_evidence_success')
 )
 successBackuphandler = TimedRotatingFileHandler(
-  config.get('LOGS','observation_streaming_evidence_success_log_filename'),
+  config.get('LOGS','observation_streaming_evidence_success'),
   when="w0",
   backupCount=1
 )
@@ -41,10 +41,10 @@ successLogger.addHandler(successBackuphandler)
 errorLogger = logging.getLogger('error log')
 errorLogger.setLevel(logging.ERROR)
 errorHandler = logging.handlers.RotatingFileHandler(
-  config.get('LOGS','observation_streaming_evidence_error_log_filename')
+  config.get('LOGS','observation_streaming_evidence_error')
 )
 errorBackuphandler = TimedRotatingFileHandler(
-  config.get('LOGS','observation_streaming_evidence_error_log_filename'),
+  config.get('LOGS','observation_streaming_evidence_error'),
   when="w0",
   backupCount=1
 )
@@ -53,21 +53,21 @@ errorLogger.addHandler(errorHandler)
 errorLogger.addHandler(errorBackuphandler)
 
 try:
-  kafka_url = config.get("KAFKA", "kafka_url")
+  kafka_url = config.get("KAFKA", "url")
   app = faust.App(
-    'sl_observation_evidences_diksha_faust',
+    'ml_observation_evidence_faust',
     broker='kafka://'+kafka_url,
     value_serializer='raw',
     web_port=7002,
     broker_max_poll_records=500
   )
-  rawTopicName = app.topic(config.get("KAFKA", "kafka_raw_data_topic"))
+  rawTopicName = app.topic(config.get("KAFKA", "observation_raw_topic"))
   producer = KafkaProducer(bootstrap_servers=[kafka_url])
   #db production
   clientdev = MongoClient(config.get('MONGO','mongo_url'))
   db = clientdev[config.get('MONGO','database_name')]
-  obsSubCollec = db[config.get('MONGO','observation_sub_collec')]
-  quesCollec = db[config.get('MONGO','questions_collec')]
+  obsSubCollec = db[config.get('MONGO','observation_sub_collection')]
+  quesCollec = db[config.get('MONGO','questions_collection')]
 except Exception as e:
   errorLogger.error(e, exc_info=True)
 
@@ -125,7 +125,7 @@ try:
           try :
             observationSubQuestionsObj['appName'] = obSub["appInformation"]["appName"].lower()
           except KeyError :
-            observationSubQuestionsObj['appName'] = config.get("COMMON", "diksha_survey_app_name")
+            observationSubQuestionsObj['appName'] = config.get("ML_APP_NAME", "survey_app")
 
           fileName = []
           fileSourcePath = []
@@ -163,7 +163,7 @@ try:
           observationSubQuestionsObj['fileSourcePath'] = convert(fileSourcePath)
           if evidenceCount > 0:
             producer.send(
-              (config.get("KAFKA", "kafka_evidence_druid_topic")), 
+              (config.get("KAFKA", "observation_evidence_druid_topic")), 
               json.dumps(observationSubQuestionsObj).encode('utf-8')
             )     
             producer.flush()
