@@ -336,7 +336,7 @@ try:
                 
           if len(userRolesArr) > 0:
             userRolesArrUnique = list(removeduplicate(userRolesArr))
-        elif obsAppName == config.get("ML_APP_NAME", "integrated_app"):
+        else:
           roleObj = {}
           roleObj["role_title"] = userSubType
           roleObj["user_stateName"] = stateName
