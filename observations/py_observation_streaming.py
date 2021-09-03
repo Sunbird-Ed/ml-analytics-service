@@ -77,7 +77,7 @@ solCollec = db[config.get('MONGO', 'solutions_collection')]
 obsCollec = db[config.get('MONGO', 'observations_collection')]
 questionsCollec = db[config.get('MONGO', 'questions_collection')]
 entitiesCollec = db[config.get('MONGO', 'entities_collection')]
-criteriaQuestionsCollec = db[config.get('MONGO', 'criteria_questions_collectiontion')]
+criteriaQuestionsCollec = db[config.get('MONGO', 'criteria_questions_collection')]
 criteriaCollec = db[config.get('MONGO', 'criteria_collection')]
 programsCollec = db[config.get('MONGO', 'programs_collection')]
 # redis cache connection 
@@ -124,11 +124,7 @@ except Exception as e:
 
 try:
   def getUserRoles(userId):
-    urlUserRoles = config.get(
-      ML_SURVEY_SERVICE_URL, "url"
-    ) + "/" + config.get(
-      ML_SURVEY_SERVICE_URL, "user_profile_end_point"
-    ) + str(userId)
+    urlUserRoles = config.get("ML_SURVEY_SERVICE_URL", "url") + "/" + config.get("ML_SURVEY_SERVICE_URL", "user_profile_end_point") + str(userId)
     headersUserRoles ={
       'Content-Type': config.get("API_HEADERS", "content_type"),
       'Authorization': "Bearer "+ config.get("API_HEADERS", "authorization"),
