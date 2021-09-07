@@ -111,7 +111,7 @@ projects_cursorMongo = projectsCollec.aggregate(
         "$project": {
             "_id": {"$toString": "$_id"},
             "projectTemplateId": {"$toString": "$projectTemplateId"},
-            "solutionInformation": {"name": 1,"_id":{"$toString": "$_id"}},
+            "solutionInformation": {"name": 1,"_id":{"$toString": "$solutionInformation._id"}},
             "title": 1,
             "programId": {"$toString": "$programId"},
             "programInformation": {"name": 1},
