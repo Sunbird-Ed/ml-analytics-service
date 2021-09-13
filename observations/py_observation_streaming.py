@@ -101,11 +101,7 @@ except Exception as e:
 
 try:
   def getRelatedEntity(entityId):
-    urlEntityRelated = config.get(
-      ML_SURVEY_SERVICE_URL, "url"
-    ) + "/" + config.get(
-      ML_SURVEY_SERVICE_URL, "entity_related_end_point"
-    ) + str(entityId)
+    urlEntityRelated = config.get("ML_SURVEY_SERVICE_URL", "url") + "/" + config.get("ML_SURVEY_SERVICE_URL", "entity_related_end_point") + str(entityId)
     headersEntityRelated = {
       'Content-Type': config.get("API_HEADERS", "content_type"),
       'Authorization': "Bearer "+ config.get("API_HEADERS", "authorization"),
