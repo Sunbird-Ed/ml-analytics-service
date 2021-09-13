@@ -316,7 +316,6 @@ obs_sub_pgm_df = obs_sub_soln_df.join(
    'inner'
 ).drop(obs_pgm_df["_id"])
 obs_sub_pgm_df = obs_sub_pgm_df.withColumnRenamed("name", "program_name")
-
 #user organisation dataframe
 obs_sub_soln_userid_df = obs_sub_pgm_df.select("user_id")
 
@@ -325,7 +324,6 @@ userId_obs_status_df_after = []
 userId_arr = []
 uniqueuserId_arr = []
 userId_obs_status_df_before = obs_sub_soln_userid_df.toJSON().map(lambda j: json.loads(j)).collect()
-
 for uid in userId_obs_status_df_before:
    userId_arr.append(uid["user_id"])
 uniqueuserId_arr = list(removeduplicate(userId_arr))
@@ -409,7 +407,6 @@ for ch in uniqueuserId_arr :
 
 df_user_org = ks.DataFrame(userId_obs_status_df_after)
 df_user_org = df_user_org.to_spark()
-
 if len(userIntegratedAppEntitiesArr) > 0 :
    df_user_rel_entities = ks.DataFrame(userIntegratedAppEntitiesArr)
    df_user_rel_entities = df_user_rel_entities.to_spark()
@@ -427,7 +424,6 @@ roles_schema = StructType([
 
 roles_rdd = spark.sparkContext.parallelize(list(roles_cursorMongo))
 roles_df = spark.createDataFrame(roles_rdd, roles_schema)
-
 roles_cursorMongo.close()
 
 # user roles along with entity from elastic search
@@ -469,153 +465,6 @@ except Exception as e:
    errorLogger.error(e, exc_info=True)
 
 headers_user = {'Content-Type': 'application/json'}
-url_getuserinfo = config.get("ELASTICSEARCH", "url_user")
-payload_user_elastic = {
-   "size": 10000,
-   "query": {
-      "bool": {
-         "must":[{"match":{"_type":"_doc"}}]
-      }
-   }
-}
-user_response = requests.post(
-   url_getuserinfo , headers=headers_user, data=json.dumps(payload_user_elastic)
-)
-try:
-   if user_response.status_code == 200:
-      user_response = user_response.json()
-      user_data = user_response['hits']['hits']
-      elasticSearchJson(user_data)
-      user_scroll_id = user_response['_scroll_id']
-   else:
-      errorLogger.error(user_response)
-      errorLogger.error(user_response.text)
-      errorLogger.error("Failure in getting User Data From Elastic Search")
-except KeyError as e:
-   user_hit = []
-   user_scroll_id = None
-   errorLogger.error("user scroll id error")
-
-while user_data:
-   user_scroll_payload = json.dumps({
-      'scroll': '1m',
-      'scroll_id': user_scroll_id
-   })
-   user_scroll_api_url = config.get("ELASTICSEARCH", "url_scroll")
-   user_scroll_response = requests.post(
-      user_scroll_api_url, headers=headers_user, data = user_scroll_payload
-   )
-   try:
-      if user_scroll_response.status_code == 200:
-         user_scroll_response = user_scroll_response.json()
-         user_data = user_scroll_response['hits']['hits']
-         if len(user_data) > 0 :
-            elasticSearchJson(user_data)
-         user_scroll_id = user_scroll_response['_scroll_id']
-      else:
-         errorLogger.error("Failure in getting User Data From Elastic Search")
-   except KeyError :
-      user_entity_data = []
-      user_entity_scroll_id = None
-
-#schema for the observation solution dataframe
-user_roles_schema = StructType([
-   StructField('roleId', StringType(), True),
-   StructField('userId', StringType(), True),
-   StructField('roleCode', StringType(), True),
-   StructField('entityId', StringType(), True)
-])
-
-user_roles_rdd = spark.sparkContext.parallelize(list(userEntityRoleArray))
-user_roles_df = spark.createDataFrame(user_roles_rdd, user_roles_schema)
-
-
-# merge user_roles_df and roles_df to get role title 
-user_roles_title_df = user_roles_df.join(
-   roles_df, 
-   user_roles_df.roleId==roles_df._id,
-   'inner'
-).drop(roles_df["_id"])
-user_roles_title_df = user_roles_title_df.select(
-   user_roles_title_df["userId"].alias("user_id"),
-   user_roles_title_df["entityId"],
-   user_roles_title_df["title"].alias("role_title")
-)
-
-#entity elastic search dataframe
-entityArray = []
-
-def entityElasticSearchJson(entityJsonData):
-   for ent_data in entityJsonData :
-      for tel in ent_data["_source"]["data"]["telemetry_entities"]:
-         tel["entity_id"] = ent_data["_source"]["data"]["_id"]
-         entityArray.append(tel)
-
-
-headers_entity = {'Content-Type': 'application/json'}
-url_getentityinfo = config.get("ELASTICSEARCH", "url_entity")
-payload_entity_elastic = {
-   "size": 10000,
-   "query":{
-      "bool": {
-         "must": [{"match": {"_type": "_doc"}}]
-      }
-   }
-}
-entity_response = requests.post(
-   url_getentityinfo , headers = headers_entity, data=json.dumps(payload_entity_elastic)
-)
-try:
-   if entity_response.status_code == 200:
-      entity_response = entity_response.json()
-      entity_data = entity_response['hits']['hits']
-      entityElasticSearchJson(entity_data)
-      entity_scroll_id = entity_response['_scroll_id']
-   else:
-      errorLogger.error("Failure in getting Entity Data From Elastic Search")
-except KeyError as e:
-   entity_hit = []
-   entity_scroll_id = None
-   errorLogger.error("entity scroll id error")
-
-while entity_data:
-   entity_scroll_payload = json.dumps({
-      'scroll': '1m',
-      'scroll_id': entity_scroll_id
-   })
-   entity_scroll_api_url = config.get("ELASTICSEARCH", "url_scroll")
-   entity_scroll_response = requests.post(
-      entity_scroll_api_url, headers=headers_entity, data=entity_scroll_payload
-   )
-   try:
-      if entity_scroll_response.status_code == 200:
-         entity_scroll_response = entity_scroll_response.json()
-         entity_data = entity_scroll_response['hits']['hits']
-         if len(entity_data) > 0 :
-            entityElasticSearchJson(entity_data)
-         entity_scroll_id = entity_scroll_response['_scroll_id']
-      else:
-         errorLogger.error("Failure in getting Entity Data From Elastic Search")
-   except KeyError :
-      entity_entity_data = []
-      entity_entity_scroll_id = None
-
-entity_df = ks.DataFrame(entityArray)
-entity_df = entity_df.to_spark()
-
-# merge user role title dataframe and entity dataframe 
-user_entity_info_df = user_roles_title_df.join(
-   entity_df,
-   user_roles_title_df.entityId==entity_df.entity_id,
-   'inner'
-).drop(user_roles_title_df["entityId"])
-
-# merge user entity dataframe and user org dataframe
-user_df = df_user_org.join(
-   user_entity_info_df,
-   df_user_org.id==user_entity_info_df.user_id,
-   'left'
-).drop(user_entity_info_df["user_id"]).drop(user_entity_info_df["entity_id"])
 
 user_df_integrated_app = df_user_org.join(
    df_user_rel_entities,
@@ -636,19 +485,6 @@ obs_sub_df.cache()
 obs_soln_df.cache()
 df_user_org.cache()
 roles_df.cache()
-user_roles_df.cache()
-entity_df.cache()
-user_entity_info_df.cache()
-
-# merge user dataframe and observation submission dataframe
-obs_sub_status_df_survey = obs_sub_pgm_df.join(
-   user_df,
-   [
-      obs_sub_pgm_df.user_id==user_df.id, 
-      obs_sub_pgm_df.app_name==config.get("ML_APP_NAME", "survey_app")
-   ],
-   'inner'
-).drop(user_df["id"]).drop(user_df["entity_id"])
 
 obs_sub_status_df_integrated_app = obs_sub_pgm_df.join(
    user_df_integrated_app,
@@ -662,31 +498,14 @@ obs_sub_status_df_integrated_app = obs_sub_pgm_df.join(
 integrated_app_column_list = []
 survey_app_column_list = []
 integrated_app_column_list = obs_sub_status_df_integrated_app.columns
-survey_app_column_list = obs_sub_status_df_survey.columns
+
 
 missing_col_in_integrated_app_list = []
 missing_col_in_integrated_app_list = list(
    set(integrated_app_column_list) - set(survey_app_column_list)
 )
-missing_col_in_survey_app_list = []
-missing_col_in_survey_app_list = list(
-   set(survey_app_column_list) - set(integrated_app_column_list)
-)
 
-if len(missing_col_in_survey_app_list) :
-   for inte in missing_col_in_survey_app_list :
-      obs_sub_status_df_integrated_app = obs_sub_status_df_integrated_app.withColumn(
-         inte, lit(None).cast(StringType())
-      )
-
-if len(missing_col_in_integrated_app_list) :
-   for sur in missing_col_in_integrated_app_list :
-      obs_sub_status_df_survey = obs_sub_status_df_survey.withColumn(
-         sur, lit(None).cast(StringType())
-      )
-
-final_df = obs_sub_status_df_integrated_app.unionByName(obs_sub_status_df_survey)
-final_df = final_df.dropDuplicates()
+final_df = obs_sub_status_df_integrated_app.dropDuplicates()
 
 final_df.coalesce(1).write.format("json").mode("overwrite").save(
    config.get("OUTPUT_DIR", "observation_status")+"/"
