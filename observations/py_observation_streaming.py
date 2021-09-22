@@ -31,10 +31,10 @@ successLogger.setLevel(logging.DEBUG)
 
 # Add the log message handler to the logger
 successHandler = logging.handlers.RotatingFileHandler(
-  config.get('LOGS', 'observation_streaming_success_log_filename')
+  config.get('LOGS', 'observation_streaming_success')
 )
 successBackuphandler = TimedRotatingFileHandler(
-  config.get('LOGS', 'observation_streaming_success_log_filename'),
+  config.get('LOGS', 'observation_streaming_success'),
   when="w0",
   backupCount=1
 )
@@ -45,10 +45,10 @@ successLogger.addHandler(successBackuphandler)
 errorLogger = logging.getLogger('error log')
 errorLogger.setLevel(logging.ERROR)
 errorHandler = logging.handlers.RotatingFileHandler(
-  config.get('LOGS', 'observation_streaming_error_log_filename')
+  config.get('LOGS', 'observation_streaming_error')
 )
 errorBackuphandler = TimedRotatingFileHandler(
-  config.get('LOGS', 'observation_streaming_error_log_filename'),
+  config.get('LOGS', 'observation_streaming_error'),
   when="w0",
   backupCount=1
 )
@@ -58,28 +58,28 @@ errorLogger.addHandler(errorBackuphandler)
 
 domArr = []
 
-kafka_url = config.get("KAFKA", "kafka_url")
+kafka_url = config.get("KAFKA", "url")
 #consume the message from kafka topic
 app = faust.App(
-  'sl_observation_diksha_faust',
+  'ml_observation_faust',
   broker='kafka://'+kafka_url,
   value_serializer='raw',
   web_port=7001,
   broker_max_poll_records=500
 )
-rawTopicName = app.topic(config.get("KAFKA", "kafka_raw_data_topic"))
+rawTopicName = app.topic(config.get("KAFKA", "observation_raw_topic"))
 producer = KafkaProducer(bootstrap_servers=[kafka_url])
 #db production
 client = MongoClient(config.get('MONGO', 'mongo_url'))
 db = client[config.get('MONGO', 'database_name')]
-obsSubCollec = db[config.get('MONGO', 'observation_sub_collec')]
-solCollec = db[config.get('MONGO', 'solutions_collec')]
-obsCollec = db[config.get('MONGO', 'observations_collec')]
-questionsCollec = db[config.get('MONGO', 'questions_collec')]
-entitiesCollec = db[config.get('MONGO', 'entities_collec')]
+obsSubCollec = db[config.get('MONGO', 'observation_sub_collection')]
+solCollec = db[config.get('MONGO', 'solutions_collection')]
+obsCollec = db[config.get('MONGO', 'observations_collection')]
+questionsCollec = db[config.get('MONGO', 'questions_collection')]
+entitiesCollec = db[config.get('MONGO', 'entities_collection')]
 criteriaQuestionsCollec = db[config.get('MONGO', 'criteria_questions_collection')]
-criteriaCollec = db[config.get('MONGO', 'criteria_collec')]
-programsCollec = db[config.get('MONGO', 'programs_collec')]
+criteriaCollec = db[config.get('MONGO', 'criteria_collection')]
+programsCollec = db[config.get('MONGO', 'programs_collection')]
 # redis cache connection 
 redis_connection = redis.ConnectionPool(
   host=config.get("REDIS", "host"), 
@@ -101,11 +101,7 @@ except Exception as e:
 
 try:
   def getRelatedEntity(entityId):
-    urlEntityRelated = config.get(
-      "URL", "base_url"
-    ) + "/" + config.get(
-      "URL", "url_entity_related"
-    ) + str(entityId)
+    urlEntityRelated = config.get("ML_SURVEY_SERVICE_URL", "url") + "/" + config.get("ML_SURVEY_SERVICE_URL", "entity_related_end_point") + str(entityId)
     headersEntityRelated = {
       'Content-Type': config.get("API_HEADERS", "content_type"),
       'Authorization': "Bearer "+ config.get("API_HEADERS", "authorization"),
@@ -124,11 +120,7 @@ except Exception as e:
 
 try:
   def getUserRoles(userId):
-    urlUserRoles = config.get(
-      "URL", "base_url"
-    ) + "/" + config.get(
-      "URL", "url_user_profile_api"
-    ) + str(userId)
+    urlUserRoles = config.get("ML_SURVEY_SERVICE_URL", "url") + "/" + config.get("ML_SURVEY_SERVICE_URL", "user_profile_end_point") + str(userId)
     headersUserRoles ={
       'Content-Type': config.get("API_HEADERS", "content_type"),
       'Authorization': "Bearer "+ config.get("API_HEADERS", "authorization"),
@@ -295,9 +287,9 @@ try:
         try :
           obsAppName = obSub["appInformation"]["appName"].lower()
         except KeyError :
-          obsAppName = config.get("COMMON", "diksha_survey_app_name")
+          obsAppName = config.get("ML_APP_NAME", "survey_app")
         userRolesArrUnique = []
-        if obsAppName == config.get("COMMON", "diksha_survey_app_name") : 
+        if obsAppName == config.get("ML_APP_NAME", "survey_app") : 
           userRoles = getUserRoles(obSub["createdBy"])
           userRolesArr = []
           if userRoles:
@@ -336,7 +328,7 @@ try:
                 
           if len(userRolesArr) > 0:
             userRolesArrUnique = list(removeduplicate(userRolesArr))
-        elif obsAppName == config.get("COMMON", "diksha_integrated_app_name"):
+        else:
           roleObj = {}
           roleObj["role_title"] = userSubType
           roleObj["user_stateName"] = stateName
@@ -556,10 +548,13 @@ try:
                   observationSubQuestionsObj['questionResponseLabel_number'] = responseLabel
                 else:
                   observationSubQuestionsObj['questionResponseLabel_number'] = 0
-              if answer['payload']['labels']:
-                observationSubQuestionsObj['questionResponseLabel'] = responseLabel
-              else:
-                observationSubQuestionsObj['questionResponseLabel'] = ''
+              try:
+               if answer['payload']['labels']:
+                 observationSubQuestionsObj['questionResponseLabel'] = responseLabel
+               else:
+                 observationSubQuestionsObj['questionResponseLabel'] = ''
+              except KeyError :
+                 observationSubQuestionsObj['questionResponseLabel'] = ''
               observationSubQuestionsObj['questionExternalId'] = quesexternalId
               observationSubQuestionsObj['questionName'] = answer['payload']['question'][0]
               observationSubQuestionsObj['questionECM'] = answer['evidenceMethod']
@@ -573,10 +568,10 @@ try:
                 fileCnt = 1
                 for filedetail in answer['fileName']:
                   if fileCnt == 1:
-                    multipleFiles = config.get('URL', 'evidence_base_url') + filedetail['sourcePath']
+                    multipleFiles = config.get('URL', 'evidence_url') + filedetail['sourcePath']
                     fileCnt = fileCnt + 1
                   else:
-                    multipleFiles = multipleFiles + ' , ' + config.get('URL', 'evidence_base_url') + filedetail['sourcePath']
+                    multipleFiles = multipleFiles + ' , ' + config.get('URL', 'evidence_url') + filedetail['sourcePath']
                 observationSubQuestionsObj['evidences'] = multipleFiles                                  
                 observationSubQuestionsObj['evidence_count'] = len(answer['fileName'])
               observationSubQuestionsObj['total_evidences'] = evidence_sub_count
@@ -756,7 +751,8 @@ try:
               for ques in questionsCollec.find({'_id':ObjectId(ansFn['qid'])}):
                 if len(ques['options']) == 0:
                   try:
-                    if len(ansFn['payload']['labels']) > 0:
+                    if type(ansFn['payload']['labels']) == list:
+                     if len(ansFn['payload']['labels']) > 0:
                       if(len(userRolesArrUnique)) > 0:
                         for usrRol in userRolesArrUnique :
                           finalObj = {}
@@ -769,7 +765,7 @@ try:
                           )
                           if finalObj["completedDate"]:
                             producer.send(
-                              (config.get("KAFKA", "kafka_druid_topic")), 
+                              (config.get("KAFKA", "observation_druid_topic")), 
                               json.dumps(finalObj).encode('utf-8')
                             )
                             producer.flush()
@@ -787,7 +783,47 @@ try:
                         ) 
                         if finalObj["completedDate"]:
                           producer.send(
-                            (config.get("KAFKA", "kafka_druid_topic")), 
+                            (config.get("KAFKA", "observation_druid_topic")), 
+                            json.dumps(finalObj).encode('utf-8')
+                          )
+                          producer.flush()
+                          successLogger.debug("Send Obj to Kafka")
+                    else:
+                      if (len(userRolesArrUnique)) > 0:
+                        for usrRol in userRolesArrUnique:
+                          finalObj = {}
+                          finalObj = creatingObj(
+                            ansFn,
+                            ques['externalId'],
+                            ansFn['value'],
+                            instNumber,
+                            ansFn['payload']['labels'],
+                            entityLatitudeQuesFn,
+                            entityLongitudeQuesFn,
+                            usrRol
+                          )
+                          if finalObj["completedDate"]:
+                            producer.send(
+                              (config.get("kafka", "kafka_druid_topic")),
+                              json.dumps(finalObj).encode('utf-8')
+                            )
+                            producer.flush()
+                            successLogger.debug("Send Obj to Kafka")
+                      else:
+                        finalObj = {}
+                        finalObj = creatingObj(
+                          ansFn,
+                          ques['externalId'],
+                          ansFn['value'],
+                          instNumber,
+                          ansFn['payload']['labels'],
+                          entityLatitudeQuesFn,
+                          entityLongitudeQuesFn,
+                          None
+                        )
+                        if finalObj["completedDate"]:
+                          producer.send(
+                            (config.get("kafka", "kafka_druid_topic")),
                             json.dumps(finalObj).encode('utf-8')
                           )
                           producer.flush()
@@ -815,7 +851,7 @@ try:
                               )
                               if finalObj["completedDate"]:
                                 producer.send(
-                                  (config.get("KAFKA", "kafka_druid_topic")), 
+                                  (config.get("KAFKA", "observation_druid_topic")), 
                                   json.dumps(finalObj).encode('utf-8')
                                 )
                                 producer.flush()
@@ -833,7 +869,7 @@ try:
                             )
                             if finalObj["completedDate"]:
                               producer.send(
-                                (config.get("KAFKA", "kafka_druid_topic")), 
+                                (config.get("KAFKA", "observation_druid_topic")), 
                                 json.dumps(finalObj).encode('utf-8')
                               )
                               producer.flush()
@@ -857,7 +893,7 @@ try:
                                 )
                                 if finalObj["completedDate"]:
                                   producer.send(
-                                    (config.get("KAFKA", "kafka_druid_topic")), 
+                                    (config.get("KAFKA", "observation_druid_topic")), 
                                     json.dumps(finalObj).encode('utf-8')
                                   )
                                   producer.flush()
@@ -876,7 +912,7 @@ try:
                               )
                               if finalObj["completedDate"]:
                                 producer.send(
-                                  (config.get("KAFKA", "kafka_druid_topic")), 
+                                  (config.get("KAFKA", "observation_druid_topic")), 
                                   json.dumps(finalObj).encode('utf-8')
                                 )
                                 producer.flush()
@@ -902,7 +938,7 @@ try:
                         )
                         if finalObj["completedDate"]:
                           producer.send(
-                            (config.get("KAFKA", "kafka_druid_topic")), 
+                            (config.get("KAFKA", "observation_druid_topic")), 
                             json.dumps(finalObj).encode('utf-8')
                           )
                           producer.flush()
@@ -921,7 +957,7 @@ try:
                       )
                       if finalObj["completedDate"]:
                         producer.send(
-                          (config.get("KAFKA", "kafka_druid_topic")), 
+                          (config.get("KAFKA", "observation_druid_topic")), 
                           json.dumps(finalObj).encode('utf-8')
                         )
                         producer.flush()
