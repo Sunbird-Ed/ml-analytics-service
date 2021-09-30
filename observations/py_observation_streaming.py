@@ -340,14 +340,6 @@ try:
           roleObj["user_schoolUDISE_code"] = userSchoolUDISE
           roleObj["organisation_name"] = orgName
           userRolesArrUnique.append(roleObj)
-        entityRelated = None
-        entityRelated = getRelatedEntity(entityId)
-        entityRelatedResultKeyCheck = None
-        entityRelatedData = None
-        if entityRelated:
-          entityRelatedResultKeyCheck = "result" in entityRelated
-          if entityRelatedResultKeyCheck == True: 
-            entityRelatedData = entityRelated['result']
 
         if 'answers' in obSub.keys() :  
           answersArr = [ v for v in obSub['answers'].values()]
@@ -420,17 +412,10 @@ try:
               observationSubQuestionsObj['entityExternalId'] = obSub['entityExternalId']
               observationSubQuestionsObj['entityName'] = obSub['entityInformation']['name'] 
 
-              if entityRelatedData : 
-                entityType =  entityRelatedData["entityType"]
-                observationSubQuestionsObj[entityType] = entityRelatedData['_id']
-                observationSubQuestionsObj[entityType+'Name'] = entityRelatedData['metaInformation']['name']
-                observationSubQuestionsObj[entityType+'ExternalId'] = entityRelatedData['metaInformation']['externalId']
-                for entityData in entityRelatedData["relatedEntities"]:
-                  if entityData['entityType']:
-                    entityType = entityData['entityType']
-                    observationSubQuestionsObj[entityType] = entityData['_id']
-                    observationSubQuestionsObj[entityType+'Name'] = entityData['metaInformation']['name']
-                    observationSubQuestionsObj[entityType+'ExternalId'] = entityData['metaInformation']['externalId']                           
+              entityType =obSub['entityType']
+              observationSubQuestionsObj[entityType] = str(obSub['entityId'])
+              observationSubQuestionsObj[entityType+'Name'] = obSub['entityInformation']['name']
+              observationSubQuestionsObj[entityType+'ExternalId'] = obSub['entityInformation']['externalId']        
 
               observationSubQuestionsObj['entityTypeId'] = str(obSub['entityTypeId'])
 
