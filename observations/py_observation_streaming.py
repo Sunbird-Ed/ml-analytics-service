@@ -950,19 +950,22 @@ try:
                 except KeyError:
                   pass
 
-            if (
+            try:
+             if (
               ans['responseType'] == 'text' or ans['responseType'] == 'radio' or 
               ans['responseType'] == 'multiselect' or ans['responseType'] == 'slider' or 
               ans['responseType'] == 'number' or ans['responseType'] == 'date'
-            ):   
+             ):   
               inst_cnt = ''
               fetchingQuestiondetails(ans,inst_cnt, entityLatitude, entityLongitude)
-            elif ans['responseType'] == 'matrix' and len(ans['value']) > 0:
+             elif ans['responseType'] == 'matrix' and len(ans['value']) > 0:
               inst_cnt =0
               for instances in ans['value']:
                 inst_cnt = inst_cnt + 1
                 for instance in instances.values():
                   fetchingQuestiondetails(instance, inst_cnt, entityLatitude, entityLongitude)
+            except KeyError:
+              pass
     cursorMongo.close()
 except Exception as e:
   errorLogger.error(e, exc_info=True)
