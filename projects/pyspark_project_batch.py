@@ -262,7 +262,7 @@ projects_df = projects_df.withColumn(
         (projects_df["isAPrivateProgram"].isNotNull() == True) & 
         (projects_df["isAPrivateProgram"] == False),
         "false"
-    ).otherwise("false")
+    ).otherwise("true")
 )
 
 projects_df = projects_df.withColumn(

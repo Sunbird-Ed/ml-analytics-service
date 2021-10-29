@@ -173,7 +173,7 @@ try:
                             try:
                                 surveySubQuestionsObj['isAPrivateProgram'] = obSub['isAPrivateProgram']
                             except KeyError:
-                                surveySubQuestionsObj['isAPrivateProgram'] = False
+                                surveySubQuestionsObj['isAPrivateProgram'] = True
 
                             try:
                                 surveySubQuestionsObj['programExternalId'] = obSub['programExternalId']

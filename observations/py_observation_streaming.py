@@ -433,7 +433,7 @@ try:
               try:
                   observationSubQuestionsObj['isAPrivateProgram'] = obSub['isAPrivateProgram']
               except KeyError:
-                  observationSubQuestionsObj['isAPrivateProgram'] = False
+                  observationSubQuestionsObj['isAPrivateProgram'] = True
 
               try:
                 observationSubQuestionsObj['programExternalId'] = obSub['programExternalId']
