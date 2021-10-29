@@ -37,10 +37,10 @@ successLogger.setLevel(logging.DEBUG)
 
 # Add the log message handler to the logger
 successHandler = logging.handlers.RotatingFileHandler(
-    config.get('LOGS', 'survey_streaming_success_log_filename')
+    config.get('LOGS', 'survey_streaming_success')
 )
 successBackuphandler = TimedRotatingFileHandler(
-    config.get('LOGS', 'survey_streaming_success_log_filename'),
+    config.get('LOGS', 'survey_streaming_success'),
     when="w0",
     backupCount=1
 )
@@ -51,10 +51,10 @@ successLogger.addHandler(successBackuphandler)
 errorLogger = logging.getLogger('error log')
 errorLogger.setLevel(logging.ERROR)
 errorHandler = logging.handlers.RotatingFileHandler(
-    config.get('LOGS', 'survey_streaming_error_log_filename')
+    config.get('LOGS', 'survey_streaming_error')
 )
 errorBackuphandler = TimedRotatingFileHandler(
-    config.get('LOGS', 'survey_streaming_error_log_filename'),
+    config.get('LOGS', 'survey_streaming_error'),
     when="w0",
     backupCount=1
 )
@@ -63,26 +63,26 @@ errorLogger.addHandler(errorHandler)
 errorLogger.addHandler(errorBackuphandler)
 
 try:
-    kafka_url = (config.get("KAFKA", "kafka_url"))
+    kafka_url = (config.get("KAFKA", "url"))
     app = faust.App(
-        'sl_survey_prod_faust',
+        'ml_survey_faust',
         broker='kafka://'+kafka_url,
         value_serializer='raw',
-        web_port=7004,
+        web_port=7003,
         broker_max_poll_records=500
     )
-    rawTopicName = app.topic(config.get("KAFKA", "kafka_raw_survey_topic"))
-    producer = KafkaProducer(bootstrap_servers=[config.get("KAFKA", "kafka_url")])
+    rawTopicName = app.topic(config.get("KAFKA", "survey_raw_topic"))
+    producer = KafkaProducer(bootstrap_servers=[config.get("KAFKA", "url")])
 
     #db production
     client = MongoClient(config.get('MONGO', 'mongo_url'))
     db = client[config.get('MONGO', 'database_name')]
     surveySubmissionsCollec = db[config.get('MONGO', 'survey_submissions_collection')]
-    solutionsCollec = db[config.get('MONGO', 'solutions_collec')]
+    solutionsCollec = db[config.get('MONGO', 'solutions_collection')]
     surveyCollec = db[config.get('MONGO', 'survey_collection')]
-    questionsCollec = db[config.get('MONGO', 'questions_collec')]
-    criteriaCollec = db[config.get('MONGO', 'criteria_collec')]
-    programsCollec = db[config.get('MONGO', 'programs_collec')]
+    questionsCollec = db[config.get('MONGO', 'questions_collection')]
+    criteriaCollec = db[config.get('MONGO', 'criteria_collection')]
+    programsCollec = db[config.get('MONGO', 'programs_collection')]
 
     # redis cache connection 
     redis_connection = redis.ConnectionPool(
@@ -164,7 +164,7 @@ try:
                             try:
                                 surveySubQuestionsObj['appName'] = obSub["appInformation"]["appName"].lower()
                             except KeyError :
-                                surveySubQuestionsObj['appName'] = config.get("COMMON", "diksha_survey_app_name")
+                                surveySubQuestionsObj['appName'] = config.get("ML_APP_NAME", "survey_app")
 
                             surveySubQuestionsObj['surveySubmissionId'] = str(obSub['_id'])
 
@@ -173,7 +173,7 @@ try:
                             try:
                                 surveySubQuestionsObj['isAPrivateProgram'] = obSub['isAPrivateProgram']
                             except KeyError:
-                                surveySubQuestionsObj['isAPrivateProgram'] = False
+                                surveySubQuestionsObj['isAPrivateProgram'] = True
 
                             try:
                                 surveySubQuestionsObj['programExternalId'] = obSub['programExternalId']
@@ -314,7 +314,7 @@ try:
                                                 ansFn['payload']['labels'][0]
                                             )
                                             producer.send(
-                                                (config.get("KAFKA", "kafka_survey_druid_topic")), 
+                                                (config.get("KAFKA", "survey_druid_topic")), 
                                                 json.dumps(finalObj).encode('utf-8')
                                             )
                                             producer.flush()
@@ -335,7 +335,7 @@ try:
                                                         ansFn['payload']['labels'][0]
                                                     )
                                                     producer.send(
-                                                        (config.get("KAFKA", "kafka_survey_druid_topic")), 
+                                                        (config.get("KAFKA", "survey_druid_topic")), 
                                                         json.dumps(finalObj).encode('utf-8')
                                                     )
                                                     producer.flush()
@@ -351,7 +351,7 @@ try:
                                                             quesOpt['label']
                                                         )
                                                         producer.send(
-                                                            (config.get("KAFKA", "kafka_survey_druid_topic")), 
+                                                            (config.get("KAFKA", "survey_druid_topic")), 
                                                             json.dumps(finalObj).encode('utf-8')
                                                         )
                                                         producer.flush()
@@ -368,7 +368,7 @@ try:
                                         )
                                         print(finalObj)
                                         producer.send(
-                                            (config.get("KAFKA", "kafka_survey_druid_topic")), 
+                                            (config.get("KAFKA", "survey_druid_topic")), 
                                             json.dumps(finalObj).encode('utf-8')
                                         )
                                         producer.flush()
