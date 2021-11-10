@@ -101,7 +101,7 @@ try:
     def obj_creation(msg_id):
         successLogger.debug("Survey Submission Id : " + str(msg_id))
         cursorMongo = surveySubmissionsCollec.find(
-            {'_id':ObjectId(msg_id)}, no_cursor_timeout=True
+            {'_id':ObjectId(msg_id),'isAPrivateProgram':{'$exists':True,'$ne':None}}, no_cursor_timeout=True
         )
         for obSub in cursorMongo :
             surveySubQuestionsArr = []
@@ -236,8 +236,21 @@ try:
                                     surveySubQuestionsObj['percentageScore'] = ''
                                     surveySubQuestionsObj['pointsBasedScoreInParent'] = ''
 
-                            for ob in surveyCollec.find({'_id':obSub['surveyId']}):
+                            if 'surveyInformation' in obSub :
+                             if 'name' in obSub['surveyInformation']:
+                              surveySubQuestionsObj['surveyName'] = obSub['surveyInformation']['name']
+                             else :
+                              try:
+                               for ob in surveyCollec.find({'_id':obSub['surveyId']},{'name':1}):
                                 surveySubQuestionsObj['surveyName'] = ob['name']
+                              except KeyError :
+                               surveySubQuestionsObj['surveyName'] = ''
+                            else :
+                             try:
+                              for ob in surveyCollec.find({'_id':obSub['surveyId']},{'name':1}):
+                               surveySubQuestionsObj['surveyName'] = ob['name']
+                             except KeyError :
+                              surveySubQuestionsObj['surveyName'] = ''
                             surveySubQuestionsObj['questionId'] = str(answer['qid'])
                             surveySubQuestionsObj['questionAnswer'] = ans_val
                             surveySubQuestionsObj['questionResponseType'] = answer['responseType']

@@ -106,7 +106,8 @@ datastore = redis.StrictRedis(connection_pool=redis_connection)
 
 #observation submission dataframe
 obs_sub_cursorMongo = obsSubmissionsCollec.aggregate(
-   [{
+   [{"$match": {"isAPrivateProgram": {"$exists":True,"$ne":None}}},
+    {
       "$project": {
          "_id": {"$toString": "$_id"},
          "entityId": {"$toString": "$entityId"},
