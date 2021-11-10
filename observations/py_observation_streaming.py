@@ -193,7 +193,7 @@ try:
   def obj_creation(msg_id):
     successLogger.debug("Observation Submission Id : " + str(msg_id))
     cursorMongo = obsSubCollec.find(
-      {'_id':ObjectId(msg_id)}, no_cursor_timeout=True
+      {'_id':ObjectId(msg_id),'isAPrivateProgram':{'$exists':True,'$ne':None}}, no_cursor_timeout=True
     )
     for obSub in cursorMongo :
       observationSubQuestionsArr = []
@@ -519,11 +519,21 @@ try:
 
               observationSubQuestionsObj['entityType'] = obSub['entityType']
 
-              try:
+              if 'observationInformation' in obSub :
+               if 'name' in obSub['observationInformation']:
+                 observationSubQuestionsObj['observationName'] = obSub['observationInformation']['name']
+               else :
+                 try:
+                  for ob in obsCollec.find({'_id':obSub['observationId']},{'name':1}):
+                   observationSubQuestionsObj['observationName'] = ob['name']
+                 except KeyError :
+                  observationSubQuestionsObj['observationName'] = ''
+              else :
+               try:
                 for ob in obsCollec.find({'_id':obSub['observationId']},{'name':1}):
-                  observationSubQuestionsObj['observationName'] = ob['name']
-              except KeyError :
-                observationSubQuestionsObj['observationName'] = ''
+                 observationSubQuestionsObj['observationName'] = ob['name']
+               except KeyError :
+                observationSubQuestionsObj['observationName'] = '' 
 
               observationSubQuestionsObj['questionId'] = str(answer['qid'])
               observationSubQuestionsObj['questionAnswer'] = ans_val
