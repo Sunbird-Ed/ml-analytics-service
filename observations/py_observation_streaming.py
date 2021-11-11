@@ -193,10 +193,10 @@ try:
   def obj_creation(msg_id):
     successLogger.debug("Observation Submission Id : " + str(msg_id))
     cursorMongo = obsSubCollec.find(
-      {'_id':ObjectId(msg_id),'isAPrivateProgram':{'$exists':True,'$ne':None}}, no_cursor_timeout=True
+      {'_id':ObjectId(msg_id)}, no_cursor_timeout=True
     )
     for obSub in cursorMongo :
-      observationSubQuestionsArr = []
+     if 'isAPrivateProgram' in obSub :
       completedDate = None
       try:
         completedDate = str(datetime.datetime.date(obSub['completedDate'])) + 'T' + str(datetime.datetime.time(obSub['completedDate'])) + 'Z'

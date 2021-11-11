@@ -101,9 +101,10 @@ try:
     def obj_creation(msg_id):
         successLogger.debug("Survey Submission Id : " + str(msg_id))
         cursorMongo = surveySubmissionsCollec.find(
-            {'_id':ObjectId(msg_id),'isAPrivateProgram':{'$exists':True,'$ne':None}}, no_cursor_timeout=True
+            {'_id':ObjectId(msg_id)}, no_cursor_timeout=True
         )
         for obSub in cursorMongo :
+         if 'isAPrivateProgram' in obSub :
             surveySubQuestionsArr = []
             completedDate = str(
                 datetime.datetime.date(obSub['completedDate'])
