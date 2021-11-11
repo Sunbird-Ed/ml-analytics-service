@@ -86,7 +86,8 @@ except Exception as e:
 
 try:
     def evidence_extraction(msg_id):
-        for obSub in surveySubmissionsCollec.find({'_id':ObjectId(msg_id),'isAPrivateProgram':{'$exists':True,'$ne':None}}):
+        for obSub in surveySubmissionsCollec.find({'_id':ObjectId(msg_id)}):
+         if 'isAPrivateProgram' in obSub :
             successLogger.debug("Survey Evidence Submission Id : " + str(msg_id))
             try:
                 completedDate = str(
