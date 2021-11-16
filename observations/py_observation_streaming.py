@@ -233,6 +233,7 @@ try:
         userSchoolUDISE = None
         userSchoolName = None
         orgName = None
+        boardName = None
         try:
           userSchool = userObj["school"]
         except KeyError :
@@ -282,6 +283,11 @@ try:
         except KeyError:
           orgName = ''
 
+        try:
+          boardName = userObj["board"]
+        except KeyError:
+          boardName = ''
+          
         userRoles = {}
         obsAppName = None
         try :
@@ -339,6 +345,7 @@ try:
           roleObj["user_schoolId"] = userSchool
           roleObj["user_schoolUDISE_code"] = userSchoolUDISE
           roleObj["organisation_name"] = orgName
+          roleObj["user_boardName"] = boardName
           userRolesArrUnique.append(roleObj)
 
         if 'answers' in obSub.keys() :  
@@ -465,14 +472,15 @@ try:
                     for quesCQ in secCQ["questions"] :
                       if str(quesCQ["_id"]) == answer["qid"] :
                         observationSubQuestionsObj['section'] = secCQ["code"]
+              solutionObj = {}
               for solu in solCollec.find({'_id':ObjectId(obSub['solutionId'])}):
-                solutionObj = {}
                 solutionObj = solu
 
-              observationSubQuestionsObj['solutionName'] = solutionObj['name']
-              observationSubQuestionsObj['scoringSystem'] = solutionObj['scoringSystem']
-              observationSubQuestionsObj['solutionDescription'] = solutionObj['description']
-              observationSubQuestionsObj['questionSequenceByEcm'] = sequenceNumber(quesexternalId,answer,observationSubQuestionsObj['section'],solutionObj)
+              if solutionObj:
+               observationSubQuestionsObj['solutionName'] = solutionObj['name']
+               observationSubQuestionsObj['scoringSystem'] = solutionObj['scoringSystem']
+               observationSubQuestionsObj['solutionDescription'] = solutionObj['description']
+               observationSubQuestionsObj['questionSequenceByEcm'] = sequenceNumber(quesexternalId,answer,observationSubQuestionsObj['section'],solutionObj)
 
               try:
                 if solutionObj['scoringSystem'] == 'pointsBasedScoring':
@@ -563,10 +571,10 @@ try:
                 fileCnt = 1
                 for filedetail in answer['fileName']:
                   if fileCnt == 1:
-                    multipleFiles = config.get('URL', 'evidence_url') + filedetail['sourcePath']
+                    multipleFiles = config.get('ML_SURVEY_SERVICE_URL', 'evidence_base_url') + filedetail['sourcePath']
                     fileCnt = fileCnt + 1
                   else:
-                    multipleFiles = multipleFiles + ' , ' + config.get('URL', 'evidence_url') + filedetail['sourcePath']
+                    multipleFiles = multipleFiles + ' , ' + config.get('ML_SURVEY_SERVICE_URL', 'evidence_base_url') + filedetail['sourcePath']
                 observationSubQuestionsObj['evidences'] = multipleFiles                                  
                 observationSubQuestionsObj['evidence_count'] = len(answer['fileName'])
               observationSubQuestionsObj['total_evidences'] = evidence_sub_count
@@ -799,7 +807,7 @@ try:
                           )
                           if finalObj["completedDate"]:
                             producer.send(
-                              (config.get("kafka", "kafka_druid_topic")),
+                              (config.get("KAFKA", "observation_druid_topic")),
                               json.dumps(finalObj).encode('utf-8')
                             )
                             producer.flush()
@@ -818,7 +826,7 @@ try:
                         )
                         if finalObj["completedDate"]:
                           producer.send(
-                            (config.get("kafka", "kafka_druid_topic")),
+                            (config.get("KAFKA", "observation_druid_topic")),
                             json.dumps(finalObj).encode('utf-8')
                           )
                           producer.flush()
@@ -972,7 +980,11 @@ try:
               inst_cnt =0
               for instances in ans['value']:
                 inst_cnt = inst_cnt + 1
-                for instance in instances.values():
+                if type(instances) == list :
+                   for instance in instances:
+                    fetchingQuestiondetails(instance, inst_cnt, entityLatitude, entityLongitude)
+                else :
+                 for instance in instances.values():
                   fetchingQuestiondetails(instance, inst_cnt, entityLatitude, entityLongitude)
             except KeyError:
               pass
