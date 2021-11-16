@@ -343,6 +343,7 @@ for ch in uniqueuserId_arr :
       userSchoolUDISE = None
       userSchoolName = None
       orgName = None
+      boardName = None
       try:
          userSchool = userObj["school"]
       except KeyError :
@@ -383,6 +384,10 @@ for ch in uniqueuserId_arr :
          orgName = userObj["orgname"]
       except KeyError:
          orgName = ''
+      try:
+         boardName = userObj["board"]
+      except KeyError:
+         boardName = ''
       userRelatedEntitiesObj = {}
       try :
          userRelatedEntitiesObj["state_name"] = stateName
@@ -395,6 +400,7 @@ for ch in uniqueuserId_arr :
          userRelatedEntitiesObj["school_name"] = userSchoolName
          userRelatedEntitiesObj["school_externalId"] = userSchoolUDISE
          userRelatedEntitiesObj["organisation_name"] = orgName
+         userRelatedEntitiesObj["board_name"] = boardName
       except KeyError :
          pass
       if userRelatedEntitiesObj :

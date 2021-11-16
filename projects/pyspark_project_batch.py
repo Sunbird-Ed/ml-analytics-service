@@ -421,6 +421,7 @@ for usr in uniqueuserId_arr:
         userSchool = None
         userSchoolUDISE = None
         userSchoolName = None
+        boardName = None
         try:
             userSchool = userObj["school"]
         except KeyError :
@@ -457,7 +458,11 @@ for usr in uniqueuserId_arr:
             rootOrgId = userObj["rootorgid"]
         except KeyError :
             rootOrgId = ''
-
+        try:
+         boardName = userObj["board"]
+        except KeyError:
+         boardName = ''
+         
         userEntitiesArr = []
         userInfoObj = {}
         userInfoObj['school_name'] = userSchoolName 
@@ -467,6 +472,7 @@ for usr in uniqueuserId_arr:
         userInfoObj['block_name'] = blockName
         userInfoObj['cluster_name'] = clusterName
         userInfoObj['state_name'] = stateName
+        userInfoObj['board_name'] = boardName
         
         userEntitiesArr = list(userInfoObj.keys())
         entitiesArr.extend(userEntitiesArr)
