@@ -497,7 +497,8 @@ obs_sub_status_df_integrated_app = obs_sub_pgm_df.join(
    user_df_integrated_app,
    [
       obs_sub_pgm_df.user_id==user_df_integrated_app.id,
-      obs_sub_pgm_df.app_name==config.get("ML_APP_NAME", "integrated_app")
+      (obs_sub_pgm_df.app_name==config.get("ML_APP_NAME", "integrated_app"))|
+      (obs_sub_pgm_df.app_name==config.get("ML_APP_NAME", "integrated_portal"))
    ],
    'inner'
 ).drop(user_df_integrated_app["id"])
