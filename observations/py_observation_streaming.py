@@ -470,7 +470,7 @@ try:
                 for eviCQ in critQues["evidences"] :
                   for secCQ in eviCQ["sections"] :
                     for quesCQ in secCQ["questions"] :
-                      if str(quesCQ["_id"]) == answer["qid"] :
+                      if str(quesCQ["_id"]) == str(answer["qid"]) :
                         observationSubQuestionsObj['section'] = secCQ["code"]
               solutionObj = {}
               for solu in solCollec.find({'_id':ObjectId(obSub['solutionId'])}):
