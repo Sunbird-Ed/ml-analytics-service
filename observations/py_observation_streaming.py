@@ -591,7 +591,7 @@ try:
                   for eviCQInst in critQuesInst["evidences"] :
                     for secCQInst in eviCQInst["sections"] :
                       for quesCQInst in secCQInst["questions"] :
-                        if str(quesCQInst["_id"]) == ans["qid"] :
+                        if str(quesCQInst["_id"]) == str(ans["qid"]) :
                           observationSubQuestionsObj['instanceParentSection'] = secCQInst["code"]
                   observationSubQuestionsObj['instanceId'] = instNumber
                   for ques in questionsCollec.find({'_id':ObjectId(ans['qid'])}):
