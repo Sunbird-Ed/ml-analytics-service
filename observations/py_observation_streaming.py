@@ -10,7 +10,6 @@ from pymongo import MongoClient
 from bson.objectid import ObjectId
 import os, json
 import datetime
-# from datetime import date,time
 import requests
 from kafka import KafkaConsumer, KafkaProducer
 from configparser import ConfigParser,ExtendedInterpolation
@@ -190,20 +189,16 @@ except Exception as e:
   errorLogger.error(e, exc_info=True)
 
 try:
-  def obj_creation(msg_id):
-    successLogger.debug("Observation Submission Id : " + str(msg_id))
-    cursorMongo = obsSubCollec.find(
-      {'_id':ObjectId(msg_id)}, no_cursor_timeout=True
-    )
-    for obSub in cursorMongo :
+  def obj_creation(obSub):
+     successLogger.debug("Observation Submission Id : " + obSub['_id'])
      if 'isAPrivateProgram' in obSub :
       completedDate = None
       try:
-        completedDate = str(datetime.datetime.date(obSub['completedDate'])) + 'T' + str(datetime.datetime.time(obSub['completedDate'])) + 'Z'
+        completedDate = obSub['completedDate']
       except KeyError:
         pass
-      createdAt = str(datetime.datetime.date(obSub['createdAt'])) + 'T' + str(datetime.datetime.time(obSub['createdAt'])) + 'Z'
-      updatedAt = str(datetime.datetime.date(obSub['updatedAt'])) + 'T' + str(datetime.datetime.time(obSub['updatedAt'])) + 'Z'
+      createdAt = obSub['createdAt']
+      updatedAt = obSub['updatedAt']
       evidencesArr = [ v for v in obSub['evidences'].values() ]
       evidence_sub_count = 0
       entityId = obSub['entityId']
@@ -988,7 +983,6 @@ try:
                   fetchingQuestiondetails(instance, inst_cnt, entityLatitude, entityLongitude)
             except KeyError:
               pass
-    cursorMongo.close()
 except Exception as e:
   errorLogger.error(e, exc_info=True)
 
@@ -999,7 +993,7 @@ try:
       msg_val = msg.decode('utf-8')
       msg_data = json.loads(msg_val)
       successLogger.debug("========== START OF OBSERVATION SUBMISSION ========")
-      obj_arr = obj_creation(msg_data['_id'])
+      obj_creation(msg_data)
       successLogger.debug("********* END OF OBSERVATION SUBMISSION ***********")
 except Exception as e:
   errorLogger.error(e, exc_info=True)
