@@ -1,157 +1,147 @@
-[COMMON]
+[ML_APP_NAME]
 
-diksha_survey_app_name = <SURVEY_APP_NAME>
+survey_app = {{ ml_analytics_survey_app_name }}
 
-diksha_integrated_app_name = <INTEGRATED_APP_NAME>
+integrated_app = {{ ml_analytics_integrated_app_name }}
+
+integrated_portal = {{ ml_analytics_integrated_portal_name }}
 
 [API_HEADERS]
 
 content_type = application/json
 
-authorization = <AUTHORIZATION_KEY>
+authorization = {{ ml_analytics_api_authorization_key }}
 
-internal_access_token = <ACCESS_TOKEN>
+internal_access_token = {{ ml_analytics_api_access_token }}
 
-[URL]
+[ML_SURVEY_SERVICE_URL]
 
-base_url = http://<INTERNAL_IP>:<PORT_NUMBER>
+url = {{ ml_analytics_survey_service }}
 
-url_entity_related = assessment/api/v1/entities/relatedEntities/
+entity_related_end_point = assessment/api/v1/entities/relatedEntities/
 
-url_user_profile_api = assessment/api/v1/userExtension/getProfile/
+user_profile_end_point = assessment/api/v1/userExtension/getProfile/
 
-evidence_base_url = <EVIDENCE_BASE_URL>
+evidence_base_url = {{ ml_analytics_evidence_base_url }}
 
 [MONGO]
 
 # --------------
-# Mongo prod url
+# Mongo  url
 #---------------
 
-mongo_url = mongodb://<INTERNAL_IP>:<PORT_NUMBER>
+url = mongodb://{{ ml_analytics_mongodb_url }}
 
 # -----------------------
 # Mongo database name
 # -----------------------
 
-database_name = <DATABASE_NAME>
+database_name = {{ ml_analytics_mongo_db_name }}
 
 # -------------------
 # Mongo Collections
 # -------------------
 
-observation_sub_collec = <OBSERVATION_SUB_COLLECTION_NAME>
+observation_sub_collection = {{ ml_analytics_mongo_observation_submission_collection }}
 
-solutions_collec = <SOLUTION_COLLECTION_NAME>
+solutions_collection = {{ ml_analytics_mongo_solution_collection }}
 
-observations_collec = <OBSERVATION_COLLECTION_NAME>
+observations_collection = {{ ml_analytics_mongo_observation_collection }}
 
-entity_type_collec = <ENTITY_TYPE_COLLECTION_NAME>
+entity_type_collection = {{ ml_analytics_mongo_entity_type_collection }}
 
-questions_collec = <QUESTION_COLLECTION_NAME>
+questions_collection = {{ ml_analytics_mongo_question_collection }}
 
-criteria_collec = <CRITERIA_COLLECTION_NAME>
+criteria_collection = {{ ml_analytics_mongo_criteria_collection }}
 
-entities_collec = <ENTITIES_COLLECTION_NAME>
+entities_collection = {{ ml_analytics_mongo_entities_collection }}
 
-programs_collec = <PROGRAM_COLLECTION_NAME>
+programs_collection = {{ ml_analytics_mongo_program_collection }}
 
-user_roles_collection = <USERROLES_COLLECTION_NAME>
+user_roles_collection = {{ ml_analytics_mongo_userroles_collection }}
 
-criteria_questions_collection = <CRITERIA_QUESRIONS_COLLECTION_NAME>
+criteria_questions_collection = {{ ml_analytics_mongo_criteria_questions_collection }}
 
-projects_collection = <PROJECTS_COLLECTION_NAME>
+projects_collection = {{ ml_analytics_mongo_projects_collection }}
 
-survey_submissions_collection = <SURVEY_SUBMISSIONS_COLLECTION>
+survey_submissions_collection = {{ ml_analytics_mongo_survey_submissions_collection }}
 
-survey_collection = <SURVEY_COLLECTION>
+survey_collection = {{ ml_analytics_mongo_survey_collection }}
 
 [DRUID]
 
-druid_end_point = http://<INTERNAL_IP>:<PORT_NUMBER>/druid/coordinator/v1/datasources/
+metadata_url = http://{{ ml_analytics_druid_url }}/druid/coordinator/v1/datasources/
 
-druid_batch_end_point = http://<INTERNAL_IP>:<PORT_NUMBER>/druid/indexer/v1/task
+batch_url = http://{{ ml_analytics_druid_url }}/druid/indexer/v1/task
 
-observation_status_spec = <OBSERVATION_STATUS_SPEC>
+observation_status_injestion_spec = {{ ml_analytics_druid_observation_status_injestion_spec }}
 
-project_spec = <PROJECT_SPEC>
+project_injestion_spec = {{ ml_analytics_druid_project_injestion_spec }}
 
 [KAFKA]
 
-kafka_url = <KAFKA_INTERNAL_IP>:<PORT>
+url = {{ ml_analytics_kafka_url }}
 
-kafka_raw_data_topic = <OBS_TOPIC_NAME>
+observation_raw_topic = {{ ml_analytics_kafka_observation_topic_name }}
 
-kafka_druid_topic = <OBS_DRUID_TOPIC_NAME>
+observation_druid_topic = {{ ml_analytics_kafka_observation_druid_topic_name }}
 
-kafka_evidence_druid_topic =  <OBS_EVIDENCE_TOPIC_NAME>
+observation_evidence_druid_topic =  {{ ml_analytics_kafka_observation_evidence_topic_name }}
 
-kafka_evidence_survey_druid_topic = <SURVEY_EVIDENCE_TOPIC_NAME>
+survey_evidence_druid_topic = {{ ml_analytics_kafka_survey_evidence_topic_name }}
 
-kafka_raw_survey_topic = <SURVEY_TOPIC_NAME>
+survey_raw_topic = {{ ml_analytics_kafka_survey_topic_name }}
 
-kafka_survey_druid_topic = <SURVEY_DRUID_TOPIC_NAME>
+survey_druid_topic = {{ ml_analytics_kafka_survey_druid_topic_name }}
 
 [LOGS]
 
-observation_streaming_success_log_filename = <FOLDER_PATH>/success.log
+observation_streaming_success = {{ ml_analytics_observation_log_folder_path }}/success.log
 
-observation_streaming_error_log_filename = <FOLDER_PATH>/error.log
+observation_streaming_error = {{ ml_analytics_observation_log_folder_path }}/error.log
 
-observation_streaming_evidence_success_log_filename = <FOLDER_PATH>/success.log
+observation_streaming_evidence_success = {{ ml_analytics_observation_log_folder_path }}/evidence/success.log
 
-observation_streaming_evidence_error_log_filename = <FOLDER_PATH>/error.log
+observation_streaming_evidence_error = {{ ml_analytics_observation_log_folder_path }}/evidence/error.log
 
-observation_status_success_log_filename = <FOLDER_PATH>/status/success.log
+observation_status_success = {{ ml_analytics_observation_log_folder_path }}/status/success.log
 
-observation_status_error_log_filename = <FOLDER_PATH>/status/error.log
+observation_status_error = {{ ml_analytics_observation_log_folder_path }}/status/error.log
 
-project_success_log_filename = <SUCCESS_LOG_FILE_PATH>
+project_success = {{ ml_analytics_project_log_folder_path }}/success.log
 
-project_error_log_filename = <ERROR_LOG_FILE_PATH>
+project_error = {{ ml_analytics_project_log_folder_path }}/error.log
 
-survey_evidence_streaming_success_log_filename = <EVIDENCE_SUCCESS_LOG_FILE_PATH>
+survey_evidence_streaming_success = {{ ml_analytics_survey_log_folder_path }}/evidence/success.log
 
-survey_evidence_streaming_error_log_filename = <EVIDENCE_ERROR_LOG_FILE_PATH>
+survey_evidence_streaming_error = {{ ml_analytics_survey_log_folder_path }}/evidence/error.log
 
-survey_streaming_success_log_filename = <SUCCESS_LOG_FILE_PATH>
+survey_streaming_success = {{ ml_analytics_survey_log_folder_path }}/success.log
 
-survey_streaming_error_log_filename = <ERROR_LOG_FILE_PATH>
-
-[ELASTICSEARCH]
-
-header = {'Content-Type': 'application/json'}
-
-url_user = http://<INTERNAL_IP>:<PORT_NUMBER>/users/_search/?scroll=1m
-
-user_body = {"size": 10000,"query":{"bool":{"must":[{"match":{"_type":"common"}}]}}}
-
-url_user_scroll = http://<INTERNAL_IP>:<PORT_NUMBER>/_search/scroll
-
-url_entity = http://<INTERNAL_IP>:<PORT_NUMBER>/entities/_search/?scroll=1m
+survey_streaming_error = {{ ml_analytics_survey_log_folder_path }}/error.log
 
 [AZURE]
 
-account_name = <ACCOUNT_NAME>
+account_name = {{ ml_analytics_azure_account_name }}
 
-sas_token = <SAS_TOKEN>
+sas_token = {{ ml_analytics_azure_sas_token }}
 
-container_name = <CONTAINER_NAME>
+container_name = {{ ml_analytics_azure_container_name }}
 
-blob_path = <OBS_BLOB_PATH>
+observation_blob_path = {{ ml_analytics_observation_azure_blob_path }}
 
-projects_blob_path = <PROJECTS_BLOB_PATH>
+projects_blob_path = {{ ml_analytics_project_azure_blob_path }}
 
 [REDIS]
 
-host = <HOST_ADDRESS>
+host = {{ ml_analytics_redis_host }}
 
-port = <PORT>
+port = {{ ml_analytics_redis_port }}
 
-db_name = <REDIS_DB_NAME>
+db_name = {{ ml_analytics_redis_db_name }}
 
 [OUTPUT_DIR]
 
-projects_folder = <PROJECTS_OUTPUT_DIR>
+project = {{ ml_analytics_project_output_dir }}
 
-observation_status_output_dir = <OBS_STATUS_OUTPUT_DIR>
+observation_status = {{ ml_analytics_observation_status_output_dir }}

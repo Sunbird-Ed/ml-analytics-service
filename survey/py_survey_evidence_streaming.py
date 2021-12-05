@@ -32,10 +32,10 @@ successLogger.setLevel(logging.DEBUG)
 
 # Add the log message handler to the logger
 successHandler = logging.handlers.RotatingFileHandler(
-    config.get('LOGS', 'survey_evidence_streaming_success_log_filename')
+    config.get('LOGS', 'survey_evidence_streaming_success')
 )
 successBackuphandler = TimedRotatingFileHandler(
-    config.get('LOGS', 'survey_evidence_streaming_success_log_filename'),
+    config.get('LOGS', 'survey_evidence_streaming_success'),
     when="w0",
     backupCount=1
 )
@@ -46,10 +46,10 @@ successLogger.addHandler(successBackuphandler)
 errorLogger = logging.getLogger('error log')
 errorLogger.setLevel(logging.ERROR)
 errorHandler = logging.handlers.RotatingFileHandler(
-    config.get('LOGS', 'survey_evidence_streaming_error_log_filename')
+    config.get('LOGS', 'survey_evidence_streaming_error')
 )
 errorBackuphandler = TimedRotatingFileHandler(
-    config.get('LOGS', 'survey_evidence_streaming_error_log_filename'),
+    config.get('LOGS', 'survey_evidence_streaming_error'),
     when="w0",
     backupCount=1
 )
@@ -59,20 +59,21 @@ errorLogger.addHandler(errorBackuphandler)
 
 try:
     app = faust.App(
-        'sl_py_survey_evidence_prod',
-        broker='kafka://'+config.get("KAFKA", "kafka_url"),
+        'ml_survey_evidence_faust',
+        broker='kafka://'+config.get("KAFKA", "url"),
         value_serializer='raw',
-        web_port=7005
+        web_port=7004,
+        broker_max_poll_records=500
     )
 
-    kafka_url = config.get("KAFKA", "kafka_url")
+    kafka_url = config.get("KAFKA", "url")
     producer = KafkaProducer(bootstrap_servers=[kafka_url])
 
     #db production
     client = MongoClient(config.get('MONGO', 'mongo_url'))
     db = client[config.get('MONGO', 'database_name')]
     surveySubmissionsCollec = db[config.get('MONGO', 'survey_submissions_collection')]
-    questionsCollec = db[config.get('MONGO', 'questions_collec')]
+    questionsCollec = db[config.get('MONGO', 'questions_collection')]
 
 except Exception as e:
     errorLogger.error(e, exc_info=True)
@@ -86,6 +87,7 @@ except Exception as e:
 try:
     def evidence_extraction(msg_id):
         for obSub in surveySubmissionsCollec.find({'_id':ObjectId(msg_id)}):
+         if 'isAPrivateProgram' in obSub :
             successLogger.debug("Survey Evidence Submission Id : " + str(msg_id))
             try:
                 completedDate = str(
@@ -131,7 +133,7 @@ try:
                 try:
                     surveySubQuestionsObj['appName'] = obSub["appInformation"]["appName"].lower()
                 except KeyError :
-                    surveySubQuestionsObj['appName'] = config.get("COMMON", "diksha_survey_app_name")
+                    surveySubQuestionsObj['appName'] = config.get("ML_APP_NAME", "survey_app")
                 evidence = []
                 evidenceCount = 0
                 try:
@@ -152,7 +154,7 @@ try:
                 surveySubQuestionsObj['fileSourcePath'] = convert(fileSourcePath)
                 if evidenceCount > 0:
                     producer.send(
-                        (config.get("KAFKA", "kafka_evidence_survey_druid_topic")), 
+                        (config.get("KAFKA", "survey_evidence_druid_topic")), 
                         json.dumps(surveySubQuestionsObj).encode('utf-8')
                     )
                     producer.flush()
@@ -162,7 +164,7 @@ except Exception as e:
 
 try:
     #loop the consumer messages and produce it to another topic
-    @app.agent(config.get("KAFKA", "kafka_raw_survey_topic"))
+    @app.agent(config.get("KAFKA", "survey_raw_topic"))
     async def survey_Faust(consumer) :
         async for msg in consumer:
             msg_val = msg.decode('utf-8')

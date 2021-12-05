@@ -43,7 +43,7 @@ isodate==0.6.0
 jmespath==0.9.5
 kafka-python==1.4.7
 kiwisolver==1.2.0
-koalas==0.33.0
+koalas==1.8.1
 matplotlib==3.2.1
 mode==4.3.2
 msrest==0.6.19
@@ -59,7 +59,7 @@ psycopg2-binary==2.8.4
 py4j==0.10.7
 pyaes==1.6.1
 pypandoc==1.5
-pyarrow==0.17.1
+pyarrow
 pyasn1==0.4.8
 pyasn1-modules==0.2.8
 pycparser==2.20
@@ -69,7 +69,7 @@ pydruid==0.5.9
 PyJWT==1.7.1
 pymongo==3.10.1
 pyparsing==2.4.7
-pyspark==2.4.5
+pyspark
 python-dateutil==2.8.1
 pytz==2020.1
 PyYAML==5.3.1
