@@ -55,11 +55,11 @@ errorLogger.addHandler(errorBackuphandler)
 try:
   kafka_url = config.get("KAFKA", "url")
   app = faust.App(
-    'ml_observation_evidence_faust',
-    broker='kafka://'+kafka_url,
-    value_serializer='raw',
-    web_port=7002,
-    broker_max_poll_records=500
+   'ml_observation_evidence_faust',
+   broker='kafka://'+kafka_url,
+   value_serializer='raw',
+   web_port=7002,
+   broker_max_poll_records=500
   )
   rawTopicName = app.topic(config.get("KAFKA", "observation_raw_topic"))
   producer = KafkaProducer(bootstrap_servers=[kafka_url])
@@ -83,11 +83,7 @@ try:
      if 'isAPrivateProgram' in obSub :
       successLogger.debug("Observation Evidence Submission Id : " + str(msg_id))
       try:
-        completedDate = str(
-          datetime.datetime.date(obSub['completedDate'])
-        ) + 'T' + str(
-          datetime.datetime.time(obSub['completedDate'])
-        ) + 'Z'
+        completedDate = str(obSub['completedDate'])
       except KeyError:
         completedDate = '' 
       evidence_sub_count = 0
@@ -173,16 +169,16 @@ except Exception as e:
   errorLogger.error(e, exc_info=True)
 
 try:
-  @app.agent(rawTopicName)
-  async def observationEvidenceFaust(consumer):
-    async for msg in consumer :
-      msg_val = msg.decode('utf-8')
-      msg_data = json.loads(msg_val)
-      successLogger.debug("========== START OF OBSERVATION EVIDENCE SUBMISSION ========")
-      obj_arr = evidence_extraction(msg_data['_id'])
-      successLogger.debug("********* END OF OBSERVATION EVIDENCE SUBMISSION ***********")
+ @app.agent(rawTopicName)
+ async def observationEvidenceFaust(consumer):
+   async for msg in consumer :
+     msg_val = msg.decode('utf-8')
+     msg_data = json.loads(msg_val)
+     successLogger.debug("========== START OF OBSERVATION EVIDENCE SUBMISSION ========")
+     obj_arr = evidence_extraction(msg_data['_id'])
+     successLogger.debug("********* END OF OBSERVATION EVIDENCE SUBMISSION ***********")
 except Exception as e:
-  errorLogger.error(e, exc_info=True)
+ errorLogger.error(e, exc_info=True)
 
 if __name__ == '__main__':
-  app.main()
+ app.main()

@@ -229,18 +229,6 @@ projects_df = projects_df.withColumn(
 )
 
 projects_df = projects_df.withColumn(
-    "date_time", to_timestamp(projects_df["updatedAt"], 'yyyy-MM-dd HH:mm:ss')
-)
-
-projects_df = projects_df.withColumn("date",F.split(projects_df["date_time"], ' ')[0])
-projects_df = projects_df.withColumn("time",F.split(projects_df["date_time"], ' ')[1])
-
-projects_df = projects_df.withColumn(
-    "project_updated_date", F.concat(F.col("date"),
-    F.lit("T"), F.col("time"),F.lit(".000Z"))
-)
-
-projects_df = projects_df.withColumn(
     "project_deleted_flag",
     F.when(
         (projects_df["isDeleted"].isNotNull() == True) & 
@@ -359,7 +347,7 @@ projects_df_cols = projects_df.select(
     projects_df["programInformation"]["name"].alias("program_name"),
     projects_df["metaInformation"]["duration"].alias("project_duration"),
     projects_df["syncedAt"].alias("project_last_sync"),
-    projects_df["project_updated_date"],
+    projects_df["updatedAt"].alias("project_updated_date"),
     projects_df["project_deleted_flag"],
     projects_df["exploded_categories"]["name"].alias("area_of_improvement"),
     projects_df["status"].alias("status_of_project"),

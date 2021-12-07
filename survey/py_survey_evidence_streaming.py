@@ -90,11 +90,7 @@ try:
          if 'isAPrivateProgram' in obSub :
             successLogger.debug("Survey Evidence Submission Id : " + str(msg_id))
             try:
-                completedDate = str(
-                    datetime.datetime.date(obSub['completedDate'])
-                ) + 'T' + str(
-                    datetime.datetime.time(obSub['completedDate'])
-                ) + 'Z'
+                completedDate = str(obSub['completedDate'])
             except KeyError:
                 pass
             evidence_sub_count = 0
