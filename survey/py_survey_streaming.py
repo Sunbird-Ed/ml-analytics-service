@@ -106,21 +106,9 @@ try:
         for obSub in cursorMongo :
          if 'isAPrivateProgram' in obSub :
             surveySubQuestionsArr = []
-            completedDate = str(
-                datetime.datetime.date(obSub['completedDate'])
-            ) + 'T' + str(
-                datetime.datetime.time(obSub['completedDate'])
-            ) + 'Z'
-            createdAt = str(
-                datetime.datetime.date(obSub['createdAt'])
-            ) + 'T' + str(
-                datetime.datetime.time(obSub['createdAt'])
-            ) + 'Z'
-            updatedAt = str(
-                datetime.datetime.date(obSub['updatedAt'])
-            ) + 'T' + str(
-                datetime.datetime.time(obSub['updatedAt'])
-            ) + 'Z'
+            completedDate = str(obSub['completedDate'])
+            createdAt = str(obSub['createdAt'])
+            updatedAt = str(obSub['updatedAt'])
             evidencesArr = [v for v in obSub['evidences'].values()]
             evidence_sub_count = 0
 
@@ -280,10 +268,10 @@ try:
                                 fileCnt = 1
                                 for filedetail in answer['fileName']:
                                     if fileCnt == 1:
-                                        multipleFiles = 'https://storage.cloud.google.com/sl-prod-storage/' + filedetail['sourcePath']
+                                        multipleFiles = config.get('ML_SURVEY_SERVICE_URL', 'evidence_base_url') + filedetail['sourcePath']
                                         fileCnt = fileCnt + 1
                                     else:
-                                        multipleFiles = multipleFiles + ' , ' + 'https://storage.cloud.google.com/sl-prod-storage/' + filedetail['sourcePath']
+                                        multipleFiles = multipleFiles + ' , ' + config.get('ML_SURVEY_SERVICE_URL', 'evidence_base_url') + filedetail['sourcePath']
                                 surveySubQuestionsObj['evidences'] = multipleFiles                                  
                                 surveySubQuestionsObj['evidence_count'] = len(answer['fileName'])
                             surveySubQuestionsObj['total_evidences'] = evidence_sub_count

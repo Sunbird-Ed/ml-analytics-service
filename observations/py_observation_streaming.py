@@ -199,11 +199,11 @@ try:
      if 'isAPrivateProgram' in obSub :
       completedDate = None
       try:
-        completedDate = str(datetime.datetime.date(obSub['completedDate'])) + 'T' + str(datetime.datetime.time(obSub['completedDate'])) + 'Z'
+        completedDate = str(obSub['completedDate'])
       except KeyError:
         pass
-      createdAt = str(datetime.datetime.date(obSub['createdAt'])) + 'T' + str(datetime.datetime.time(obSub['createdAt'])) + 'Z'
-      updatedAt = str(datetime.datetime.date(obSub['updatedAt'])) + 'T' + str(datetime.datetime.time(obSub['updatedAt'])) + 'Z'
+      createdAt = str(obSub['createdAt'])
+      updatedAt = str(obSub['updatedAt'])
       evidencesArr = [ v for v in obSub['evidences'].values() ]
       evidence_sub_count = 0
       entityId = obSub['entityId']

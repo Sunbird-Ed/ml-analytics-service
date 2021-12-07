@@ -191,17 +191,6 @@ obs_sub_rdd = spark.sparkContext.parallelize(list(obs_sub_cursorMongo))
 obs_sub_df1 = spark.createDataFrame(obs_sub_rdd,obs_sub_schema)
 
 obs_sub_df1 = obs_sub_df1.withColumn(
-   "date_time", to_timestamp(obs_sub_df1["updatedAt"], 'yyyy-MM-dd HH:mm:ss')
-)
-
-obs_sub_df1 = obs_sub_df1.withColumn(
-   "date", F.split(obs_sub_df1["date_time"], ' ')[0]
-)
-obs_sub_df1 = obs_sub_df1.withColumn(
-   "time", F.split(obs_sub_df1["date_time"], ' ')[1]
-)
-
-obs_sub_df1 = obs_sub_df1.withColumn(
    "app_name", 
    F.when(
       obs_sub_df1["appInformation"]["appName"].isNull(), 
@@ -241,11 +230,6 @@ obs_sub_df1 = obs_sub_df1.withColumn(
       (obs_sub_df1["isRubricDriven"] == False), 
       "observation_with_out_rubric"
    ).otherwise("observation_with_out_rubric")
-)
-
-obs_sub_df1 =  obs_sub_df1.withColumn(
-   "updatedAt", 
-   F.concat(F.col("date"), F.lit("T"), F.col("time"), F.lit(".000Z"))
 )
 
 obs_sub_df = obs_sub_df1.select(
@@ -579,7 +563,7 @@ for i,j in zip(datasources,ingestion_specs):
          time.sleep(300)
 
          delete_segments = requests.delete(
-            ruid_end_point + "/intervals/" + interval, headers=headers
+            druid_end_point + "/intervals/" + interval, headers=headers
          )
          if delete_segments.status_code == 200:
             successLogger.debug("successfully deleted the segments " + i)
