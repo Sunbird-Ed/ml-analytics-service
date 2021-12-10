@@ -360,7 +360,6 @@ try:
                                         finalObj =  creatingObj(
                                             ansFn,ques['externalId'], ansFn['value'], instNumber, None
                                         )
-                                        print(finalObj)
                                         producer.send(
                                             (config.get("KAFKA", "survey_druid_topic")), 
                                             json.dumps(finalObj).encode('utf-8')

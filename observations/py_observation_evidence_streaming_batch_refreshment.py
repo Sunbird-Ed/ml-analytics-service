@@ -96,6 +96,7 @@ try:
 
     if completedDate :
       for answer in answersArr:
+       try:
         if answer['qid']:
           observationSubQuestionsObj = {}
           observationSubQuestionsObj['completedDate'] = completedDate
@@ -157,6 +158,8 @@ try:
             )     
             producer.flush()
             successLogger.debug("Send Obj to Kafka")
+       except KeyError:
+        pass
 except Exception as e:
   errorLogger.error(e, exc_info=True)
 
