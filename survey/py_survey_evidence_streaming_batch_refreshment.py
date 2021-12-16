@@ -168,7 +168,7 @@ payload = {}
 payload = json.loads(config.get("DRUID","survey_evidence_injestion_spec"))
 datasource = [payload["spec"]["dataSchema"]["dataSource"]]
 ingestion_spec = [json.dumps(payload)]       
-for i, j in zip(datasources,ingestion_specs):
+for i, j in zip(datasource,ingestion_spec):
     druid_end_point = config.get("DRUID", "metadata_url") + i
     druid_batch_end_point = config.get("DRUID", "batch_url")
     headers = {'Content-Type' : 'application/json'}
@@ -244,3 +244,5 @@ for i, j in zip(datasources,ingestion_specs):
             errorLogger.error(
                 "failed to start batch ingestion task" + str(start_supervisor.status_code)
             )        
+
+
