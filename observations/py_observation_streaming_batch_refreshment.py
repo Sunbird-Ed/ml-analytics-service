@@ -5,19 +5,19 @@
 #   produce it to another kafka topic 
 # -----------------------------------------------------------------
 
-import faust
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 import os, json
 import datetime
+# from datetime import date,time
 import requests
-from kafka import KafkaConsumer, KafkaProducer
 from configparser import ConfigParser,ExtendedInterpolation
 import logging
 import logging.handlers
 import time
 from logging.handlers import TimedRotatingFileHandler
 import redis
+from azure.storage.blob import BlockBlobService
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
@@ -57,17 +57,7 @@ errorLogger.addHandler(errorBackuphandler)
 
 domArr = []
 
-kafka_url = config.get("KAFKA", "url")
-#consume the message from kafka topic
-app = faust.App(
-  'ml_observation_faust',
-  broker='kafka://'+kafka_url,
-  value_serializer='raw',
-  web_port=7001,
-  broker_max_poll_records=500
-)
-rawTopicName = app.topic(config.get("KAFKA", "observation_raw_topic"))
-producer = KafkaProducer(bootstrap_servers=[kafka_url])
+
 #db production
 client = MongoClient(config.get('MONGO', 'mongo_url'))
 db = client[config.get('MONGO', 'database_name')]
@@ -189,16 +179,20 @@ except Exception as e:
   errorLogger.error(e, exc_info=True)
 
 try:
-  def obj_creation(obSub):
-    successLogger.debug("Observation Submission Id : " + obSub['_id'])    
-    if 'isAPrivateProgram' in obSub :
+  def obj_creation(msg_id):
+    successLogger.debug("Observation Submission Id : " + str(msg_id))
+    cursorMongo = obsSubCollec.find(
+      {'_id':ObjectId(msg_id)}, no_cursor_timeout=True
+    )
+    for obSub in cursorMongo :
+     if 'isAPrivateProgram' in obSub :
       completedDate = None
       try:
-        completedDate = obSub['completedDate']
+        completedDate = str(obSub['completedDate'])
       except KeyError:
         pass
-      createdAt = obSub['createdAt']
-      updatedAt = obSub['updatedAt']
+      createdAt = str(obSub['createdAt'])
+      updatedAt = str(obSub['updatedAt'])
       evidencesArr = [ v for v in obSub['evidences'].values() ]
       evidence_sub_count = 0
       entityId = obSub['entityId']
@@ -762,12 +756,9 @@ try:
                             entityLongitudeQuesFn,usrRol
                           )
                           if finalObj["completedDate"]:
-                            producer.send(
-                              (config.get("KAFKA", "observation_druid_topic")), 
-                              json.dumps(finalObj).encode('utf-8')
-                            )
-                            producer.flush()
-                            successLogger.debug("Send Obj to Kafka")
+                            json.dump(finalObj, f)
+                            f.write("\n")
+                            successLogger.debug("Send Obj to Azure")
                       else :
                         finalObj = {}
                         finalObj =  creatingObj(
@@ -780,12 +771,9 @@ try:
                           None
                         ) 
                         if finalObj["completedDate"]:
-                          producer.send(
-                            (config.get("KAFKA", "observation_druid_topic")), 
-                            json.dumps(finalObj).encode('utf-8')
-                          )
-                          producer.flush()
-                          successLogger.debug("Send Obj to Kafka")
+                          json.dump(finalObj, f)
+                          f.write("\n")
+                          successLogger.debug("Send Obj to Azure")
                     else:
                       if (len(userRolesArrUnique)) > 0:
                         for usrRol in userRolesArrUnique:
@@ -801,12 +789,9 @@ try:
                             usrRol
                           )
                           if finalObj["completedDate"]:
-                            producer.send(
-                              (config.get("KAFKA", "observation_druid_topic")),
-                              json.dumps(finalObj).encode('utf-8')
-                            )
-                            producer.flush()
-                            successLogger.debug("Send Obj to Kafka")
+                            json.dump(finalObj, f)
+                            f.write("\n")
+                            successLogger.debug("Send Obj to Azure")
                       else:
                         finalObj = {}
                         finalObj = creatingObj(
@@ -820,12 +805,9 @@ try:
                           None
                         )
                         if finalObj["completedDate"]:
-                          producer.send(
-                            (config.get("KAFKA", "observation_druid_topic")),
-                            json.dumps(finalObj).encode('utf-8')
-                          )
-                          producer.flush()
-                          successLogger.debug("Send Obj to Kafka")
+                          json.dump(finalObj, f)
+                          f.write("\n")
+                          successLogger.debug("Send Obj to Azure")
                   except KeyError:
                     pass
                 else:
@@ -848,12 +830,9 @@ try:
                                 usrRol
                               )
                               if finalObj["completedDate"]:
-                                producer.send(
-                                  (config.get("KAFKA", "observation_druid_topic")), 
-                                  json.dumps(finalObj).encode('utf-8')
-                                )
-                                producer.flush()
-                                successLogger.debug("Send Obj to Kafka")
+                                json.dump(finalObj, f)
+                                f.write("\n")
+                                successLogger.debug("Send Obj to Azure")
                           else :
                             finalObj = {}
                             finalObj =  creatingObj(
@@ -866,12 +845,9 @@ try:
                               None
                             )
                             if finalObj["completedDate"]:
-                              producer.send(
-                                (config.get("KAFKA", "observation_druid_topic")), 
-                                json.dumps(finalObj).encode('utf-8')
-                              )
-                              producer.flush()
-                              successLogger.debug("Send Obj to Kafka") 
+                              json.dump(finalObj, f)
+                              f.write("\n")
+                              successLogger.debug("Send Obj to Azure") 
                             
                       elif type(ansFn['value']) == list:
                         for ansArr in ansFn['value']:
@@ -890,12 +866,9 @@ try:
                                   usrRol
                                 )
                                 if finalObj["completedDate"]:
-                                  producer.send(
-                                    (config.get("KAFKA", "observation_druid_topic")), 
-                                    json.dumps(finalObj).encode('utf-8')
-                                  )
-                                  producer.flush()
-                                  successLogger.debug("Send Obj to Kafka")
+                                  json.dump(finalObj, f)
+                                  f.write("\n")
+                                  successLogger.debug("Send Obj to Azure")
                             else :
                               finalObj = {}
                               finalObj =  creatingObj(
@@ -909,12 +882,9 @@ try:
                                 None
                               )
                               if finalObj["completedDate"]:
-                                producer.send(
-                                  (config.get("KAFKA", "observation_druid_topic")), 
-                                  json.dumps(finalObj).encode('utf-8')
-                                )
-                                producer.flush()
-                                successLogger.debug("Send Obj to Kafka")
+                                json.dump(finalObj, f)
+                                f.write("\n")
+                                successLogger.debug("Send Obj to Azure")
                             labelIndex = labelIndex + 1
                     except KeyError:
                       pass
@@ -935,12 +905,9 @@ try:
                           usrRol
                         )
                         if finalObj["completedDate"]:
-                          producer.send(
-                            (config.get("KAFKA", "observation_druid_topic")), 
-                            json.dumps(finalObj).encode('utf-8')
-                          )
-                          producer.flush()
-                          successLogger.debug("Send Obj to Kafka")
+                          json.dump(finalObj, f)
+                          f.write("\n")
+                          successLogger.debug("Send Obj to Azure")
                     else :
                       finalObj = {}
                       finalObj =  creatingObj(
@@ -954,12 +921,9 @@ try:
                         None
                       )
                       if finalObj["completedDate"]:
-                        producer.send(
-                          (config.get("KAFKA", "observation_druid_topic")), 
-                          json.dumps(finalObj).encode('utf-8')
-                        )
-                        producer.flush()
-                        successLogger.debug("Send Obj to Kafka")
+                        json.dump(finalObj, f)
+                        f.write("\n")
+                        successLogger.debug("Send Obj to Azure")
                 except KeyError:
                   pass
 
@@ -982,22 +946,113 @@ try:
                  for instance in instances.values():
                   fetchingQuestiondetails(instance, inst_cnt, entityLatitude, entityLongitude)
             except KeyError:
-              pass    
+              pass
+    cursorMongo.close()
 except Exception as e:
   errorLogger.error(e, exc_info=True)
 
-try:
-  @app.agent(rawTopicName)
-  async def observationFaust(consumer) :
-    async for msg in consumer :
-      msg_val = msg.decode('utf-8')
-      msg_data = json.loads(msg_val)
-      successLogger.debug("========== START OF OBSERVATION SUBMISSION ========")
-      obj_creation(msg_data)
-      successLogger.debug("********* END OF OBSERVATION SUBMISSION ***********")
-except Exception as e:
-  errorLogger.error(e, exc_info=True)
+with open('sl_observation.json', 'w') as f:
+ for msg_data in obsSubCollec.find({"status":"completed"}):
+    obj_arr = obj_creation(msg_data['_id'])
 
-if __name__ == '__main__':
-  app.main()
+container_name = config.get("AZURE", "container_name")
+storage_account = config.get("AZURE", "account_name")
+token = config.get("AZURE", "sas_token")
+local_path = config.get("OUTPUT_DIR", "observation")
+blob_path = config.get("AZURE", "observation_evidevce_blob_path")
+
+blob_service_client = BlockBlobService(
+    account_name=config.get("AZURE", "account_name"),
+    sas_token=config.get("AZURE", "sas_token")
+)
+
+
+for files in os.listdir(local_path):
+    if "sl_observation.json" in files:
+        blob_service_client.create_blob_from_path(
+            container_name,
+            os.path.join(blob_path,files),
+            local_path + "/" + files
+        )
+        
+payload = {}
+payload = json.loads(config.get("DRUID","observation_injestion_spec"))
+datasource = [payload["spec"]["dataSchema"]["dataSource"]]
+ingestion_spec = [json.dumps(payload)]       
+for i, j in zip(datasource,ingestion_spec):
+    druid_end_point = config.get("DRUID", "metadata_url") + i
+    druid_batch_end_point = config.get("DRUID", "batch_url")
+    headers = {'Content-Type' : 'application/json'}
+    get_timestamp = requests.get(druid_end_point, headers=headers)
+    if get_timestamp.status_code == 200:
+        successLogger.debug("Successfully fetched time stamp of the datasource " + i )
+        timestamp = get_timestamp.json()
+        #calculating interval from druid get api
+        minTime = timestamp["segments"]["minTime"]
+        maxTime = timestamp["segments"]["maxTime"]
+        min1 = datetime.datetime.strptime(minTime, "%Y-%m-%dT%H:%M:%S.%fZ")
+        max1 = datetime.datetime.strptime(maxTime, "%Y-%m-%dT%H:%M:%S.%fZ")
+        new_format = "%Y-%m-%d"
+        min1.strftime(new_format)
+        max1.strftime(new_format)
+        minmonth = "{:02d}".format(min1.month)
+        maxmonth = "{:02d}".format(max1.month)
+        min2 = str(min1.year) + "-" + minmonth + "-" + str(min1.day)
+        max2 = str(max1.year) + "-" + maxmonth  + "-" + str(max1.day)
+        interval = min2 + "_" + max2
+        time.sleep(50)
+
+        disable_datasource = requests.delete(druid_end_point, headers=headers)
+
+        if disable_datasource.status_code == 200:
+            successLogger.debug("successfully disabled the datasource " + i)
+            time.sleep(300)
+          
+            delete_segments = requests.delete(
+                druid_end_point + "/intervals/" + interval, headers=headers
+            )
+            if delete_segments.status_code == 200:
+                successLogger.debug("successfully deleted the segments " + i)
+                time.sleep(300)
+
+                enable_datasource = requests.get(druid_end_point, headers=headers)
+                if enable_datasource.status_code == 204:
+                    successLogger.debug("successfully enabled the datasource " + i)
+                    
+                    time.sleep(300)
+
+                    start_supervisor = requests.post(
+                        druid_batch_end_point, data=j, headers=headers
+                    )
+                    successLogger.debug("ingest data")
+                    if start_supervisor.status_code == 200:
+                        successLogger.debug(
+                            "started the batch ingestion task sucessfully for the datasource " + i
+                        )
+                        time.sleep(50)
+                    else:
+                        errorLogger.error(
+                            "failed to start batch ingestion task" + str(start_supervisor.status_code)
+                        )
+                else:
+                    errorLogger.error("failed to enable the datasource " + i)
+            else:
+                errorLogger.error("failed to delete the segments of the datasource " + i)
+        else:
+            errorLogger.error("failed to disable the datasource " + i)
+
+    elif get_timestamp.status_code == 204:
+        start_supervisor = requests.post(
+            druid_batch_end_point, data=j, headers=headers
+        )
+        if start_supervisor.status_code == 200:
+            successLogger.debug(
+                "started the batch ingestion task sucessfully for the datasource " + i
+            )
+            time.sleep(50)
+        else:
+            errorLogger.error(start_supervisor.text)
+            errorLogger.error(
+                "failed to start batch ingestion task" + str(start_supervisor.status_code)
+            )   
 
