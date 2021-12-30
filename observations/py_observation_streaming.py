@@ -72,6 +72,7 @@ producer = KafkaProducer(bootstrap_servers=[kafka_url])
 client = MongoClient(config.get('MONGO', 'mongo_url'))
 db = client[config.get('MONGO', 'database_name')]
 solCollec = db[config.get('MONGO', 'solutions_collection')]
+obsCollec = db[config.get('MONGO', 'observations_collection')]
 questionsCollec = db[config.get('MONGO', 'questions_collection')]
 entitiesCollec = db[config.get('MONGO', 'entities_collection')]
 criteriaQuestionsCollec = db[config.get('MONGO', 'criteria_questions_collection')]
