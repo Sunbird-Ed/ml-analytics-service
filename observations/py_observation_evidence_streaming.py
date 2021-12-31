@@ -66,7 +66,6 @@ try:
   #db production
   clientdev = MongoClient(config.get('MONGO','mongo_url'))
   db = clientdev[config.get('MONGO','database_name')]
-  obsSubCollec = db[config.get('MONGO','observation_sub_collection')]
   quesCollec = db[config.get('MONGO','questions_collection')]
 except Exception as e:
   errorLogger.error(e, exc_info=True)
@@ -78,12 +77,11 @@ except Exception as e:
   errorLogger.error(e, exc_info=True)
 
 try:
-  def evidence_extraction(msg_id):
-    for obSub in obsSubCollec.find({'_id':ObjectId(msg_id)}):
-     if 'isAPrivateProgram' in obSub :
-      successLogger.debug("Observation Evidence Submission Id : " + str(msg_id))
+  def evidence_extraction(obSub):
+    if 'isAPrivateProgram' in obSub :
+      successLogger.debug("Observation Evidence Submission Id : " + obSub['_id'])
       try:
-        completedDate = str(obSub['completedDate'])
+        completedDate = obSub['completedDate']
       except KeyError:
         completedDate = '' 
       evidence_sub_count = 0
@@ -178,7 +176,7 @@ try:
      msg_val = msg.decode('utf-8')
      msg_data = json.loads(msg_val)
      successLogger.debug("========== START OF OBSERVATION EVIDENCE SUBMISSION ========")
-     obj_arr = evidence_extraction(msg_data['_id'])
+     evidence_extraction(msg_data)
      successLogger.debug("********* END OF OBSERVATION EVIDENCE SUBMISSION ***********")
 except Exception as e:
  errorLogger.error(e, exc_info=True)

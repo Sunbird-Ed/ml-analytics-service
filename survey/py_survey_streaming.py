@@ -77,7 +77,6 @@ try:
     #db production
     client = MongoClient(config.get('MONGO', 'mongo_url'))
     db = client[config.get('MONGO', 'database_name')]
-    surveySubmissionsCollec = db[config.get('MONGO', 'survey_submissions_collection')]
     solutionsCollec = db[config.get('MONGO', 'solutions_collection')]
     surveyCollec = db[config.get('MONGO', 'survey_collection')]
     questionsCollec = db[config.get('MONGO', 'questions_collection')]
@@ -98,17 +97,13 @@ except Exception as e:
 
 
 try:
-    def obj_creation(msg_id):
-        successLogger.debug("Survey Submission Id : " + str(msg_id))
-        cursorMongo = surveySubmissionsCollec.find(
-            {'_id':ObjectId(msg_id)}, no_cursor_timeout=True
-        )
-        for obSub in cursorMongo :
-         if 'isAPrivateProgram' in obSub :
+    def obj_creation(obSub):
+        successLogger.debug("Survey Submission Id : " + obSub['_id'])
+        if 'isAPrivateProgram' in obSub :
             surveySubQuestionsArr = []
-            completedDate = str(obSub['completedDate'])
-            createdAt = str(obSub['createdAt'])
-            updatedAt = str(obSub['updatedAt'])
+            completedDate = obSub['completedDate']
+            createdAt = obSub['createdAt']
+            updatedAt = obSub['updatedAt']
             evidencesArr = [v for v in obSub['evidences'].values()]
             evidence_sub_count = 0
 
@@ -391,7 +386,7 @@ try:
                                 for instance in instances.values():
                                     fetchingQuestiondetails(instance,inst_cnt)
 
-        cursorMongo.close()
+        
 except Exception as e:
     errorLogger.error(e, exc_info=True)
 
@@ -402,7 +397,7 @@ try :
             msg_val = msg.decode('utf-8')
             msg_data = json.loads(msg_val)
             successLogger.debug("========== START OF SURVEY SUBMISSION ========")
-            obj_creation(msg_data['_id'])
+            obj_creation(msg_data)
             successLogger.debug("********* END OF SURVEY SUBMISSION ***********")
 except Exception as e:
     errorLogger.error(e, exc_info=True)
