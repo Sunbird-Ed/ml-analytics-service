@@ -27,6 +27,8 @@ from azure.storage.blob import ContentSettings
 import logging
 import logging.handlers
 from logging.handlers import TimedRotatingFileHandler
+from pyspark.sql import DataFrame
+from typing import Iterable
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
@@ -87,6 +89,22 @@ try:
 except Exception as e:
    errorLogger.error(e,exc_info=True)
 
+try:
+ def melt(df: DataFrame,id_vars: Iterable[str], value_vars: Iterable[str],
+        var_name: str="variable", value_name: str="value") -> DataFrame:
+
+    _vars_and_vals = array(*(
+        struct(lit(c).alias(var_name), col(c).alias(value_name))
+        for c in value_vars))
+
+    # Add to the DataFrame and explode
+    _tmp = df.withColumn("_vars_and_vals", explode(_vars_and_vals))
+
+    cols = id_vars + [
+            col("_vars_and_vals")[x].alias(x) for x in [var_name, value_name]]
+    return _tmp.select(*cols)
+except Exception as e:
+   errorLogger.error(e,exc_info=True)
 
 clientProd = MongoClient(config.get('MONGO', 'mongo_url'))
 db = clientProd[config.get('MONGO', 'database_name')]
@@ -94,6 +112,7 @@ obsSubmissionsCollec = db[config.get('MONGO', 'observation_sub_collection')]
 solutionCollec = db[config.get('MONGO', 'solutions_collection')]
 userRolesCollec = db[config.get("MONGO", 'user_roles_collection')]
 programCollec = db[config.get("MONGO", 'programs_collection')]
+entitiesCollec = db[config.get('MONGO', 'entities_collection')]
 
 # redis cache connection 
 redis_connection = redis.ConnectionPool(
@@ -138,7 +157,8 @@ obs_sub_cursorMongo = obsSubmissionsCollec.aggregate(
                   ]
                }
             }
-         }
+         },
+         "userRoleInformation": 1
       }
    }]
 )
@@ -169,7 +189,18 @@ obs_sub_schema = StructType(
       ),
       StructField('isRubricDriven',StringType(),True),
       StructField('criteriaLevelReport',StringType(),True),
-      StructField('ecm_marked_na', StringType(), True)
+      StructField('ecm_marked_na', StringType(), True),
+      StructField(
+          'userRoleInformation',
+          StructType([
+              StructField('state', StringType(), True),
+              StructField('block', StringType(), True),
+              StructField('district', StringType(), True),
+              StructField('cluster', StringType(), True),
+              StructField('school', StringType(), True),
+              StructField('role', StringType(), True)
+         ])
+      )
    ]
 )
 
@@ -249,9 +280,92 @@ obs_sub_df = obs_sub_df1.select(
    obs_sub_df1["private_program"],
    obs_sub_df1["solution_type"],
    obs_sub_df1["ecm_marked_na"],
-   "updatedAt"
+   "updatedAt",
+   obs_sub_df1["userRoleInformation"]["role"].alias("role_title"),
+   obs_sub_df1["userRoleInformation"]["state"].alias("state_externalId"),
+   obs_sub_df1["userRoleInformation"]["block"].alias("block_externalId"),
+   obs_sub_df1["userRoleInformation"]["district"].alias("district_externalId"),
+   obs_sub_df1["userRoleInformation"]["cluster"].alias("cluster_externalId"),
+   obs_sub_df1["userRoleInformation"]["school"].alias("school_externalId")
 )
 obs_sub_cursorMongo.close()
+
+obs_entities_id_df = obs_sub_df.select("state_externalId","block_externalId","district_externalId","cluster_externalId","school_externalId")
+entitiesId_obs_status_df_before = []
+entitiesId_arr = []
+uniqueEntitiesId_arr = []
+entitiesId_obs_status_df_before = obs_entities_id_df.toJSON().map(lambda j: json.loads(j)).collect()
+for eid in entitiesId_obs_status_df_before:
+   try:
+    entitiesId_arr.append(eid["state_externalId"])
+   except KeyError :
+    pass
+   try:
+    entitiesId_arr.append(eid["block_externalId"])
+   except KeyError :
+    pass
+   try:
+    entitiesId_arr.append(eid["district_externalId"])
+   except KeyError :
+    pass
+   try:
+    entitiesId_arr.append(eid["cluster_externalId"])
+   except KeyError :
+    pass
+   try:
+    entitiesId_arr.append(eid["school_externalId"])
+   except KeyError :
+    pass
+uniqueEntitiesId_arr = list(removeduplicate(entitiesId_arr))
+ent_cursorMongo = entitiesCollec.aggregate(
+   [{"$match": {"$or":[{"registryDetails.locationId":{"$in":uniqueEntitiesId_arr}},{"registryDetails.code":{"$in":uniqueEntitiesId_arr}}]}},
+    {
+      "$project": {
+         "_id": {"$toString": "$_id"},
+         "entityType": 1,
+         "metaInformation": {"name": 1},
+         "registryDetails": 1
+      }
+    }
+   ])
+ent_schema = StructType(
+        [
+            StructField("_id", StringType(), True),
+            StructField("entityType", StringType(), True),
+            StructField("metaInformation",
+                StructType([StructField('name', StringType(), True)])
+            ),
+            StructField("registryDetails",
+                StructType([StructField('locationId', StringType(), True),
+                            StructField('code',StringType(), True)
+                        ])
+            )
+        ]
+    )
+entities_rdd = spark.sparkContext.parallelize(list(ent_cursorMongo))
+entities_df = spark.createDataFrame(entities_rdd,ent_schema)
+entities_df = melt(entities_df,
+        id_vars=["_id","entityType","metaInformation.name"],
+        value_vars=["registryDetails.locationId", "registryDetails.code"]
+    ).select("_id","entityType","name","value"
+            ).dropDuplicates()
+entities_df = entities_df.withColumn("variable",F.concat(F.col("entityType"),F.lit("_externalId")))
+obs_sub_df_melt = melt(obs_sub_df,
+        id_vars=["status","entity_externalId","entity_id","entity_type","user_id","solution_id",
+            "solution_externalId","submission_id","entity_name","completedDate","program_id",
+            "program_externalId","app_name","private_program","solution_type","ecm_marked_na",
+            "updatedAt","role_title"],
+        value_vars=["state_externalId","block_externalId","district_externalId","cluster_externalId","school_externalId"]
+        )
+obs_ent_sub_df_melt = obs_sub_df_melt\
+                 .join(entities_df,["variable","value"],how="left")\
+                 .select(obs_sub_df_melt["*"],entities_df["name"],entities_df["_id"].alias("entity_ids"))
+obs_ent_sub_df_melt = obs_ent_sub_df_melt.withColumn("flag",F.regexp_replace(F.col("variable"),"_externalId","_name"))
+obs_ent_sub_df_melt = obs_ent_sub_df_melt.groupBy(["status","submission_id"])\
+                               .pivot("flag").agg(first(F.col("name")))
+
+obs_sub_df_final = obs_sub_df.join(obs_ent_sub_df_melt,["status","submission_id"],how="left")
+ent_cursorMongo.close()
 
 #observation solution dataframe
 obs_sol_cursorMongo = solutionCollec.aggregate(
@@ -272,9 +386,9 @@ obs_soln_df = spark.createDataFrame(obs_soln_rdd,obs_sol_schema)
 obs_sol_cursorMongo.close()
 
 #match solution id from solution df to submission df to fetch the solution name
-obs_sub_soln_df = obs_sub_df.join(
+obs_sub_soln_df = obs_sub_df_final.join(
    obs_soln_df,
-   obs_sub_df.solution_id==obs_soln_df._id,
+   obs_sub_df_final.solution_id==obs_soln_df._id,
    'inner'
 ).drop(obs_soln_df["_id"])
 obs_sub_soln_df = obs_sub_soln_df.withColumnRenamed("name", "solution_name")
@@ -317,49 +431,9 @@ for ch in uniqueuserId_arr :
    userObj = {}
    userObj = datastore.hgetall("user:"+ch)
    if userObj :
-      stateName = None
-      blockName = None
-      districtName = None
-      clusterName = None
       rootOrgId = None
-      userSubType = None
-      userSchool = None
-      userSchoolUDISE = None
-      userSchoolName = None
       orgName = None
       boardName = None
-      try:
-         userSchool = userObj["school"]
-      except KeyError :
-         userSchool = ''
-      try:
-         userSchoolUDISE = userObj["schooludisecode"]
-      except KeyError :
-         userSchoolUDISE = ''
-      try:
-         userSchoolName = userObj["schoolname"]
-      except KeyError :
-         userSchoolName = ''
-      try:
-         userSubType = userObj["usersubtype"]
-      except KeyError :
-         userSubType = ''
-      try:
-         stateName = userObj["state"]
-      except KeyError :
-         stateName = ''
-      try:
-         blockName = userObj["block"]
-      except KeyError :
-         blockName = ''
-      try:
-         districtName = userObj["district"]
-      except KeyError :
-         districtName = ''
-      try:
-         clusterName = userObj["cluster"]
-      except KeyError :
-         clusterName = ''
       try:
          rootOrgId = userObj["rootorgid"]
       except KeyError :
@@ -374,15 +448,7 @@ for ch in uniqueuserId_arr :
          boardName = ''
       userRelatedEntitiesObj = {}
       try :
-         userRelatedEntitiesObj["state_name"] = stateName
-         userRelatedEntitiesObj["block_name"] = blockName
-         userRelatedEntitiesObj["district_name"] = districtName
-         userRelatedEntitiesObj["cluster_name"] = clusterName
          userRelatedEntitiesObj["user_id"] = ch
-         userRelatedEntitiesObj["role_title"] = userSubType
-         userRelatedEntitiesObj["school_id"] = userSchool
-         userRelatedEntitiesObj["school_name"] = userSchoolName
-         userRelatedEntitiesObj["school_externalId"] = userSchoolUDISE
          userRelatedEntitiesObj["organisation_name"] = orgName
          userRelatedEntitiesObj["board_name"] = boardName
       except KeyError :
@@ -473,6 +539,7 @@ entityArray = []
 
 obs_sub_df1.cache()
 obs_sub_df.cache()
+obs_sub_df_final.cache()
 obs_soln_df.cache()
 df_user_org.cache()
 roles_df.cache()

@@ -26,6 +26,8 @@ from logging.handlers import TimedRotatingFileHandler
 import datetime
 from datetime import date
 import redis
+from pyspark.sql import DataFrame
+from typing import Iterable
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
@@ -74,6 +76,7 @@ spark = SparkSession.builder.appName("projects").config("spark.driver.memory", "
 clientProd = MongoClient(config.get('MONGO', 'mongo_url'))
 db = clientProd[config.get('MONGO', 'database_name')]
 projectsCollec = db[config.get('MONGO', 'projects_collection')]
+entitiesCollec = db[config.get('MONGO', 'entities_collection')]
 
 # redis cache connection 
 redis_connection = redis.ConnectionPool(
@@ -93,6 +96,24 @@ try:
                 seen.append(x)
 except Exception as e:
     errorLogger.error(e, exc_info=True)
+
+try:
+ def melt(df: DataFrame,id_vars: Iterable[str], value_vars: Iterable[str],
+        var_name: str="variable", value_name: str="value") -> DataFrame:
+
+    _vars_and_vals = array(*(
+        struct(lit(c).alias(var_name), col(c).alias(value_name))
+        for c in value_vars))
+
+    # Add to the DataFrame and explode
+    _tmp = df.withColumn("_vars_and_vals", explode(_vars_and_vals))
+
+    cols = id_vars + [
+            col("_vars_and_vals")[x].alias(x) for x in [var_name, value_name]]
+    return _tmp.select(*cols)
+except Exception as e:
+   errorLogger.error(e,exc_info=True)
+   
 
 spark = SparkSession.builder.appName("projects").config(
     "spark.driver.memory", "50g"
