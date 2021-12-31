@@ -216,59 +216,42 @@ try:
           entityLatitude = ''
           entityLongitude = ''
       userObj = {}
+      stateName = None
+      blockName = None
+      districtName = None
+      clusterName = None
+      userSubType = None
+      userSchool = None
+      userSchoolUDISE = None
+      userSchoolName = None
+      entitiesArrIds = []
+      for userRoleKey, userRoleVal in obSub["userRoleInformation"].items():
+          if userRoleKey != "role" :
+             entitiesArrIds.append(userRoleVal)
+      for entUR in entitiesCollec.find({"$or":[{"registryDetails.locationId":
+        {"$in":entitiesArrIds}},{"registryDetails.code":{"$in":entitiesArrIds}}]},
+        {"metaInformation.name":1,"entityType":1,"registryDetails":1}):
+          if entUR["entityType"] == "state":
+             stateName = entUR["metaInformation"]["name"]
+          if entUR["entityType"] == "block":
+             blockName = entUR["metaInformation"]["name"]
+          if entUR["entityType"] == "district":
+             districtName = entUR["metaInformation"]["name"]
+          if entUR["entityType"] == "cluster":
+             clusterName = entUR["metaInformation"]["name"]
+          if entUR["entityType"] == "school":
+             userSchool = str(entUR["_id"])
+             if "locationId" in entUR["registryDetails"] and entUR["registryDetails"]["locationId"] :
+              userSchoolUDISE = entUR["registryDetails"]["locationId"]
+             elif "code" in entUR["registryDetails"] and entUR["registryDetails"]["code"] :
+              userSchoolUDISE = entUR["registryDetails"]["code"]
+             userSchoolName = entUR["metaInformation"]["name"]
+      userSubType = obSub["userRoleInformation"]["role"]
       userObj = datastore.hgetall("user:" + obSub["createdBy"])
       if userObj :
-        stateName = None
-        blockName = None
-        districtName = None
-        clusterName = None
         rootOrgId = None
-        userSubType = None
-        userSchool = None
-        userSchoolUDISE = None
-        userSchoolName = None
         orgName = None
         boardName = None
-        try:
-          userSchool = userObj["school"]
-        except KeyError :
-          userSchool = ''
-
-        try:
-          userSchoolUDISE = userObj["schooludisecode"]
-        except KeyError :
-          userSchoolUDISE = ''
-
-        try:
-          userSchoolName = userObj["schoolname"]
-        except KeyError :
-          userSchoolName = ''
-
-        try:
-          userSubType = userObj["usersubtype"]
-        except KeyError :
-          userSubType = ''
-
-        try:
-          stateName = userObj["state"]
-        except KeyError :
-          stateName = ''
-
-        try:
-          blockName = userObj["block"]
-        except KeyError :
-          blockName = ''
-
-        try:
-          districtName = userObj["district"]
-        except KeyError :
-          districtName = ''
-
-        try:
-          clusterName = userObj["cluster"]
-        except KeyError :
-          clusterName = ''
-
         try:
           rootOrgId = userObj["rootorgid"]
         except KeyError :
@@ -282,7 +265,7 @@ try:
           boardName = userObj["board"]
         except KeyError:
           boardName = ''
-          
+      
         userRoles = {}
         obsAppName = None
         try :
@@ -918,50 +901,50 @@ try:
                             labelIndex = labelIndex + 1
                     except KeyError:
                       pass
-                #to check the value is null ie is not answered
-                try:
-                  if type(ansFn['value']) == str and ansFn['value'] == '':
-                    if(len(userRolesArrUnique)) > 0:
-                      for usrRol in userRolesArrUnique :
-                        finalObj = {}
-                        finalObj =  creatingObj(
-                          ansFn,
-                          ques['externalId'],
-                          ansFn['value'],
-                          instNumber,
-                          None,
-                          entityLatitudeQuesFn,
-                          entityLongitudeQuesFn,
-                          usrRol
-                        )
-                        if finalObj["completedDate"]:
-                          producer.send(
-                            (config.get("KAFKA", "observation_druid_topic")), 
-                            json.dumps(finalObj).encode('utf-8')
-                          )
-                          producer.flush()
-                          successLogger.debug("Send Obj to Kafka")
-                    else :
-                      finalObj = {}
-                      finalObj =  creatingObj(
-                        ansFn,
-                        ques['externalId'],
-                        ansFn['value'],
-                        instNumber,
-                        None,
-                        entityLatitudeQuesFn,
-                        entityLongitudeQuesFn,
-                        None
-                      )
-                      if finalObj["completedDate"]:
-                        producer.send(
-                          (config.get("KAFKA", "observation_druid_topic")), 
-                          json.dumps(finalObj).encode('utf-8')
-                        )
-                        producer.flush()
-                        successLogger.debug("Send Obj to Kafka")
-                except KeyError:
-                  pass
+                # #to check the value is null ie is not answered
+                # try:
+                #   if type(ansFn['value']) == str and ansFn['value'] == '':
+                #     if(len(userRolesArrUnique)) > 0:
+                #       for usrRol in userRolesArrUnique :
+                #         finalObj = {}
+                #         finalObj =  creatingObj(
+                #           ansFn,
+                #           ques['externalId'],
+                #           ansFn['value'],
+                #           instNumber,
+                #           None,
+                #           entityLatitudeQuesFn,
+                #           entityLongitudeQuesFn,
+                #           usrRol
+                #         )
+                #         if finalObj["completedDate"]:
+                #           producer.send(
+                #             (config.get("KAFKA", "observation_druid_topic")), 
+                #             json.dumps(finalObj).encode('utf-8')
+                #           )
+                #           producer.flush()
+                #           successLogger.debug("Send Obj to Kafka")
+                #     else :
+                #       finalObj = {}
+                #       finalObj =  creatingObj(
+                #         ansFn,
+                #         ques['externalId'],
+                #         ansFn['value'],
+                #         instNumber,
+                #         None,
+                #         entityLatitudeQuesFn,
+                #         entityLongitudeQuesFn,
+                #         None
+                #       )
+                #       if finalObj["completedDate"]:
+                #         producer.send(
+                #           (config.get("KAFKA", "observation_druid_topic")), 
+                #           json.dumps(finalObj).encode('utf-8')
+                #         )
+                #         producer.flush()
+                #         successLogger.debug("Send Obj to Kafka")
+                # except KeyError:
+                #   pass
 
             try:
              if (
