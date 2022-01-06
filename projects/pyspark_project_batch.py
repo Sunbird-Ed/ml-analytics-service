@@ -149,7 +149,8 @@ projects_cursorMongo = projectsCollec.aggregate(
             "createdAt": 1,
             "programExternalId": 1,
             "isAPrivateProgram": 1,
-            "hasAcceptedTAndC": 1
+            "hasAcceptedTAndC": 1,
+            "userRoleInformtion": 1
         }
     }]
 )
@@ -189,6 +190,17 @@ projects_schema = StructType([
         ArrayType(
             StructType([StructField('name', StringType(), True)])
         ), True
+    ),
+    StructField(
+          'userRoleInformtion',
+          StructType([
+              StructField('state', StringType(), True),
+              StructField('block', StringType(), True),
+              StructField('district', StringType(), True),
+              StructField('cluster', StringType(), True),
+              StructField('school', StringType(), True),
+              StructField('role', StringType(), True)
+         ])
     ),
     StructField(
         'tasks',
@@ -335,7 +347,7 @@ projects_df = projects_df.withColumn(
     F.when(
         projects_df["exploded_tasks_attachments"]["sourcePath"].isNotNull() == True,
         F.concat(
-            F.lit("https://samikshaprod.blob.core.windows.net/samiksha/"),
+            F.lit(config.get('ML_SURVEY_SERVICE_URL', 'evidence_base_url')),
             projects_df["exploded_tasks_attachments"]["sourcePath"]
         )
     )
@@ -397,12 +409,90 @@ projects_df_cols = projects_df.select(
     projects_df["project_terms_and_condition"],
     projects_df["exploded_tasks"]["remarks"].alias("task_remarks"),
     projects_df["project_completed_date"],
-    projects_df["solutionInformation"]["_id"].alias("solution_id")
+    projects_df["solutionInformation"]["_id"].alias("solution_id"),
+    projects_df["userRoleInformtion"]["role"].alias("designation"),
+    projects_df["userRoleInformtion"]["state"].alias("state_externalId"),
+    projects_df["userRoleInformtion"]["block"].alias("block_externalId"),
+    projects_df["userRoleInformtion"]["district"].alias("district_externalId"),
+    projects_df["userRoleInformtion"]["cluster"].alias("cluster_externalId"),
+    projects_df["userRoleInformtion"]["school"].alias("school_externalId")
 )
 
 projects_df_cols = projects_df_cols.dropDuplicates()
 
 projects_userid_df = projects_df_cols.select("createdBy")
+
+projects_entities_id_df = projects_df_cols.select("state_externalId","block_externalId","district_externalId","cluster_externalId","school_externalId")
+entitiesId_projects_df_before = []
+entitiesId_arr = []
+uniqueEntitiesId_arr = []
+entitiesId_projects_df_before = projects_entities_id_df.toJSON().map(lambda j: json.loads(j)).collect()
+for eid in entitiesId_projects_df_before:
+   try:
+    entitiesId_arr.append(eid["state_externalId"])
+   except KeyError :
+    pass
+   try:
+    entitiesId_arr.append(eid["block_externalId"])
+   except KeyError :
+    pass
+   try:
+    entitiesId_arr.append(eid["district_externalId"])
+   except KeyError :
+    pass
+   try:
+    entitiesId_arr.append(eid["cluster_externalId"])
+   except KeyError :
+    pass
+   try:
+    entitiesId_arr.append(eid["school_externalId"])
+   except KeyError :
+    pass
+uniqueEntitiesId_arr = list(removeduplicate(entitiesId_arr))
+ent_cursorMongo = entitiesCollec.aggregate(
+   [{"$match": {"$or":[{"registryDetails.locationId":{"$in":uniqueEntitiesId_arr}},{"registryDetails.code":{"$in":uniqueEntitiesId_arr}}]}},
+    {
+      "$project": {
+         "_id": {"$toString": "$_id"},
+         "entityType": 1,
+         "metaInformation": {"name": 1},
+         "registryDetails": 1
+      }
+    }
+   ])
+ent_schema = StructType(
+        [
+            StructField("_id", StringType(), True),
+            StructField("entityType", StringType(), True),
+            StructField("metaInformation",
+                StructType([StructField('name', StringType(), True)])
+            ),
+            StructField("registryDetails",
+                StructType([StructField('locationId', StringType(), True),
+                            StructField('code',StringType(), True)
+                        ])
+            )
+        ]
+    )
+entities_rdd = spark.sparkContext.parallelize(list(ent_cursorMongo))
+entities_df = spark.createDataFrame(entities_rdd,ent_schema)
+entities_df = melt(entities_df,
+        id_vars=["_id","entityType","metaInformation.name"],
+        value_vars=["registryDetails.locationId", "registryDetails.code"]
+    ).select("_id","entityType","name","value"
+            ).dropDuplicates()
+entities_df = entities_df.withColumn("variable",F.concat(F.col("entityType"),F.lit("_externalId")))
+projects_df_melt = melt(projects_df_cols,
+        id_vars=["project_id", "project_created_type", "project_title", "project_title_editable", "program_id", "program_externalId", "program_name", "project_duration", "project_last_sync", "project_updated_date", "project_deleted_flag", "area_of_improvement", "status_of_project", "createdBy", "project_description", "project_goal", "parent_channel", "project_created_date", "task_id", "tasks", "task_assigned_to", "task_start_date", "task_end_date", "tasks_date", "tasks_status", "task_evidence", "task_evidence_status", "sub_task_id", "sub_task", "sub_task_status", "sub_task_date", "sub_task_start_date", "sub_task_end_date", "private_program", "task_deleted_flag", "sub_task_deleted_flag", "project_terms_and_condition", "task_remarks", "project_completed_date", "solution_id", "designation"],
+        value_vars=["state_externalId", "block_externalId", "district_externalId", "cluster_externalId", "school_externalId"]
+        )
+projects_ent_df_melt = projects_df_melt\
+                 .join(entities_df,["variable","value"],how="left")\
+                 .select(projects_df_melt["*"],entities_df["name"],entities_df["_id"].alias("entity_ids"))
+projects_ent_df_melt = projects_ent_df_melt.withColumn("flag",F.regexp_replace(F.col("variable"),"_externalId","_name"))
+projects_ent_df_melt = projects_ent_df_melt.groupBy(["project_id"])\
+                               .pivot("flag").agg(first(F.col("name")))
+projects_df_final = projects_df_cols.join(projects_ent_df_melt,["project_id"],how="left")
 
 userId_projects_df_before = []
 userId_projects_df_after = []
@@ -415,54 +505,13 @@ for uid in userId_projects_df_before:
 uniqueuserId_arr = list(removeduplicate(userId_arr))
 
 user_info_arr = []
-entitiesArr = []
 
 for usr in uniqueuserId_arr:
     userObj = {}
     userObj = datastore.hgetall("user:"+usr)
     if userObj :
-        stateName = None
-        blockName = None
-        districtName = None
-        clusterName = None
         rootOrgId = None
-        userSubType = None
-        userSchool = None
-        userSchoolUDISE = None
-        userSchoolName = None
         boardName = None
-        try:
-            userSchool = userObj["school"]
-        except KeyError :
-            userSchool = ''
-        try:
-            userSchoolUDISE = userObj["schooludisecode"]
-        except KeyError :
-            userSchoolUDISE = ''
-        try:
-            userSchoolName = userObj["schoolname"]
-        except KeyError :
-            userSchoolName = ''
-        try:
-            userSubType = userObj["usersubtype"]
-        except KeyError :
-            userSubType = ''
-        try:
-            stateName = userObj["state"]
-        except KeyError :
-            stateName = ''
-        try:
-            blockName = userObj["block"]
-        except KeyError :
-            blockName = ''
-        try:
-            districtName = userObj["district"]
-        except KeyError :
-            districtName = ''
-        try:
-            clusterName = userObj["cluster"]
-        except KeyError :
-            clusterName = ''
         try:
             rootOrgId = userObj["rootorgid"]
         except KeyError :
@@ -471,32 +520,11 @@ for usr in uniqueuserId_arr:
          boardName = userObj["board"]
         except KeyError:
          boardName = ''
-         
-        userEntitiesArr = []
+
         userInfoObj = {}
-        userInfoObj['school_name'] = userSchoolName 
-        userInfoObj['school_id'] = userSchool
-        userInfoObj['school_externalId'] = userSchoolUDISE
-        userInfoObj['district_name'] = districtName
-        userInfoObj['block_name'] = blockName
-        userInfoObj['cluster_name'] = clusterName
-        userInfoObj['state_name'] = stateName
-        userInfoObj['board_name'] = boardName
-        
-        userEntitiesArr = list(userInfoObj.keys())
-        entitiesArr.extend(userEntitiesArr)
+        userInfoObj["board_name"] = boardName
         userInfoObj["id"] = usr
-        userInfoObj["channel"] = rootOrgId 
-        userRoles = None
-        try :
-            userRoles = userSubType
-        except KeyError :
-            userRoles = ''
-        try :
-            if userRoles :
-                userInfoObj["designation"] = userRoles
-        except KeyError :
-            userInfoObj["designation"] = ''
+        userInfoObj["channel"] = rootOrgId
         try:
             userInfoObj["organisation_name"] = userObj["orgname"]
         except KeyError:
@@ -506,9 +534,9 @@ for usr in uniqueuserId_arr:
 user_df = ks.DataFrame(user_info_arr)
 user_df = user_df.to_spark()
 
-final_projects_df = projects_df_cols.join(
+final_projects_df = projects_df_final.join(
     user_df,
-    projects_df_cols["createdBy"] == user_df["id"],
+    projects_df_final["createdBy"] == user_df["id"],
     "inner"
 ).drop(user_df["id"])
 
@@ -544,6 +572,8 @@ for files in os.listdir(local_path):
 os.remove(config.get("OUTPUT_DIR", "project") + "/sl_projects.json")
 
 dimensionsArr = []
+entitiesArr = ["state_externalId", "block_externalId", "district_externalId", "cluster_externalId", "school_externalId",\
+              "state_name","block_name","district_name","cluster_name","school_name","board_name"]
 dimensionsArr = list(set(entitiesArr))
 
 submissionReportColumnNamesArr = [
