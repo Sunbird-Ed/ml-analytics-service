@@ -150,7 +150,7 @@ projects_cursorMongo = projectsCollec.aggregate(
             "programExternalId": 1,
             "isAPrivateProgram": 1,
             "hasAcceptedTAndC": 1,
-            "userRoleInformtion": 1
+            "userRoleInformation": 1
         }
     }]
 )
@@ -192,7 +192,7 @@ projects_schema = StructType([
         ), True
     ),
     StructField(
-          'userRoleInformtion',
+          'userRoleInformation',
           StructType([
               StructField('state', StringType(), True),
               StructField('block', StringType(), True),
@@ -410,12 +410,12 @@ projects_df_cols = projects_df.select(
     projects_df["exploded_tasks"]["remarks"].alias("task_remarks"),
     projects_df["project_completed_date"],
     projects_df["solutionInformation"]["_id"].alias("solution_id"),
-    projects_df["userRoleInformtion"]["role"].alias("designation"),
-    projects_df["userRoleInformtion"]["state"].alias("state_externalId"),
-    projects_df["userRoleInformtion"]["block"].alias("block_externalId"),
-    projects_df["userRoleInformtion"]["district"].alias("district_externalId"),
-    projects_df["userRoleInformtion"]["cluster"].alias("cluster_externalId"),
-    projects_df["userRoleInformtion"]["school"].alias("school_externalId")
+    projects_df["userRoleInformation"]["role"].alias("designation"),
+    projects_df["userRoleInformation"]["state"].alias("state_externalId"),
+    projects_df["userRoleInformation"]["block"].alias("block_externalId"),
+    projects_df["userRoleInformation"]["district"].alias("district_externalId"),
+    projects_df["userRoleInformation"]["cluster"].alias("cluster_externalId"),
+    projects_df["userRoleInformation"]["school"].alias("school_externalId")
 )
 
 projects_df_cols = projects_df_cols.dropDuplicates()
