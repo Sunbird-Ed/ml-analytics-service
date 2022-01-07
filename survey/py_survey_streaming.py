@@ -356,21 +356,21 @@ try:
                                         except KeyError:
                                             pass
                                         
-                                #to check the value is null ie is not answered
-                                try:
-                                    if type(ansFn['value']) == str and ansFn['value'] == '':
-                                        finalObj = {}
-                                        finalObj =  creatingObj(
-                                            ansFn,ques['externalId'], ansFn['value'], instNumber, None
-                                        )
-                                        producer.send(
-                                            (config.get("KAFKA", "survey_druid_topic")), 
-                                            json.dumps(finalObj).encode('utf-8')
-                                        )
-                                        producer.flush()
-                                        successLogger.debug("Send Obj to Kafka")
-                                except KeyError:
-                                    pass
+                                # #to check the value is null ie is not answered
+                                # try:
+                                #     if type(ansFn['value']) == str and ansFn['value'] == '':
+                                #         finalObj = {}
+                                #         finalObj =  creatingObj(
+                                #             ansFn,ques['externalId'], ansFn['value'], instNumber, None
+                                #         )
+                                #         producer.send(
+                                #             (config.get("KAFKA", "survey_druid_topic")), 
+                                #             json.dumps(finalObj).encode('utf-8')
+                                #         )
+                                #         producer.flush()
+                                #         successLogger.debug("Send Obj to Kafka")
+                                # except KeyError:
+                                #     pass
 
                         if (
                             ans['responseType'] == 'text' or ans['responseType'] == 'radio' or 

@@ -340,18 +340,18 @@ try:
                                         except KeyError:
                                             pass
                                         
-                                #to check the value is null ie is not answered
-                                try:
-                                    if type(ansFn['value']) == str and ansFn['value'] == '':
-                                        finalObj = {}
-                                        finalObj =  creatingObj(
-                                            ansFn,ques['externalId'], ansFn['value'], instNumber, None
-                                        )
-                                        json.dump(finalObj, f)
-                                        f.write("\n")
-                                        successLogger.debug("Send Obj to Azure")
-                                except KeyError:
-                                    pass
+                                # #to check the value is null ie is not answered
+                                # try:
+                                #     if type(ansFn['value']) == str and ansFn['value'] == '':
+                                #         finalObj = {}
+                                #         finalObj =  creatingObj(
+                                #             ansFn,ques['externalId'], ansFn['value'], instNumber, None
+                                #         )
+                                #         json.dump(finalObj, f)
+                                #         f.write("\n")
+                                #         successLogger.debug("Send Obj to Azure")
+                                # except KeyError:
+                                #     pass
 
                         if (
                             ans['responseType'] == 'text' or ans['responseType'] == 'radio' or 
