@@ -224,10 +224,11 @@ try:
       userSchoolUDISE = None
       userSchoolName = None
       entitiesArrIds = []
-      for userRoleKey, userRoleVal in obSub["userRoleInformation"].items():
+      if 'userRoleInformation' in obSub:
+       for userRoleKey, userRoleVal in obSub["userRoleInformation"].items():
           if userRoleKey != "role" :
              entitiesArrIds.append(userRoleVal)
-      for entUR in entitiesCollec.find({"$or":[{"registryDetails.locationId":
+       for entUR in entitiesCollec.find({"$or":[{"registryDetails.locationId":
         {"$in":entitiesArrIds}},{"registryDetails.code":{"$in":entitiesArrIds}}]},
         {"metaInformation.name":1,"entityType":1,"registryDetails":1}):
           if entUR["entityType"] == "state":
@@ -245,7 +246,7 @@ try:
              elif "code" in entUR["registryDetails"] and entUR["registryDetails"]["code"] :
               userSchoolUDISE = entUR["registryDetails"]["code"]
              userSchoolName = entUR["metaInformation"]["name"]
-      userSubType = obSub["userRoleInformation"]["role"]
+       userSubType = obSub["userRoleInformation"]["role"]
       userObj = datastore.hgetall("user:" + obSub["createdBy"])
       if userObj :
         rootOrgId = None
