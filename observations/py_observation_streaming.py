@@ -241,10 +241,10 @@ try:
              clusterName = entUR["metaInformation"]["name"]
           if entUR["entityType"] == "school":
              userSchool = str(entUR["_id"])
-             if "locationId" in entUR["registryDetails"] and entUR["registryDetails"]["locationId"] :
-              userSchoolUDISE = entUR["registryDetails"]["locationId"]
-             elif "code" in entUR["registryDetails"] and entUR["registryDetails"]["code"] :
-              userSchoolUDISE = entUR["registryDetails"]["code"]
+             if "code" in entUR["registryDetails"] and entUR["registryDetails"]["code"] :
+                userSchoolUDISE = entUR["registryDetails"]["code"]
+             else :
+                userSchoolUDISE = entUR["registryDetails"]["locationId"]
              userSchoolName = entUR["metaInformation"]["name"]
        userSubType = obSub["userRoleInformation"]["role"]
       userObj = datastore.hgetall("user:" + obSub["createdBy"])
