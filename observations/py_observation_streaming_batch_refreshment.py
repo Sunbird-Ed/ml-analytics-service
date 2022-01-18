@@ -219,10 +219,11 @@ try:
       userSchoolUDISE = None
       userSchoolName = None
       entitiesArrIds = []
-      for userRoleKey, userRoleVal in obSub["userRoleInformation"].items():
+      if 'userRoleInformation' in obSub:
+       for userRoleKey, userRoleVal in obSub["userRoleInformation"].items():
           if userRoleKey != "role" :
              entitiesArrIds.append(userRoleVal)
-      for entUR in entitiesCollec.find({"$or":[{"registryDetails.locationId":
+       for entUR in entitiesCollec.find({"$or":[{"registryDetails.locationId":
         {"$in":entitiesArrIds}},{"registryDetails.code":{"$in":entitiesArrIds}}]},
         {"metaInformation.name":1,"entityType":1,"registryDetails":1}):
           if entUR["entityType"] == "state":
@@ -235,12 +236,12 @@ try:
              clusterName = entUR["metaInformation"]["name"]
           if entUR["entityType"] == "school":
              userSchool = str(entUR["_id"])
-             if "locationId" in entUR["registryDetails"] and entUR["registryDetails"]["locationId"] :
-              userSchoolUDISE = entUR["registryDetails"]["locationId"]
-             elif "code" in entUR["registryDetails"] and entUR["registryDetails"]["code"] :
-              userSchoolUDISE = entUR["registryDetails"]["code"]
+             if "code" in entUR["registryDetails"] and entUR["registryDetails"]["code"] :
+                userSchoolUDISE = entUR["registryDetails"]["code"]
+             else :
+                userSchoolUDISE = entUR["registryDetails"]["locationId"]
              userSchoolName = entUR["metaInformation"]["name"]
-      userSubType = obSub["userRoleInformation"]["role"]
+       userSubType = obSub["userRoleInformation"]["role"]
       userObj = datastore.hgetall("user:" + obSub["createdBy"])
       if userObj :
         rootOrgId = None
@@ -942,7 +943,7 @@ container_name = config.get("AZURE", "container_name")
 storage_account = config.get("AZURE", "account_name")
 token = config.get("AZURE", "sas_token")
 local_path = config.get("OUTPUT_DIR", "observation")
-blob_path = config.get("AZURE", "observation_evidevce_blob_path")
+blob_path = config.get("AZURE", "observations_blob_path")
 
 blob_service_client = BlockBlobService(
     account_name=config.get("AZURE", "account_name"),
