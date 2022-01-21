@@ -370,6 +370,12 @@ projects_df = projects_df.withColumn(
     ).otherwise("false")
 )
 
+projects_df = projects_df.withColumn(
+    "status_of_project",
+    F.when((projects_df["status"] == "notStarted"),"started")
+    .otherwise(F.lit(projects_df["status"]))
+)
+
 projects_df_cols = projects_df.select(
     projects_df["_id"].alias("project_id"),
     projects_df["project_created_type"],
@@ -383,7 +389,7 @@ projects_df_cols = projects_df.select(
     projects_df["updatedAt"].alias("project_updated_date"),
     projects_df["project_deleted_flag"],
     projects_df["exploded_categories"]["name"].alias("area_of_improvement"),
-    projects_df["status"].alias("status_of_project"),
+    projects_df["status_of_project"],
     projects_df["userId"].alias("createdBy"),
     projects_df["description"].alias("project_description"),
     projects_df["metaInformation"]["goal"].alias("project_goal"),
