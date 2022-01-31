@@ -134,7 +134,13 @@ projects_cursorMongo = projectsCollec.aggregate(
             "_id": {"$toString": "$_id"},
             "projectTemplateId": {"$toString": "$projectTemplateId"},
             "solutionInformation": {"name": 1,"_id":{"$toString": "$solutionInformation._id"}},
-            "title": 1,
+            "title": {
+                "$reduce": {
+                    "input": { "$split": ["$title", "\n"] },
+                    "initialValue": "",
+                    "in": { "$concat": ["$$value", " ", "$$this"] }
+                    }
+            },
             "programId": {"$toString": "$programId"},
             "programInformation": {"name": 1},
             "metaInformation": {"duration": 1,"goal":1},
@@ -145,7 +151,13 @@ projects_cursorMongo = projectsCollec.aggregate(
             "tasks": 1,
             "status": 1,
             "userId": 1,
-            "description": 1,
+            "description": {
+                "$reduce": {
+                    "input": { "$split": ["$description", "\n"] },
+                    "initialValue": "",
+                    "in": { "$concat": ["$$value", " ", "$$this"] }
+                    }
+            },
             "createdAt": 1,
             "programExternalId": 1,
             "isAPrivateProgram": 1,
@@ -257,8 +269,8 @@ projects_df = projects_df.withColumn(
     "project_title",
     F.when(
         projects_df["solutionInformation"]["name"].isNotNull() == True,
-        projects_df["solutionInformation"]["name"]
-    ).otherwise(projects_df["title"])
+        regexp_replace(projects_df["solutionInformation"]["name"], "\n", " ")
+    ).otherwise(regexp_replace(projects_df["title"], "\n", " "))
 )
 
 projects_df = projects_df.withColumn(
@@ -376,6 +388,13 @@ projects_df = projects_df.withColumn(
     .otherwise(F.lit(projects_df["status"]))
 )
 
+projects_df = projects_df.withColumn("project_goal",regexp_replace(F.col("metaInformation.goal"), "\n", " "))
+projects_df = projects_df.withColumn("area_of_improvement",regexp_replace(F.col("exploded_categories.name"), "\n", " "))
+projects_df = projects_df.withColumn("tasks",regexp_replace(F.col("exploded_tasks.name"), "\n", " "))
+projects_df = projects_df.withColumn("sub_task",regexp_replace(F.col("exploded_sub_tasks.name"), "\n", " "))
+projects_df = projects_df.withColumn("program_name",regexp_replace(F.col("programInformation.name"), "\n", " "))
+projects_df = projects_df.withColumn("task_remarks",regexp_replace(F.col("exploded_tasks.remarks"), "\n", " "))
+
 projects_df_cols = projects_df.select(
     projects_df["_id"].alias("project_id"),
     projects_df["project_created_type"],
@@ -383,20 +402,20 @@ projects_df_cols = projects_df.select(
     projects_df["title"].alias("project_title_editable"),
     projects_df["programId"].alias("program_id"),
     projects_df["programExternalId"].alias("program_externalId"),
-    projects_df["programInformation"]["name"].alias("program_name"),
+    projects_df["program_name"],
     projects_df["metaInformation"]["duration"].alias("project_duration"),
     projects_df["syncedAt"].alias("project_last_sync"),
     projects_df["updatedAt"].alias("project_updated_date"),
     projects_df["project_deleted_flag"],
-    projects_df["exploded_categories"]["name"].alias("area_of_improvement"),
+    projects_df["area_of_improvement"],
     projects_df["status_of_project"],
     projects_df["userId"].alias("createdBy"),
     projects_df["description"].alias("project_description"),
-    projects_df["metaInformation"]["goal"].alias("project_goal"),
+    projects_df["project_goal"],
     projects_df["parent_channel"],
     projects_df["createdAt"].alias("project_created_date"),
     projects_df["exploded_tasks"]["_id"].alias("task_id"),
-    projects_df["exploded_tasks"]["name"].alias("tasks"),
+    projects_df["tasks"],
     projects_df["exploded_tasks"]["assignee"].alias("task_assigned_to"),
     projects_df["exploded_tasks"]["startDate"].alias("task_start_date"),
     projects_df["exploded_tasks"]["endDate"].alias("task_end_date"),
@@ -404,7 +423,7 @@ projects_df_cols = projects_df.select(
     projects_df["task_evidence"],
     projects_df["task_evidence_status"],
     projects_df["exploded_sub_tasks"]["_id"].alias("sub_task_id"),
-    projects_df["exploded_sub_tasks"]["name"].alias("sub_task"),
+    projects_df["sub_task"],
     projects_df["exploded_sub_tasks"]["status"].alias("sub_task_status"),
     projects_df["exploded_sub_tasks"]["syncedAt"].alias("sub_task_date"),
     projects_df["exploded_sub_tasks"]["startDate"].alias("sub_task_start_date"),
@@ -413,7 +432,7 @@ projects_df_cols = projects_df.select(
     projects_df["task_deleted_flag"],
     projects_df["sub_task_deleted_flag"],
     projects_df["project_terms_and_condition"],
-    projects_df["exploded_tasks"]["remarks"].alias("task_remarks"),
+    projects_df["task_remarks"],
     projects_df["project_completed_date"],
     projects_df["solutionInformation"]["_id"].alias("solution_id"),
     projects_df["userRoleInformation"]["role"].alias("designation"),
@@ -515,9 +534,10 @@ user_info_arr = []
 for usr in uniqueuserId_arr:
     userObj = {}
     userObj = datastore.hgetall("user:"+usr)
+    rootOrgId = None
+    boardName = None
+    orgName = None
     if userObj :
-        rootOrgId = None
-        boardName = None
         try:
             rootOrgId = userObj["rootorgid"]
         except KeyError :
@@ -526,16 +546,17 @@ for usr in uniqueuserId_arr:
          boardName = userObj["board"]
         except KeyError:
          boardName = ''
-
-        userInfoObj = {}
-        userInfoObj["board_name"] = boardName
-        userInfoObj["id"] = usr
-        userInfoObj["channel"] = rootOrgId
         try:
-            userInfoObj["organisation_name"] = userObj["orgname"]
+         orgName = userObj["orgname"]
         except KeyError:
-            userInfoObj["organisation_name"] = ''
-        user_info_arr.append(userInfoObj)
+         orgName = ''
+
+    userInfoObj = {}
+    userInfoObj["board_name"] = boardName
+    userInfoObj["id"] = usr
+    userInfoObj["channel"] = rootOrgId
+    userInfoObj["organisation_name"] = orgName
+    user_info_arr.append(userInfoObj)
 
 user_df = ks.DataFrame(user_info_arr)
 user_df = user_df.to_spark()

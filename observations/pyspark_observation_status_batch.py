@@ -430,10 +430,10 @@ userIntegratedAppEntitiesArr = []
 for ch in uniqueuserId_arr :
    userObj = {}
    userObj = datastore.hgetall("user:"+ch)
+   rootOrgId = None
+   orgName = None
+   boardName = None
    if userObj :
-      rootOrgId = None
-      orgName = None
-      boardName = None
       try:
          rootOrgId = userObj["rootorgid"]
       except KeyError :
@@ -446,21 +446,21 @@ for ch in uniqueuserId_arr :
          boardName = userObj["board"]
       except KeyError:
          boardName = ''
-      userRelatedEntitiesObj = {}
-      try :
-         userRelatedEntitiesObj["user_id"] = ch
-         userRelatedEntitiesObj["organisation_name"] = orgName
-         userRelatedEntitiesObj["board_name"] = boardName
-      except KeyError :
-         pass
-      if userRelatedEntitiesObj :
-         userIntegratedAppEntitiesArr.append(userRelatedEntitiesObj)
+   userRelatedEntitiesObj = {}
+   try :
+      userRelatedEntitiesObj["user_id"] = ch
+      userRelatedEntitiesObj["organisation_name"] = orgName
+      userRelatedEntitiesObj["board_name"] = boardName
+   except KeyError :
+      pass
+   if userRelatedEntitiesObj :
+      userIntegratedAppEntitiesArr.append(userRelatedEntitiesObj)
 
-      searchObj = {}
-      searchObj["id"] = ch
-      searchObj["channel"] = rootOrgId
-      searchObj["parent_channel"] = "SHIKSHALOKAM"
-      userId_obs_status_df_after.append(searchObj)
+   searchObj = {}
+   searchObj["id"] = ch
+   searchObj["channel"] = rootOrgId
+   searchObj["parent_channel"] = "SHIKSHALOKAM"
+   userId_obs_status_df_after.append(searchObj)
 
 df_user_org = ks.DataFrame(userId_obs_status_df_after)
 df_user_org = df_user_org.to_spark()

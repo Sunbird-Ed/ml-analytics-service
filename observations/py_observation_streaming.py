@@ -248,10 +248,10 @@ try:
              userSchoolName = entUR["metaInformation"]["name"]
        userSubType = obSub["userRoleInformation"]["role"]
       userObj = datastore.hgetall("user:" + obSub["createdBy"])
+      rootOrgId = None
+      orgName = None
+      boardName = None
       if userObj :
-        rootOrgId = None
-        orgName = None
-        boardName = None
         try:
           rootOrgId = userObj["rootorgid"]
         except KeyError :
@@ -266,67 +266,67 @@ try:
         except KeyError:
           boardName = ''
       
-        userRoles = {}
-        obsAppName = None
-        try :
-          obsAppName = obSub["appInformation"]["appName"].lower()
-        except KeyError :
-          obsAppName = config.get("ML_APP_NAME", "survey_app")
-        userRolesArrUnique = []
-        if obsAppName == config.get("ML_APP_NAME", "survey_app") : 
-          userRoles = getUserRoles(obSub["createdBy"])
-          userRolesArr = []
-          if userRoles:
-            userRoleKeyCheck = "result" in userRoles
-            if userRoleKeyCheck == True :
-              try :
-                if len(userRoles["result"]["roles"]) > 0 :
-                  for rol in userRoles["result"]["roles"] :
-                    for ent in rol["entities"]:
-                      userEntityRelated = None
-                      userEntityRelated = getRelatedEntity(ent["_id"])
-                      userEntityRelatedResultKeyCheck = None
-                      roleObj = {}
-                      roleObj["role_title"] = rol["title"]
-                      roleObj["organisation_name"] = orgName
-                      if userEntityRelated:
-                        userEntityRelatedResultKeyCheck = "result" in userEntityRelated
-                        if userEntityRelatedResultKeyCheck == True:
-                          if userEntityRelated["result"]:
-                            if (userEntityRelated["result"]["entityType"] == "district") or (userEntityRelated["result"]["entityType"] == "block") or (userEntityRelated["result"]["entityType"] == "cluster") or (userEntityRelated["result"]["entityType"] == "state"):
-                              roleObj['user_'+userEntityRelated["result"]["entityType"]+'Name'] = userEntityRelated["result"]["metaInformation"]["name"]
-                            if userEntityRelated["result"]["entityType"] == "school" :
-                              roleObj['user_schoolName'] = userEntityRelated["result"]["metaInformation"]["name"]
-                              roleObj['user_schoolId'] = str(userEntityRelated["result"]["metaInformation"]["id"])
-                              roleObj['user_schoolUDISE_code'] = userEntityRelated["result"]["metaInformation"]["externalId"]
-                            for usrEntityData in userEntityRelated["result"]["relatedEntities"]:
-                              if (usrEntityData['entityType'] == "district") or (usrEntityData['entityType'] == "block") or (usrEntityData['entityType'] == "cluster") or (usrEntityData['entityType'] == "state"):
-                                roleObj['user_'+usrEntityData['entityType']+'Name'] = usrEntityData['metaInformation']['name']
-                              if usrEntityData['entityType'] == "school" :
-                                roleObj['user_schoolName'] = usrEntityData["metaInformation"]["name"]
-                                roleObj['user_schoolId'] = str(usrEntityData["metaInformation"]["id"])
-                                roleObj['user_schoolUDISE_code'] = usrEntityData["metaInformation"]["externalId"]
-                      userRolesArr.append(roleObj)
-              except KeyError :
-                userRolesArr = []
-                
-          if len(userRolesArr) > 0:
-            userRolesArrUnique = list(removeduplicate(userRolesArr))
-        else:
-          roleObj = {}
-          roleObj["role_title"] = userSubType
-          roleObj["user_stateName"] = stateName
-          roleObj["user_blockName"] = blockName
-          roleObj["user_districtName"] = districtName
-          roleObj["user_clusterName"] = clusterName
-          roleObj["user_schoolName"] = userSchoolName
-          roleObj["user_schoolId"] = userSchool
-          roleObj["user_schoolUDISE_code"] = userSchoolUDISE
-          roleObj["organisation_name"] = orgName
-          roleObj["user_boardName"] = boardName
-          userRolesArrUnique.append(roleObj)
+      userRoles = {}
+      obsAppName = None
+      try :
+        obsAppName = obSub["appInformation"]["appName"].lower()
+      except KeyError :
+        obsAppName = config.get("ML_APP_NAME", "survey_app")
+      userRolesArrUnique = []
+      if obsAppName == config.get("ML_APP_NAME", "survey_app") : 
+        userRoles = getUserRoles(obSub["createdBy"])
+        userRolesArr = []
+        if userRoles:
+          userRoleKeyCheck = "result" in userRoles
+          if userRoleKeyCheck == True :
+            try :
+              if len(userRoles["result"]["roles"]) > 0 :
+                for rol in userRoles["result"]["roles"] :
+                  for ent in rol["entities"]:
+                    userEntityRelated = None
+                    userEntityRelated = getRelatedEntity(ent["_id"])
+                    userEntityRelatedResultKeyCheck = None
+                    roleObj = {}
+                    roleObj["role_title"] = rol["title"]
+                    roleObj["organisation_name"] = orgName
+                    if userEntityRelated:
+                      userEntityRelatedResultKeyCheck = "result" in userEntityRelated
+                      if userEntityRelatedResultKeyCheck == True:
+                        if userEntityRelated["result"]:
+                          if (userEntityRelated["result"]["entityType"] == "district") or (userEntityRelated["result"]["entityType"] == "block") or (userEntityRelated["result"]["entityType"] == "cluster") or (userEntityRelated["result"]["entityType"] == "state"):
+                            roleObj['user_'+userEntityRelated["result"]["entityType"]+'Name'] = userEntityRelated["result"]["metaInformation"]["name"]
+                          if userEntityRelated["result"]["entityType"] == "school" :
+                            roleObj['user_schoolName'] = userEntityRelated["result"]["metaInformation"]["name"]
+                            roleObj['user_schoolId'] = str(userEntityRelated["result"]["metaInformation"]["id"])
+                            roleObj['user_schoolUDISE_code'] = userEntityRelated["result"]["metaInformation"]["externalId"]
+                          for usrEntityData in userEntityRelated["result"]["relatedEntities"]:
+                            if (usrEntityData['entityType'] == "district") or (usrEntityData['entityType'] == "block") or (usrEntityData['entityType'] == "cluster") or (usrEntityData['entityType'] == "state"):
+                              roleObj['user_'+usrEntityData['entityType']+'Name'] = usrEntityData['metaInformation']['name']
+                            if usrEntityData['entityType'] == "school" :
+                              roleObj['user_schoolName'] = usrEntityData["metaInformation"]["name"]
+                              roleObj['user_schoolId'] = str(usrEntityData["metaInformation"]["id"])
+                              roleObj['user_schoolUDISE_code'] = usrEntityData["metaInformation"]["externalId"]
+                    userRolesArr.append(roleObj)
+            except KeyError :
+              userRolesArr = []
+              
+        if len(userRolesArr) > 0:
+          userRolesArrUnique = list(removeduplicate(userRolesArr))
+      else:
+        roleObj = {}
+        roleObj["role_title"] = userSubType
+        roleObj["user_stateName"] = stateName
+        roleObj["user_blockName"] = blockName
+        roleObj["user_districtName"] = districtName
+        roleObj["user_clusterName"] = clusterName
+        roleObj["user_schoolName"] = userSchoolName
+        roleObj["user_schoolId"] = userSchool
+        roleObj["user_schoolUDISE_code"] = userSchoolUDISE
+        roleObj["organisation_name"] = orgName
+        roleObj["user_boardName"] = boardName
+        userRolesArrUnique.append(roleObj)
 
-        if 'answers' in obSub.keys() :  
+      if 'answers' in obSub.keys() :  
           answersArr = [ v for v in obSub['answers'].values()]
           for ans in answersArr:
             try:
