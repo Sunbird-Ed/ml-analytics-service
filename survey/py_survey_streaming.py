@@ -110,9 +110,9 @@ try:
             # fetch user name from postgres with the help of keycloak id
             userObj = {}
             userObj = datastore.hgetall("user:" + obSub["createdBy"])
+            rootOrgId = None
+            orgName = None
             if userObj :
-                rootOrgId = None
-                orgName = None
                 try:
                     rootOrgId = userObj["rootorgid"]
                 except KeyError :
@@ -121,7 +121,7 @@ try:
                     orgName = userObj["orgname"]
                 except KeyError:
                     orgName = ''
-                if 'answers' in obSub.keys() :  
+            if 'answers' in obSub.keys() :  
                     answersArr = [v for v in obSub['answers'].values()]
                     for ans in answersArr:
                         try:
