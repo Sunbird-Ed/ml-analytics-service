@@ -1,8 +1,9 @@
 # -----------------------------------------------------------------
 # Name : pyspark_project_batch.py
-# Author :
-# Description :
-#
+# Author :Shakthiehswari, Ashwini
+# Description : Extracts the Status of the Project submissions 
+#  either Started / In-Progress / Submitted along with the users 
+#  entity information
 # -----------------------------------------------------------------
 
 import json, sys, time
@@ -315,7 +316,7 @@ projects_df = projects_df.withColumn(
 projects_df = projects_df.withColumn(
     "project_completed_date",
     F.when(
-        projects_df["status"] == "completed",
+        projects_df["status"] == "submitted",
         projects_df["updatedAt"]
     ).otherwise(None)
 )
@@ -382,11 +383,6 @@ projects_df = projects_df.withColumn(
     ).otherwise("false")
 )
 
-projects_df = projects_df.withColumn(
-    "status_of_project",
-    F.when((projects_df["status"] == "notStarted"),"started")
-    .otherwise(F.lit(projects_df["status"]))
-)
 
 projects_df = projects_df.withColumn("project_goal",regexp_replace(F.col("metaInformation.goal"), "\n", " "))
 projects_df = projects_df.withColumn("area_of_improvement",regexp_replace(F.col("exploded_categories.name"), "\n", " "))
@@ -408,7 +404,7 @@ projects_df_cols = projects_df.select(
     projects_df["updatedAt"].alias("project_updated_date"),
     projects_df["project_deleted_flag"],
     projects_df["area_of_improvement"],
-    projects_df["status_of_project"],
+    projects_df["status"].alias("status_of_project"),
     projects_df["userId"].alias("createdBy"),
     projects_df["description"].alias("project_description"),
     projects_df["project_goal"],
