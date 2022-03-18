@@ -579,3 +579,4 @@ for filename in os.listdir(config.get("OUTPUT_DIR", "observation_status")+"/"):
          config.get("OUTPUT_DIR", "observation_status") + "/" + filename, 
          config.get("OUTPUT_DIR", "observation_status") + "/sl_observation_status.json"
       )
+
