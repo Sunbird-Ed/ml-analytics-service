@@ -1,8 +1,9 @@
 # -----------------------------------------------------------------
 # Name : pyspark_project_batch.py
-# Author :
-# Description :
-#
+# Author :Shakthiehswari, Ashwini
+# Description : Extracts the Status of the Project submissions 
+#  either Started / In-Progress / Submitted along with the users 
+#  entity information
 # -----------------------------------------------------------------
 
 import json, sys, time
@@ -28,6 +29,7 @@ from datetime import date
 import redis
 from pyspark.sql import DataFrame
 from typing import Iterable
+from udf_func import *
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
@@ -141,6 +143,8 @@ projects_cursorMongo = projectsCollec.aggregate(
                     "in": { "$concat": ["$$value", " ", "$$this"] }
                     }
             },
+            "remarks":1,
+            "attachments":1,
             "programId": {"$toString": "$programId"},
             "programInformation": {"name": 1},
             "metaInformation": {"duration": 1,"goal":1},
@@ -215,48 +219,38 @@ projects_schema = StructType([
          ])
     ),
     StructField(
-        'tasks',
-        ArrayType(
-            StructType([
-                StructField('_id', StringType(), True),
-                StructField('name', StringType(), True),
-                StructField('assignee', StringType(), True),
-                StructField(
-                    'attachments',
-                    ArrayType(
-                        StructType([
-                            StructField('sourcePath', StringType(), True)
-                        ])
-                    )
-                ),
-                StructField('startDate', StringType(), True),
-                StructField('endDate', StringType(), True),
-                StructField('syncedAt', TimestampType(), True),
-                StructField('status', StringType(), True),
-                StructField('isDeleted', BooleanType(), True),
-                StructField('remarks',StringType(),True),
-                StructField(
-                    'children',
-                    ArrayType(
-                        StructType([
-                            StructField('_id', StringType(), True),
-                            StructField('name', StringType(), True),
-                            StructField('startDate',StringType(), True),
-                            StructField('endDate', StringType(), True),
-                            StructField('syncedAt', TimestampType(), True),
-                            StructField('status', StringType(), True),
-                            StructField('isDeleted', BooleanType(), True),
-                        ])
-                    )
-                ),
-            ])
-        ), True
-    )
+        'taskarr',
+         ArrayType(
+             StructType([
+                  StructField('tasks', StringType(), True),
+                  StructField('_id', StringType(), True),
+                  StructField('sub_task_id', StringType(), True),
+                  StructField('sub_task', StringType(), True),
+                  StructField('sub_task_date',TimestampType(), True),
+                  StructField('sub_task_status', StringType(), True),
+                  StructField('sub_task_end_date', StringType(), True),
+                  StructField('sub_task_deleted_flag', BooleanType(), True),
+                  StructField('task_evidence',StringType(), True),
+                  StructField('remarks',StringType(), True),
+                  StructField('assignee',StringType(), True),
+                  StructField('startDate',StringType(), True),
+                  StructField('endDate',StringType(), True),
+                  StructField('syncedAt',TimestampType(), True),
+                  StructField('status',StringType(), True),
+                  StructField('task_evidence_status',StringType(), True),
+                  StructField('deleted_flag',StringType(), True),
+                  StructField('sub_task_start_date',StringType(), True)
+              ])
+          ),True
+    ),
+    StructField('remarks', StringType(), True),  
+    StructField('evidence', StringType(), True)
 ])
 
-projects_rdd = spark.sparkContext.parallelize(list(projects_cursorMongo))
-projects_df = spark.createDataFrame(projects_rdd,projects_schema)
 
+func_return = recreate_task_data(projects_cursorMongo)
+prj_rdd = spark.sparkContext.parallelize(list(func_return))
+projects_df = spark.createDataFrame(prj_rdd,projects_schema)
 projects_df = projects_df.withColumn(
     "project_created_type",
     F.when(
@@ -315,85 +309,42 @@ projects_df = projects_df.withColumn(
 projects_df = projects_df.withColumn(
     "project_completed_date",
     F.when(
-        projects_df["status"] == "completed",
+        projects_df["status"] == "submitted",
         projects_df["updatedAt"]
     ).otherwise(None)
 )
-
 projects_df = projects_df.withColumn(
     "exploded_categories", F.explode_outer(F.col("categories"))
 )
 
+category_df = projects_df.groupby('_id').agg(collect_list('exploded_categories.name').alias("category_name"))
+category_df = category_df.withColumn("categories_name", concat_ws(", ", "category_name"))
+
+projects_df = projects_df.join(category_df, "_id", how = "left")
+
 projects_df = projects_df.withColumn("parent_channel", F.lit("SHIKSHALOKAM"))
 
-projects_df = projects_df.withColumn("exploded_tasks", F.explode_outer(F.col("tasks")))
-
 projects_df = projects_df.withColumn(
-    "exploded_tasks_attachments",
-    F.explode_outer(projects_df["exploded_tasks"]["attachments"])
+    "exploded_taskarr", F.explode_outer(projects_df["taskarr"])
 )
 
 projects_df = projects_df.withColumn(
-    "task_evidence_status", 
-    F.when(
-        projects_df["exploded_tasks_attachments"]["sourcePath"].isNotNull() == True,
-        True
-    ).otherwise(False)
-)
-
-projects_df = projects_df.withColumn(
-    "task_deleted_flag",
-    F.when(
-        (projects_df["exploded_tasks"]["isDeleted"].isNotNull() == True) & 
-        (projects_df["exploded_tasks"]["isDeleted"] == True),
-        "true"
-    ).when(
-        (projects_df["exploded_tasks"]["isDeleted"].isNotNull() == True) & 
-        (projects_df["exploded_tasks"]["isDeleted"] == False),
-        "false"
-    ).otherwise("false")
-)
-
-projects_df = projects_df.withColumn(
-    "task_evidence",
-    F.when(
-        projects_df["exploded_tasks_attachments"]["sourcePath"].isNotNull() == True,
+    "task_evidence",F.when(
+    projects_df["exploded_taskarr"]["task_evidence"].isNotNull() == True,
         F.concat(
             F.lit(config.get('ML_SURVEY_SERVICE_URL', 'evidence_base_url')),
-            projects_df["exploded_tasks_attachments"]["sourcePath"]
+            projects_df["exploded_taskarr"]["task_evidence"]
         )
     )
 )
 
-projects_df = projects_df.withColumn(
-    "exploded_sub_tasks", F.explode_outer(projects_df["exploded_tasks"]["children"])
-)
-
-projects_df = projects_df.withColumn(
-    "sub_task_deleted_flag",
-    F.when((
-        projects_df["exploded_sub_tasks"]["isDeleted"].isNotNull() == True) & 
-        (projects_df["exploded_sub_tasks"]["isDeleted"] == True),
-        "true"
-    ).when(
-        (projects_df["exploded_sub_tasks"]["isDeleted"].isNotNull() == True) & 
-        (projects_df["exploded_sub_tasks"]["isDeleted"] == False),
-        "false"
-    ).otherwise("false")
-)
-
-projects_df = projects_df.withColumn(
-    "status_of_project",
-    F.when((projects_df["status"] == "notStarted"),"started")
-    .otherwise(F.lit(projects_df["status"]))
-)
-
 projects_df = projects_df.withColumn("project_goal",regexp_replace(F.col("metaInformation.goal"), "\n", " "))
-projects_df = projects_df.withColumn("area_of_improvement",regexp_replace(F.col("exploded_categories.name"), "\n", " "))
-projects_df = projects_df.withColumn("tasks",regexp_replace(F.col("exploded_tasks.name"), "\n", " "))
-projects_df = projects_df.withColumn("sub_task",regexp_replace(F.col("exploded_sub_tasks.name"), "\n", " "))
+projects_df = projects_df.withColumn("area_of_improvement",regexp_replace(F.col("categories_name"), "\n", " "))
+projects_df = projects_df.withColumn("tasks",regexp_replace(F.col("exploded_taskarr.tasks"), "\n", " "))
+projects_df = projects_df.withColumn("sub_task",regexp_replace(F.col("exploded_taskarr.sub_task"), "\n", " "))
 projects_df = projects_df.withColumn("program_name",regexp_replace(F.col("programInformation.name"), "\n", " "))
-projects_df = projects_df.withColumn("task_remarks",regexp_replace(F.col("exploded_tasks.remarks"), "\n", " "))
+projects_df = projects_df.withColumn("task_remarks",regexp_replace(F.col("exploded_taskarr.remarks"), "\n", " "))
+projects_df = projects_df.withColumn("project_remarks",regexp_replace(F.col("remarks"), "\n", " "))
 
 projects_df_cols = projects_df.select(
     projects_df["_id"].alias("project_id"),
@@ -408,29 +359,29 @@ projects_df_cols = projects_df.select(
     projects_df["updatedAt"].alias("project_updated_date"),
     projects_df["project_deleted_flag"],
     projects_df["area_of_improvement"],
-    projects_df["status_of_project"],
+    projects_df["status"].alias("status_of_project"),
     projects_df["userId"].alias("createdBy"),
     projects_df["description"].alias("project_description"),
-    projects_df["project_goal"],
+    projects_df["project_goal"],projects_df["evidence"].alias("project_evidence"),
     projects_df["parent_channel"],
     projects_df["createdAt"].alias("project_created_date"),
-    projects_df["exploded_tasks"]["_id"].alias("task_id"),
-    projects_df["tasks"],
-    projects_df["exploded_tasks"]["assignee"].alias("task_assigned_to"),
-    projects_df["exploded_tasks"]["startDate"].alias("task_start_date"),
-    projects_df["exploded_tasks"]["endDate"].alias("task_end_date"),
-    projects_df["exploded_tasks"]["syncedAt"].alias("tasks_date"),projects_df["exploded_tasks"]["status"].alias("tasks_status"),
+    projects_df["exploded_taskarr"]["_id"].alias("task_id"),
+    projects_df["tasks"],projects_df["project_remarks"],
+    projects_df["exploded_taskarr"]["assignee"].alias("task_assigned_to"),
+    projects_df["exploded_taskarr"]["startDate"].alias("task_start_date"),
+    projects_df["exploded_taskarr"]["endDate"].alias("task_end_date"),
+    projects_df["exploded_taskarr"]["syncedAt"].alias("tasks_date"),projects_df["exploded_taskarr"]["status"].alias("tasks_status"),
     projects_df["task_evidence"],
-    projects_df["task_evidence_status"],
-    projects_df["exploded_sub_tasks"]["_id"].alias("sub_task_id"),
-    projects_df["sub_task"],
-    projects_df["exploded_sub_tasks"]["status"].alias("sub_task_status"),
-    projects_df["exploded_sub_tasks"]["syncedAt"].alias("sub_task_date"),
-    projects_df["exploded_sub_tasks"]["startDate"].alias("sub_task_start_date"),
-    projects_df["exploded_sub_tasks"]["endDate"].alias("sub_task_end_date"),
+    projects_df["exploded_taskarr"]["task_evidence_status"].alias("task_evidence_status"),
+    projects_df["exploded_taskarr"]["sub_task_id"].alias("sub_task_id"),
+    projects_df["exploded_taskarr"]["sub_task"].alias("sub_task"),
+    projects_df["exploded_taskarr"]["sub_task_status"].alias("sub_task_status"),
+    projects_df["exploded_taskarr"]["sub_task_date"].alias("sub_task_date"),
+    projects_df["exploded_taskarr"]["sub_task_start_date"].alias("sub_task_start_date"),
+    projects_df["exploded_taskarr"]["sub_task_end_date"].alias("sub_task_end_date"),
     projects_df["private_program"],
-    projects_df["task_deleted_flag"],
-    projects_df["sub_task_deleted_flag"],
+    projects_df["exploded_taskarr"]["deleted_flag"].alias("task_deleted_flag"),
+    projects_df["exploded_taskarr"]["sub_task_deleted_flag"].alias("sub_task_deleted_flag"),
     projects_df["project_terms_and_condition"],
     projects_df["task_remarks"],
     projects_df["project_completed_date"],
@@ -444,7 +395,6 @@ projects_df_cols = projects_df.select(
 )
 
 projects_df_cols = projects_df_cols.dropDuplicates()
-
 projects_userid_df = projects_df_cols.select("createdBy")
 
 projects_entities_id_df = projects_df_cols.select("state_externalId","block_externalId","district_externalId","cluster_externalId","school_externalId")
@@ -473,6 +423,7 @@ for eid in entitiesId_projects_df_before:
     entitiesId_arr.append(eid["school_externalId"])
    except KeyError :
     pass
+
 uniqueEntitiesId_arr = list(removeduplicate(entitiesId_arr))
 ent_cursorMongo = entitiesCollec.aggregate(
    [{"$match": {"$or":[{"registryDetails.locationId":{"$in":uniqueEntitiesId_arr}},{"registryDetails.code":{"$in":uniqueEntitiesId_arr}}]}},
@@ -508,7 +459,7 @@ entities_df = melt(entities_df,
             ).dropDuplicates()
 entities_df = entities_df.withColumn("variable",F.concat(F.col("entityType"),F.lit("_externalId")))
 projects_df_melt = melt(projects_df_cols,
-        id_vars=["project_id", "project_created_type", "project_title", "project_title_editable", "program_id", "program_externalId", "program_name", "project_duration", "project_last_sync", "project_updated_date", "project_deleted_flag", "area_of_improvement", "status_of_project", "createdBy", "project_description", "project_goal", "parent_channel", "project_created_date", "task_id", "tasks", "task_assigned_to", "task_start_date", "task_end_date", "tasks_date", "tasks_status", "task_evidence", "task_evidence_status", "sub_task_id", "sub_task", "sub_task_status", "sub_task_date", "sub_task_start_date", "sub_task_end_date", "private_program", "task_deleted_flag", "sub_task_deleted_flag", "project_terms_and_condition", "task_remarks", "project_completed_date", "solution_id", "designation"],
+        id_vars=["project_id", "project_created_type", "project_title", "project_title_editable", "program_id", "program_externalId", "program_name", "project_duration", "project_last_sync", "project_updated_date", "project_deleted_flag", "area_of_improvement", "status_of_project", "createdBy", "project_description", "project_goal", "parent_channel", "project_created_date", "task_id", "tasks", "task_assigned_to", "task_start_date", "task_end_date", "tasks_date", "tasks_status", "task_evidence", "task_evidence_status", "sub_task_id", "sub_task", "sub_task_status", "sub_task_date", "sub_task_start_date", "sub_task_end_date", "private_program", "task_deleted_flag", "sub_task_deleted_flag", "project_terms_and_condition", "task_remarks", "project_completed_date", "solution_id", "designation","project_remarks","project_evidence"],
         value_vars=["state_externalId", "block_externalId", "district_externalId", "cluster_externalId", "school_externalId"]
         )
 projects_ent_df_melt = projects_df_melt\
@@ -573,6 +524,7 @@ final_projects_df.coalesce(1).write.format("json").mode("overwrite").save(
     config.get("OUTPUT_DIR", "project") + "/"
 )
 
+
 for filename in os.listdir(config.get("OUTPUT_DIR", "project")+"/"):
     if filename.endswith(".json"):
        os.rename(
@@ -614,6 +566,7 @@ submissionReportColumnNamesArr = [
     'project_duration', 'program_externalId', 'private_program', 'task_deleted_flag',
     'sub_task_deleted_flag', 'project_terms_and_condition','task_remarks',
     'organisation_name','project_description','project_completed_date','solution_id'
+     'project_remarks','project_evidence'
 ]
 
 dimensionsArr.extend(submissionReportColumnNamesArr)
