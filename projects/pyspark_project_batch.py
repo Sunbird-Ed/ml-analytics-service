@@ -565,7 +565,7 @@ submissionReportColumnNamesArr = [
     'program_name', 'project_updated_date', 'createdBy', 'project_title_editable', 
     'project_duration', 'program_externalId', 'private_program', 'task_deleted_flag',
     'sub_task_deleted_flag', 'project_terms_and_condition','task_remarks',
-    'organisation_name','project_description','project_completed_date','solution_id'
+    'organisation_name','project_description','project_completed_date','solution_id',
      'project_remarks','project_evidence'
 ]
 
