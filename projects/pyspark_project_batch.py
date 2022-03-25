@@ -129,8 +129,7 @@ spark = SparkSession.builder.appName("projects").config(
 sc = spark.sparkContext
 
 projects_cursorMongo = projectsCollec.aggregate(
-    [{"$match": {"isAPrivateProgram": {"$exists":True,"$ne":None}}},
-     {
+    [{
         "$project": {
             "_id": {"$toString": "$_id"},
             "projectTemplateId": {"$toString": "$projectTemplateId"},
