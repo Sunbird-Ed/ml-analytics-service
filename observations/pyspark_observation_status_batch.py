@@ -125,8 +125,7 @@ datastore = redis.StrictRedis(connection_pool=redis_connection)
 
 #observation submission dataframe
 obs_sub_cursorMongo = obsSubmissionsCollec.aggregate(
-   [{"$match": {"isAPrivateProgram": {"$exists":True,"$ne":None}}},
-    {
+   [{
       "$project": {
          "_id": {"$toString": "$_id"},
          "entityId": {"$toString": "$entityId"},
@@ -547,9 +546,9 @@ roles_df.cache()
 obs_sub_status_df_integrated_app = obs_sub_pgm_df.join(
    user_df_integrated_app,
    [
-      obs_sub_pgm_df.user_id==user_df_integrated_app.id,
-      (obs_sub_pgm_df.app_name==config.get("ML_APP_NAME", "integrated_app"))|
-      (obs_sub_pgm_df.app_name==config.get("ML_APP_NAME", "integrated_portal"))
+      obs_sub_pgm_df.user_id==user_df_integrated_app.id
+   #   (obs_sub_pgm_df.app_name==config.get("ML_APP_NAME", "integrated_app"))|
+   #   (obs_sub_pgm_df.app_name==config.get("ML_APP_NAME", "integrated_portal"))
    ],
    'inner'
 ).drop(user_df_integrated_app["id"])

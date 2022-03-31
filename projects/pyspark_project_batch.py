@@ -130,8 +130,7 @@ spark = SparkSession.builder.appName("projects").config(
 sc = spark.sparkContext
 
 projects_cursorMongo = projectsCollec.aggregate(
-    [{"$match": {"isAPrivateProgram": {"$exists":True,"$ne":None}}},
-     {
+    [{
         "$project": {
             "_id": {"$toString": "$_id"},
             "projectTemplateId": {"$toString": "$projectTemplateId"},
@@ -338,6 +337,33 @@ projects_df = projects_df.withColumn(
     )
 )
 
+projects_df = projects_df.withColumn(
+    "task_deleted_flag",
+    F.when(
+        (projects_df["exploded_taskarr"]["deleted_flag"].isNotNull() == True) &
+        (projects_df["exploded_taskarr"]["deleted_flag"] == True),
+        "true"
+    ).when(
+        (projects_df["exploded_taskarr"]["deleted_flag"].isNotNull() == True) &
+        (projects_df["exploded_taskarr"]["deleted_flag"] == False),
+        "false"
+    ).otherwise("false")
+)
+
+projects_df = projects_df.withColumn(
+    "sub_task_deleted_flag",
+    F.when((
+        projects_df["exploded_taskarr"]["sub_task_deleted_flag"].isNotNull() == True) &
+        (projects_df["exploded_taskarr"]["sub_task_deleted_flag"] == True),
+        "true"
+    ).when(
+        (projects_df["exploded_taskarr"]["sub_task_deleted_flag"].isNotNull() == True) &
+        (projects_df["exploded_taskarr"]["sub_task_deleted_flag"] == False),
+        "false"
+    ).otherwise("false")
+)
+
+
 projects_df = projects_df.withColumn("project_goal",regexp_replace(F.col("metaInformation.goal"), "\n", " "))
 projects_df = projects_df.withColumn("area_of_improvement",regexp_replace(F.col("categories_name"), "\n", " "))
 projects_df = projects_df.withColumn("tasks",regexp_replace(F.col("exploded_taskarr.tasks"), "\n", " "))
@@ -380,8 +406,7 @@ projects_df_cols = projects_df.select(
     projects_df["exploded_taskarr"]["sub_task_start_date"].alias("sub_task_start_date"),
     projects_df["exploded_taskarr"]["sub_task_end_date"].alias("sub_task_end_date"),
     projects_df["private_program"],
-    projects_df["exploded_taskarr"]["deleted_flag"].alias("task_deleted_flag"),
-    projects_df["exploded_taskarr"]["sub_task_deleted_flag"].alias("sub_task_deleted_flag"),
+    projects_df["task_deleted_flag"],projects_df["sub_task_deleted_flag"],
     projects_df["project_terms_and_condition"],
     projects_df["task_remarks"],
     projects_df["project_completed_date"],
