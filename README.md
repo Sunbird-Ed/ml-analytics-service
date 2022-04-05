@@ -19,3 +19,6 @@ Run the following command to install all the dependencies `pip install -r requir
 For programs that start with `py_*` are a general ones. So use `python <PATH-TO-PROGRAM>`
 
 For programs that start with `pyspark_*` use `spark-submit <PATH-TO-PROGRAM>`
+
+### Execution Command to run Trust Review Active User Programs
+python active_users.py --interval "2022-04-01T00:00:00+00:00/2022-05-01T00:00:00+00:00" --configPath "/opt/sparkjobs/ml-analytics-service_staging/trust_review"
