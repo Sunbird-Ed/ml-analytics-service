@@ -213,6 +213,16 @@ try:
       stateName = None
       blockName = None
       districtName = None
+      district_externalId = None                      # adding new col to object
+
+      # for ent in entitiesCollec.find({'_id': ObjectId(entityId)}):
+      #   try:
+      #     if ent["entityType"] == "district":
+      #       district_externalId = ent["entityInformation"]["externalId"]
+      #   except KeyError:
+      #     district_externalId = ''
+
+
       clusterName = None
       userSubType = None
       userSchool = None
@@ -232,6 +242,7 @@ try:
              blockName = entUR["metaInformation"]["name"]
           if entUR["entityType"] == "district":
              districtName = entUR["metaInformation"]["name"]
+             district_externalId = entUR["metaInformation"]["externalId"]                 # getting a data from entur
           if entUR["entityType"] == "cluster":
              clusterName = entUR["metaInformation"]["name"]
           if entUR["entityType"] == "school":
@@ -245,6 +256,14 @@ try:
       userObj = datastore.hgetall("user:" + obSub["createdBy"])
       rootOrgId = None
       orgName = None
+
+      organisation_id = None                                                # adding a new col to obj
+      try:
+        organisation_id = obSub["organisationId"]
+        # print("organisation_id : " + organisation_id)
+      except KeyError:
+        organisation_id = ''
+
       boardName = None
       if userObj :
         try:
@@ -284,6 +303,7 @@ try:
                     roleObj = {}
                     roleObj["role_title"] = rol["title"]
                     roleObj["organisation_name"] = orgName
+                    roleObj["organisation_Id"] = organisation_id  # adding org_id to roleobj
                     if userEntityRelated:
                       userEntityRelatedResultKeyCheck = "result" in userEntityRelated
                       if userEntityRelatedResultKeyCheck == True:
@@ -313,11 +333,13 @@ try:
         roleObj["user_stateName"] = stateName
         roleObj["user_blockName"] = blockName
         roleObj["user_districtName"] = districtName
+        roleObj["user_district_externalId"] = district_externalId                   # adding district_externalId var to roleobj
         roleObj["user_clusterName"] = clusterName
         roleObj["user_schoolName"] = userSchoolName
         roleObj["user_schoolId"] = userSchool
         roleObj["user_schoolUDISE_code"] = userSchoolUDISE
         roleObj["organisation_name"] = orgName
+        roleObj["organisation_Id"] = organisation_id                                 # adding organisation_id var to roleobj
         roleObj["user_boardName"] = boardName
         userRolesArrUnique.append(roleObj)
 

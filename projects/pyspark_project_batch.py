@@ -513,6 +513,14 @@ for usr in uniqueuserId_arr:
     rootOrgId = None
     boardName = None
     orgName = None
+
+    organisation_id = None                                                        # adding a new col to obj
+    try:
+        organisation_id = userObj["organisationId"]
+        # print("organisation_id : " + organisation_id)
+    except KeyError:
+        organisation_id = ''
+
     if userObj :
         try:
             rootOrgId = userObj["rootorgid"]
@@ -532,6 +540,9 @@ for usr in uniqueuserId_arr:
     userInfoObj["id"] = usr
     userInfoObj["channel"] = rootOrgId
     userInfoObj["organisation_name"] = orgName
+
+    userInfoObj["organisation_Id"] = organisation_id                            # adding organisation_id var to userRelatedEntitiesObj
+
     user_info_arr.append(userInfoObj)
 
 user_df = ks.DataFrame(user_info_arr)
