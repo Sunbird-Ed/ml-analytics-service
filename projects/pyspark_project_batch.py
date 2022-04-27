@@ -399,7 +399,7 @@ projects_df_cols = projects_df.select(
     projects_df["status"].alias("status_of_project"),
     projects_df["userId"].alias("createdBy"),
     projects_df["description"].alias("project_description"),
-    projects_df["project_goal"],projects_df["evidence"],
+    projects_df["project_goal"],projects_df["project_evidence"],
     projects_df["parent_channel"],
     projects_df["createdAt"].alias("project_created_date"),
     projects_df["exploded_taskarr"]["_id"].alias("task_id"),
