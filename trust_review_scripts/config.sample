@@ -1,0 +1,23 @@
+[DRUID]
+
+url = {{DruidIp:PortNo/EndPoints}}
+
+datasource_name = {{Telemetry_Events_SyncTs_DatasourceName}}
+
+[MONGO]
+
+# --------------
+# Mongo  url
+#---------------
+
+mongo_url = mongodb://{{ ml_analytics_mongodb_url }}
+
+# -----------------------
+# Mongo database name
+# -----------------------
+
+database_name = {{ ml_analytics_mongo_db_name }}
+
+observation_sub_collection = {{ ml_analytics_mongo_observation_submission_collection }}
+
+projects_collection = {{ ml_analytics_mongo_projects_collection }}

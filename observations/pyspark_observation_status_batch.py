@@ -431,6 +431,14 @@ for ch in uniqueuserId_arr :
    userObj = datastore.hgetall("user:"+ch)
    rootOrgId = None
    orgName = None
+
+   organisation_id = None                                                   # adding a new col to obj
+   try:
+      organisation_id = userObj["organisationId"]
+      # print("organisation_id : " + organisation_id)
+   except KeyError:
+      organisation_id = ''
+
    boardName = None
    if userObj :
       try:
@@ -449,6 +457,7 @@ for ch in uniqueuserId_arr :
    try :
       userRelatedEntitiesObj["user_id"] = ch
       userRelatedEntitiesObj["organisation_name"] = orgName
+      userRelatedEntitiesObj["organisation_Id"] = organisation_id                               # adding organisation_id var to userRelatedEntitiesObj
       userRelatedEntitiesObj["board_name"] = boardName
    except KeyError :
       pass

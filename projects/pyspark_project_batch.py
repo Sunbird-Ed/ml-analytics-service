@@ -238,7 +238,9 @@ projects_schema = StructType([
                   StructField('status',StringType(), True),
                   StructField('task_evidence_status',StringType(), True),
                   StructField('deleted_flag',StringType(), True),
-                  StructField('sub_task_start_date',StringType(), True)
+                  StructField('sub_task_start_date',StringType(), True),
+                  StructField('prj_remarks',StringType(), True),
+                  StructField('prj_evidence',StringType(), True)
               ])
           ),True
     ),
@@ -363,6 +365,15 @@ projects_df = projects_df.withColumn(
     ).otherwise("false")
 )
 
+projects_df = projects_df.withColumn(
+    "project_evidence",F.when(
+    projects_df["exploded_taskarr"]["prj_evidence"].isNotNull() == True,
+        F.concat(
+            F.lit(config.get('ML_SURVEY_SERVICE_URL', 'evidence_base_url')),
+            projects_df["exploded_taskarr"]["prj_evidence"]
+        )
+    )
+)
 
 projects_df = projects_df.withColumn("project_goal",regexp_replace(F.col("metaInformation.goal"), "\n", " "))
 projects_df = projects_df.withColumn("area_of_improvement",regexp_replace(F.col("categories_name"), "\n", " "))
@@ -370,7 +381,7 @@ projects_df = projects_df.withColumn("tasks",regexp_replace(F.col("exploded_task
 projects_df = projects_df.withColumn("sub_task",regexp_replace(F.col("exploded_taskarr.sub_task"), "\n", " "))
 projects_df = projects_df.withColumn("program_name",regexp_replace(F.col("programInformation.name"), "\n", " "))
 projects_df = projects_df.withColumn("task_remarks",regexp_replace(F.col("exploded_taskarr.remarks"), "\n", " "))
-projects_df = projects_df.withColumn("project_remarks",regexp_replace(F.col("remarks"), "\n", " "))
+projects_df = projects_df.withColumn("project_remarks",regexp_replace(F.col("exploded_taskarr.prj_remarks"), "\n", " "))
 
 projects_df_cols = projects_df.select(
     projects_df["_id"].alias("project_id"),
@@ -388,7 +399,7 @@ projects_df_cols = projects_df.select(
     projects_df["status"].alias("status_of_project"),
     projects_df["userId"].alias("createdBy"),
     projects_df["description"].alias("project_description"),
-    projects_df["project_goal"],projects_df["evidence"].alias("project_evidence"),
+    projects_df["project_goal"],projects_df["project_evidence"],
     projects_df["parent_channel"],
     projects_df["createdAt"].alias("project_created_date"),
     projects_df["exploded_taskarr"]["_id"].alias("task_id"),
@@ -513,6 +524,14 @@ for usr in uniqueuserId_arr:
     rootOrgId = None
     boardName = None
     orgName = None
+
+    organisation_id = None                                                        # adding a new col to obj
+    try:
+        organisation_id = userObj["organisationId"]
+        # print("organisation_id : " + organisation_id)
+    except KeyError:
+        organisation_id = ''
+
     if userObj :
         try:
             rootOrgId = userObj["rootorgid"]
@@ -532,6 +551,9 @@ for usr in uniqueuserId_arr:
     userInfoObj["id"] = usr
     userInfoObj["channel"] = rootOrgId
     userInfoObj["organisation_name"] = orgName
+
+    userInfoObj["organisation_Id"] = organisation_id                            # adding organisation_id var to userRelatedEntitiesObj
+
     user_info_arr.append(userInfoObj)
 
 user_df = ks.DataFrame(user_info_arr)
