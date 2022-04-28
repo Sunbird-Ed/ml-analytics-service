@@ -62,7 +62,11 @@ def recreate_task_data(prj_data):
                 except :
                     KeyError
             try:
-                prjObj["prj_evidence"] = prj["attachments"][cnt]["sourcePath"]
+                prjObj["prjEvi_type"] = prj["attachments"][cnt]["type"]
+                if prjObj["prjEvi_type"] == "link":
+                  prjObj["prj_evidence"] = prj["attachments"][cnt]["name"]
+                else:
+                  prjObj["prj_evidence"] = prj["attachments"][cnt]["sourcePath"]
             except KeyError:
                 pass
             prjinfo.append(prjObj)
@@ -109,9 +113,13 @@ def recreate_task_data(prj_data):
         for index in range(arr_len):
            taskObj = task_detail(task)
            try :
-             taskObj["task_evidence"] = task["attachments"][index]["sourcePath"]
+             taskObj["taskEvi_type"] = task["attachments"][index]["type"]
+             if taskObj["taskEvi_type"] == "link":
+                 taskObj["task_evidence"] = task["attachments"][index]["name"]
+             else:
+                 taskObj["task_evidence"] = task["attachments"][index]["sourcePath"]
            except :
-             pass 
+               pass
            try:
              taskObj["sub_task"] = task["children"][index]["name"]
            except :
@@ -171,4 +179,5 @@ def recreate_task_data(prj_data):
     prjarr.append(prj)
 
   return prjarr
+
 
