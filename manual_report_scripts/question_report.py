@@ -927,6 +927,6 @@ dff = df[['createdBy','role_title','user_stateName','user_districtName','user_bl
 df1 = dff.rename(columns={"questionName":"Question","user_districtName":"District","evidences":"Evidences","questionResponseLabel":"Question_response_label","solutionExternalId":"Observation ID","user_schoolUDISE_code":"School ID","role_title":"User Sub Type","minScore":"Question score","programName":"Program Name","questionExternalId":"Question_external_id","organisation_name":"Org Name","createdBy":"UUID","remarks":"Remarks","user_blockName":"Block","solutionName":"Observation Name","user_schoolName":"School Name","programExternalId":"Program ID","user_stateName":"Declared State","observationSubmissionId":"observation_submission_id","domainName":"Domain Name","sectionHeader":"Criteria Name"})
 
 
-df1 = dff.drop_duplicates()
+df1 = df1.drop_duplicates()
 df1.to_csv ('questio_report.csv', index = None)
 
