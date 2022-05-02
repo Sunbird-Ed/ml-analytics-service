@@ -9,14 +9,12 @@ from pymongo import MongoClient
 from bson.objectid import ObjectId
 import os, json
 import datetime
-# from datetime import date,time
 import requests
 from configparser import ConfigParser,ExtendedInterpolation
 import logging
 import logging.handlers
 import time
 from logging.handlers import TimedRotatingFileHandler
-import redis
 from azure.storage.blob import BlockBlobService
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
@@ -69,14 +67,6 @@ entitiesCollec = db[config.get('MONGO', 'entities_collection')]
 criteriaQuestionsCollec = db[config.get('MONGO', 'criteria_questions_collection')]
 criteriaCollec = db[config.get('MONGO', 'criteria_collection')]
 programsCollec = db[config.get('MONGO', 'programs_collection')]
-# redis cache connection 
-redis_connection = redis.ConnectionPool(
-  host=config.get("REDIS", "host"), 
-  decode_responses=True, 
-  port=config.get("REDIS", "port"), 
-  db=config.get("REDIS", "db_name")
-)
-datastore = redis.StrictRedis(connection_pool=redis_connection)
 
 try:
   def removeduplicate(it):
@@ -209,26 +199,21 @@ try:
         except KeyError :
           entityLatitude = ''
           entityLongitude = ''
-      userObj = {}
+      
       stateName = None
       blockName = None
       districtName = None
-      district_externalId = None                      # adding new col to object
-
-      # for ent in entitiesCollec.find({'_id': ObjectId(entityId)}):
-      #   try:
-      #     if ent["entityType"] == "district":
-      #       district_externalId = ent["entityInformation"]["externalId"]
-      #   except KeyError:
-      #     district_externalId = ''
-
-
+      districtExternalId = None
+      stateExternalId = None
+      blockExternalId = None
+      clusterExternalId = None
       clusterName = None
       userSubType = None
       userSchool = None
       userSchoolUDISE = None
       userSchoolName = None
       entitiesArrIds = []
+
       if 'userRoleInformation' in obSub:
        for userRoleKey, userRoleVal in obSub["userRoleInformation"].items():
           if userRoleKey != "role" :
@@ -238,13 +223,16 @@ try:
         {"metaInformation.name":1,"entityType":1,"registryDetails":1}):
           if entUR["entityType"] == "state":
              stateName = entUR["metaInformation"]["name"]
+             stateExternalId = obSub["userRoleInformation"]["state"]
           if entUR["entityType"] == "block":
              blockName = entUR["metaInformation"]["name"]
+             blockExternalId = obSub["userRoleInformation"]["block"]
           if entUR["entityType"] == "district":
              districtName = entUR["metaInformation"]["name"]
-             district_externalId = entUR["metaInformation"]["externalId"]                 # getting a data from entur
+             districtExternalId = obSub["userRoleInformation"]["district"]
           if entUR["entityType"] == "cluster":
              clusterName = entUR["metaInformation"]["name"]
+             clusterExternalId = obSub["userRoleInformation"]["cluster"]
           if entUR["entityType"] == "school":
              userSchool = str(entUR["_id"])
              if "code" in entUR["registryDetails"] and entUR["registryDetails"]["code"] :
@@ -252,34 +240,25 @@ try:
              else :
                 userSchoolUDISE = entUR["registryDetails"]["locationId"]
              userSchoolName = entUR["metaInformation"]["name"]
-       userSubType = obSub["userRoleInformation"]["role"]
-      userObj = datastore.hgetall("user:" + obSub["createdBy"])
-      rootOrgId = None
-      orgName = None
-
-      organisation_id = None                                                # adding a new col to obj
-      try:
-        organisation_id = obSub["organisationId"]
-        # print("organisation_id : " + organisation_id)
-      except KeyError:
-        organisation_id = ''
-
-      boardName = None
-      if userObj :
-        try:
-          rootOrgId = userObj["rootorgid"]
-        except KeyError :
-          rootOrgId = ''
-        try:
-          orgName = userObj["orgname"]
-        except KeyError:
-          orgName = ''
-
-        try:
-          boardName = userObj["board"]
-        except KeyError:
-          boardName = ''
+       userSubType = obSub["userRoleInformation"]["role"]  
       
+      rootOrgId = None
+      boardName = None
+      orgId = None
+      orgName = None
+      try:
+          if obSub["userProfile"] :
+              if "rootOrgId" in obSub["userProfile"] and obSub["userProfile"]["rootOrgId"]:
+                  rootOrgId = obSub["userProfile"]["rootOrgId"]
+              if "framework" in obSub["userProfile"] and obSub["userProfile"]["framework"]:
+                 if "board" in obSub["userProfile"]["framework"] and obSub["userProfile"]["framework"]["board"]:
+                  boardName = ",".join(obSub["userProfile"]["framework"]["board"])
+              if "organisations" in obSub["userProfile"] and len(obSub["userProfile"]["organisations"]) > 0:
+                  orgId = obSub["userProfile"]["organisations"][-1]["organisationId"]
+                  orgName = obSub["userProfile"]["organisations"][-1]["orgName"]
+      except KeyError :
+          pass
+
       userRoles = {}
       obsAppName = None
       try :
@@ -287,7 +266,7 @@ try:
       except KeyError :
         obsAppName = config.get("ML_APP_NAME", "survey_app")
       userRolesArrUnique = []
-      if obsAppName == config.get("ML_APP_NAME", "survey_app") : 
+      if obsAppName == config.get("ML_APP_NAME", "survey_app") :
         userRoles = getUserRoles(obSub["createdBy"])
         userRolesArr = []
         if userRoles:
@@ -303,13 +282,14 @@ try:
                     roleObj = {}
                     roleObj["role_title"] = rol["title"]
                     roleObj["organisation_name"] = orgName
-                    roleObj["organisation_Id"] = organisation_id  # adding org_id to roleobj
+                    roleObj["organisation_Id"] = orgId
                     if userEntityRelated:
                       userEntityRelatedResultKeyCheck = "result" in userEntityRelated
                       if userEntityRelatedResultKeyCheck == True:
                         if userEntityRelated["result"]:
                           if (userEntityRelated["result"]["entityType"] == "district") or (userEntityRelated["result"]["entityType"] == "block") or (userEntityRelated["result"]["entityType"] == "cluster") or (userEntityRelated["result"]["entityType"] == "state"):
                             roleObj['user_'+userEntityRelated["result"]["entityType"]+'Name'] = userEntityRelated["result"]["metaInformation"]["name"]
+                            roleObj[userEntityRelated["result"]["entityType"]+'_externalId'] = userEntityRelated["result"]["metaInformation"]["externalId"]
                           if userEntityRelated["result"]["entityType"] == "school" :
                             roleObj['user_schoolName'] = userEntityRelated["result"]["metaInformation"]["name"]
                             roleObj['user_schoolId'] = str(userEntityRelated["result"]["metaInformation"]["id"])
@@ -317,6 +297,7 @@ try:
                           for usrEntityData in userEntityRelated["result"]["relatedEntities"]:
                             if (usrEntityData['entityType'] == "district") or (usrEntityData['entityType'] == "block") or (usrEntityData['entityType'] == "cluster") or (usrEntityData['entityType'] == "state"):
                               roleObj['user_'+usrEntityData['entityType']+'Name'] = usrEntityData['metaInformation']['name']
+                              roleObj[usrEntityData['entityType']+'_externalId'] = usrEntityData['metaInformation']['externalId']
                             if usrEntityData['entityType'] == "school" :
                               roleObj['user_schoolName'] = usrEntityData["metaInformation"]["name"]
                               roleObj['user_schoolId'] = str(usrEntityData["metaInformation"]["id"])
@@ -324,7 +305,7 @@ try:
                     userRolesArr.append(roleObj)
             except KeyError :
               userRolesArr = []
-                
+
         if len(userRolesArr) > 0:
           userRolesArrUnique = list(removeduplicate(userRolesArr))
       else:
@@ -333,14 +314,17 @@ try:
         roleObj["user_stateName"] = stateName
         roleObj["user_blockName"] = blockName
         roleObj["user_districtName"] = districtName
-        roleObj["user_district_externalId"] = district_externalId                   # adding district_externalId var to roleobj
         roleObj["user_clusterName"] = clusterName
         roleObj["user_schoolName"] = userSchoolName
         roleObj["user_schoolId"] = userSchool
         roleObj["user_schoolUDISE_code"] = userSchoolUDISE
         roleObj["organisation_name"] = orgName
-        roleObj["organisation_Id"] = organisation_id                                 # adding organisation_id var to roleobj
+        roleObj["organisation_id"] = orgId
         roleObj["user_boardName"] = boardName
+        roleObj["district_externalId"] = districtExternalId
+        roleObj["state_externalId"] = stateExternalId
+        roleObj["block_externalId"] = blockExternalId
+        roleObj["cluster_externalId"] = clusterExternalId
         userRolesArrUnique.append(roleObj)
 
       if 'answers' in obSub.keys() :  
@@ -894,44 +878,6 @@ try:
                             labelIndex = labelIndex + 1
                     except KeyError:
                       pass
-                # #to check the value is null ie is not answered
-                # try:
-                #   if type(ansFn['value']) == str and ansFn['value'] == '':
-                #     if(len(userRolesArrUnique)) > 0:
-                #       for usrRol in userRolesArrUnique :
-                #         finalObj = {}
-                #         finalObj =  creatingObj(
-                #           ansFn,
-                #           ques['externalId'],
-                #           ansFn['value'],
-                #           instNumber,
-                #           None,
-                #           entityLatitudeQuesFn,
-                #           entityLongitudeQuesFn,
-                #           usrRol
-                #         )
-                #         if finalObj["completedDate"]:
-                #           json.dump(finalObj, f)
-                #           f.write("\n")
-                #           successLogger.debug("Send Obj to Azure")
-                #     else :
-                #       finalObj = {}
-                #       finalObj =  creatingObj(
-                #         ansFn,
-                #         ques['externalId'],
-                #         ansFn['value'],
-                #         instNumber,
-                #         None,
-                #         entityLatitudeQuesFn,
-                #         entityLongitudeQuesFn,
-                #         None
-                #       )
-                #       if finalObj["completedDate"]:
-                #         json.dump(finalObj, f)
-                #         f.write("\n")
-                #         successLogger.debug("Send Obj to Azure")
-                # except KeyError:
-                #   pass
 
             try:
              if (
