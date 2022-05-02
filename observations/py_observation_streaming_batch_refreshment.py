@@ -251,7 +251,7 @@ try:
               if "rootOrgId" in obSub["userProfile"] and obSub["userProfile"]["rootOrgId"]:
                   rootOrgId = obSub["userProfile"]["rootOrgId"]
               if "framework" in obSub["userProfile"] and obSub["userProfile"]["framework"]:
-                 if "board" in obSub["userProfile"]["framework"] and obSub["userProfile"]["framework"]["board"]:
+                 if "board" in obSub["userProfile"]["framework"] and len(obSub["userProfile"]["framework"]["board"]) > 0:
                   boardName = ",".join(obSub["userProfile"]["framework"]["board"])
               if "organisations" in obSub["userProfile"] and len(obSub["userProfile"]["organisations"]) > 0:
                   orgId = obSub["userProfile"]["organisations"][-1]["organisationId"]
