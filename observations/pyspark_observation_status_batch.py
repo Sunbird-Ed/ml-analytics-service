@@ -7,7 +7,7 @@
 # -----------------------------------------------------------------
 
 import requests
-import json, csv, sys, os, time, redis
+import json, csv, sys, os, time
 import datetime
 from datetime import date
 from configparser import ConfigParser, ExtendedInterpolation
@@ -29,6 +29,7 @@ import logging.handlers
 from logging.handlers import TimedRotatingFileHandler
 from pyspark.sql import DataFrame
 from typing import Iterable
+from pyspark.sql.functions import element_at, split, col
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
@@ -114,15 +115,6 @@ userRolesCollec = db[config.get("MONGO", 'user_roles_collection')]
 programCollec = db[config.get("MONGO", 'programs_collection')]
 entitiesCollec = db[config.get('MONGO', 'entities_collection')]
 
-# redis cache connection 
-redis_connection = redis.ConnectionPool(
-   host=config.get("REDIS", "host"), 
-   decode_responses=True, 
-   port=config.get("REDIS", "port"), 
-   db=config.get("REDIS", "db_name")
-)
-datastore = redis.StrictRedis(connection_pool=redis_connection)
-
 #observation submission dataframe
 obs_sub_cursorMongo = obsSubmissionsCollec.aggregate(
    [{
@@ -157,7 +149,8 @@ obs_sub_cursorMongo = obsSubmissionsCollec.aggregate(
                }
             }
          },
-         "userRoleInformation": 1
+         "userRoleInformation": 1,
+         "userProfile": 1
       }
    }]
 )
@@ -199,6 +192,25 @@ obs_sub_schema = StructType(
               StructField('school', StringType(), True),
               StructField('role', StringType(), True)
          ])
+      ),
+      StructField(
+          'userProfile',
+          StructType([
+              StructField('rootOrgId', StringType(), True),
+              StructField(
+                  'framework',
+                  StructType([
+                    StructField('board',ArrayType(StringType()), True)
+                ])
+             ),
+             StructField(
+                'organisations',ArrayType(
+                     StructType([
+                        StructField('organisationId', StringType(), True),
+                        StructField('orgName', StringType(), True)
+                     ]), True)
+             )
+          ])
       )
    ]
 )
@@ -261,7 +273,7 @@ obs_sub_df1 = obs_sub_df1.withColumn(
       "observation_with_out_rubric"
    ).otherwise("observation_with_out_rubric")
 )
-
+obs_sub_df1 = obs_sub_df1.withColumn("parent_channel",F.lit("SHIKSHALOKAM"))
 obs_sub_df = obs_sub_df1.select(
    "status", 
    obs_sub_df1["entityExternalId"].alias("entity_externalId"),
@@ -285,7 +297,12 @@ obs_sub_df = obs_sub_df1.select(
    obs_sub_df1["userRoleInformation"]["block"].alias("block_externalId"),
    obs_sub_df1["userRoleInformation"]["district"].alias("district_externalId"),
    obs_sub_df1["userRoleInformation"]["cluster"].alias("cluster_externalId"),
-   obs_sub_df1["userRoleInformation"]["school"].alias("school_externalId")
+   obs_sub_df1["userRoleInformation"]["school"].alias("school_externalId"),
+   obs_sub_df1["userProfile"]["rootOrgId"].alias("channel"),
+   obs_sub_df1["parent_channel"],
+   concat_ws(",",F.col("userProfile.framework.board")).alias("board_name"),
+   element_at(col('userProfile.organisations.orgName'), -1).alias("organisation_name"),
+   element_at(col('userProfile.organisations.organisationId'), -1).alias("organisation_id")
 )
 obs_sub_cursorMongo.close()
 
@@ -353,7 +370,7 @@ obs_sub_df_melt = melt(obs_sub_df,
         id_vars=["status","entity_externalId","entity_id","entity_type","user_id","solution_id",
             "solution_externalId","submission_id","entity_name","completedDate","program_id",
             "program_externalId","app_name","private_program","solution_type","ecm_marked_na",
-            "updatedAt","role_title"],
+            "updatedAt","role_title","channel","parent_channel","board_name","organisation_name","organisation_id"],
         value_vars=["state_externalId","block_externalId","district_externalId","cluster_externalId","school_externalId"]
         )
 obs_ent_sub_df_melt = obs_sub_df_melt\
@@ -414,67 +431,6 @@ obs_sub_pgm_df = obs_sub_soln_df.join(
    'inner'
 ).drop(obs_pgm_df["_id"])
 obs_sub_pgm_df = obs_sub_pgm_df.withColumnRenamed("name", "program_name")
-#user organisation dataframe
-obs_sub_soln_userid_df = obs_sub_pgm_df.select("user_id")
-
-userId_obs_status_df_before = []
-userId_obs_status_df_after = []
-userId_arr = []
-uniqueuserId_arr = []
-userId_obs_status_df_before = obs_sub_soln_userid_df.toJSON().map(lambda j: json.loads(j)).collect()
-for uid in userId_obs_status_df_before:
-   userId_arr.append(uid["user_id"])
-uniqueuserId_arr = list(removeduplicate(userId_arr))
-userIntegratedAppEntitiesArr = []
-for ch in uniqueuserId_arr :
-   userObj = {}
-   userObj = datastore.hgetall("user:"+ch)
-   rootOrgId = None
-   orgName = None
-
-   organisation_id = None                                                   # adding a new col to obj
-   try:
-      organisation_id = userObj["organisationId"]
-      # print("organisation_id : " + organisation_id)
-   except KeyError:
-      organisation_id = ''
-
-   boardName = None
-   if userObj :
-      try:
-         rootOrgId = userObj["rootorgid"]
-      except KeyError :
-         rootOrgId = ''
-      try:
-         orgName = userObj["orgname"]
-      except KeyError:
-         orgName = ''
-      try:
-         boardName = userObj["board"]
-      except KeyError:
-         boardName = ''
-   userRelatedEntitiesObj = {}
-   try :
-      userRelatedEntitiesObj["user_id"] = ch
-      userRelatedEntitiesObj["organisation_name"] = orgName
-      userRelatedEntitiesObj["organisation_Id"] = organisation_id                               # adding organisation_id var to userRelatedEntitiesObj
-      userRelatedEntitiesObj["board_name"] = boardName
-   except KeyError :
-      pass
-   if userRelatedEntitiesObj :
-      userIntegratedAppEntitiesArr.append(userRelatedEntitiesObj)
-
-   searchObj = {}
-   searchObj["id"] = ch
-   searchObj["channel"] = rootOrgId
-   searchObj["parent_channel"] = "SHIKSHALOKAM"
-   userId_obs_status_df_after.append(searchObj)
-
-df_user_org = ks.DataFrame(userId_obs_status_df_after)
-df_user_org = df_user_org.to_spark()
-if len(userIntegratedAppEntitiesArr) > 0 :
-   df_user_rel_entities = ks.DataFrame(userIntegratedAppEntitiesArr)
-   df_user_rel_entities = df_user_rel_entities.to_spark()
 
 # roles dataframe from mongodb
 roles_cursorMongo = userRolesCollec.aggregate(
@@ -531,48 +487,13 @@ except Exception as e:
 
 headers_user = {'Content-Type': 'application/json'}
 
-user_df_integrated_app = df_user_org.join(
-   df_user_rel_entities,
-   df_user_org.id==df_user_rel_entities.user_id,
-   'left'
-)
-user_df_integrated_app = user_df_integrated_app.drop(user_df_integrated_app["user_id"])
-obs_sub_cursorMongo = []
-obs_sol_cursorMongo = []
-user_org_rows = []
-org_rows = []
-roles_cursorMongo = []
-userEntityRoleArray = []
-entityArray = []
-
 obs_sub_df1.cache()
 obs_sub_df.cache()
 obs_sub_df_final.cache()
 obs_soln_df.cache()
-df_user_org.cache()
 roles_df.cache()
 
-obs_sub_status_df_integrated_app = obs_sub_pgm_df.join(
-   user_df_integrated_app,
-   [
-      obs_sub_pgm_df.user_id==user_df_integrated_app.id
-   #   (obs_sub_pgm_df.app_name==config.get("ML_APP_NAME", "integrated_app"))|
-   #   (obs_sub_pgm_df.app_name==config.get("ML_APP_NAME", "integrated_portal"))
-   ],
-   'inner'
-).drop(user_df_integrated_app["id"])
-
-integrated_app_column_list = []
-survey_app_column_list = []
-integrated_app_column_list = obs_sub_status_df_integrated_app.columns
-
-
-missing_col_in_integrated_app_list = []
-missing_col_in_integrated_app_list = list(
-   set(integrated_app_column_list) - set(survey_app_column_list)
-)
-
-final_df = obs_sub_status_df_integrated_app.dropDuplicates()
+final_df = obs_sub_pgm_df.dropDuplicates()
 
 final_df.coalesce(1).write.format("json").mode("overwrite").save(
    config.get("OUTPUT_DIR", "observation_status")+"/"

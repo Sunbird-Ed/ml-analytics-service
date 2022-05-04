@@ -26,10 +26,10 @@ import logging.handlers
 from logging.handlers import TimedRotatingFileHandler
 import datetime
 from datetime import date
-import redis
 from pyspark.sql import DataFrame
 from typing import Iterable
 from udf_func import *
+from pyspark.sql.functions import element_at, split, col
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
@@ -79,15 +79,6 @@ clientProd = MongoClient(config.get('MONGO', 'mongo_url'))
 db = clientProd[config.get('MONGO', 'database_name')]
 projectsCollec = db[config.get('MONGO', 'projects_collection')]
 entitiesCollec = db[config.get('MONGO', 'entities_collection')]
-
-# redis cache connection 
-redis_connection = redis.ConnectionPool(
-    host=config.get("REDIS", "host"), 
-    decode_responses=True, 
-    port=config.get("REDIS", "port"), 
-    db=config.get("REDIS", "db_name")
-)
-datastore = redis.StrictRedis(connection_pool=redis_connection)
 
 try:
     def removeduplicate(it):
@@ -165,7 +156,8 @@ projects_cursorMongo = projectsCollec.aggregate(
             "programExternalId": 1,
             "isAPrivateProgram": 1,
             "hasAcceptedTAndC": 1,
-            "userRoleInformation": 1
+            "userRoleInformation": 1,
+            "userProfile": 1
         }
     }]
 )
@@ -216,6 +208,25 @@ projects_schema = StructType([
               StructField('school', StringType(), True),
               StructField('role', StringType(), True)
          ])
+    ),
+    StructField(
+          'userProfile',
+          StructType([
+              StructField('rootOrgId', StringType(), True),
+              StructField(
+                  'framework',
+                  StructType([
+                    StructField('board',ArrayType(StringType()), True)
+                ])
+             ),
+             StructField(
+                'organisations',ArrayType(
+                     StructType([
+                        StructField('organisationId', StringType(), True),
+                        StructField('orgName', StringType(), True)
+                     ]), True)
+             )
+          ])
     ),
     StructField(
         'taskarr',
@@ -431,7 +442,11 @@ projects_df_cols = projects_df.select(
     projects_df["userRoleInformation"]["block"].alias("block_externalId"),
     projects_df["userRoleInformation"]["district"].alias("district_externalId"),
     projects_df["userRoleInformation"]["cluster"].alias("cluster_externalId"),
-    projects_df["userRoleInformation"]["school"].alias("school_externalId")
+    projects_df["userRoleInformation"]["school"].alias("school_externalId"),
+    projects_df["userProfile"]["rootOrgId"].alias("channel"),
+    concat_ws(",",F.col("userProfile.framework.board")).alias("board_name"),
+    element_at(col('userProfile.organisations.orgName'), -1).alias("organisation_name"),
+    element_at(col('userProfile.organisations.organisationId'), -1).alias("organisation_id")
 )
 
 projects_df_cols = projects_df_cols.dropDuplicates()
@@ -499,7 +514,7 @@ entities_df = melt(entities_df,
             ).dropDuplicates()
 entities_df = entities_df.withColumn("variable",F.concat(F.col("entityType"),F.lit("_externalId")))
 projects_df_melt = melt(projects_df_cols,
-        id_vars=["project_id", "project_created_type", "project_title", "project_title_editable", "program_id", "program_externalId", "program_name", "project_duration", "project_last_sync", "project_updated_date", "project_deleted_flag", "area_of_improvement", "status_of_project", "createdBy", "project_description", "project_goal", "parent_channel", "project_created_date", "task_id", "tasks", "task_assigned_to", "task_start_date", "task_end_date", "tasks_date", "tasks_status", "task_evidence", "task_evidence_status", "sub_task_id", "sub_task", "sub_task_status", "sub_task_date", "sub_task_start_date", "sub_task_end_date", "private_program", "task_deleted_flag", "sub_task_deleted_flag", "project_terms_and_condition", "task_remarks", "project_completed_date", "solution_id", "designation","project_remarks","project_evidence"],
+        id_vars=["project_id", "project_created_type", "project_title", "project_title_editable", "program_id", "program_externalId", "program_name", "project_duration", "project_last_sync", "project_updated_date", "project_deleted_flag", "area_of_improvement", "status_of_project", "createdBy", "project_description", "project_goal", "parent_channel", "project_created_date", "task_id", "tasks", "task_assigned_to", "task_start_date", "task_end_date", "tasks_date", "tasks_status", "task_evidence", "task_evidence_status", "sub_task_id", "sub_task", "sub_task_status", "sub_task_date", "sub_task_start_date", "sub_task_end_date", "private_program", "task_deleted_flag", "sub_task_deleted_flag", "project_terms_and_condition", "task_remarks", "project_completed_date", "solution_id", "designation","project_remarks","project_evidence","channel","board_name","organisation_name","organisation_id"],
         value_vars=["state_externalId", "block_externalId", "district_externalId", "cluster_externalId", "school_externalId"]
         )
 projects_ent_df_melt = projects_df_melt\
@@ -510,66 +525,7 @@ projects_ent_df_melt = projects_ent_df_melt.groupBy(["project_id"])\
                                .pivot("flag").agg(first(F.col("name")))
 projects_df_final = projects_df_cols.join(projects_ent_df_melt,["project_id"],how="left")
 
-userId_projects_df_before = []
-userId_projects_df_after = []
-userId_arr = []
-uniqueuserId_arr = []
-userId_projects_df_before = projects_userid_df.toJSON().map(lambda j: json.loads(j)).collect()
-for uid in userId_projects_df_before:
-    userId_arr.append(uid["createdBy"])
-
-uniqueuserId_arr = list(removeduplicate(userId_arr))
-
-user_info_arr = []
-
-for usr in uniqueuserId_arr:
-    userObj = {}
-    userObj = datastore.hgetall("user:"+usr)
-    rootOrgId = None
-    boardName = None
-    orgName = None
-
-    organisation_id = None                                                        # adding a new col to obj
-    try:
-        organisation_id = userObj["organisationId"]
-        # print("organisation_id : " + organisation_id)
-    except KeyError:
-        organisation_id = ''
-
-    if userObj :
-        try:
-            rootOrgId = userObj["rootorgid"]
-        except KeyError :
-            rootOrgId = ''
-        try:
-         boardName = userObj["board"]
-        except KeyError:
-         boardName = ''
-        try:
-         orgName = userObj["orgname"]
-        except KeyError:
-         orgName = ''
-
-    userInfoObj = {}
-    userInfoObj["board_name"] = boardName
-    userInfoObj["id"] = usr
-    userInfoObj["channel"] = rootOrgId
-    userInfoObj["organisation_name"] = orgName
-
-    userInfoObj["organisation_Id"] = organisation_id                            # adding organisation_id var to userRelatedEntitiesObj
-
-    user_info_arr.append(userInfoObj)
-
-user_df = ks.DataFrame(user_info_arr)
-user_df = user_df.to_spark()
-
-final_projects_df = projects_df_final.join(
-    user_df,
-    projects_df_final["createdBy"] == user_df["id"],
-    "inner"
-).drop(user_df["id"])
-
-final_projects_df = final_projects_df.dropDuplicates()
+final_projects_df = projects_df_final.dropDuplicates()
 
 final_projects_df.coalesce(1).write.format("json").mode("overwrite").save(
     config.get("OUTPUT_DIR", "project") + "/"
@@ -617,7 +573,7 @@ submissionReportColumnNamesArr = [
     'project_duration', 'program_externalId', 'private_program', 'task_deleted_flag',
     'sub_task_deleted_flag', 'project_terms_and_condition','task_remarks',
     'organisation_name','project_description','project_completed_date','solution_id',
-     'project_remarks','project_evidence'
+     'project_remarks','project_evidence','organisation_id'
 ]
 
 dimensionsArr.extend(submissionReportColumnNamesArr)
