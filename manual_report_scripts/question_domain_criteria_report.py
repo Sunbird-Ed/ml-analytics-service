@@ -550,8 +550,8 @@ try:
               observationSubQuestionsObj['createdAt'] = createdAt
               observationSubQuestionsObj['updatedAt'] = updatedAt
               observationSubQuestionsObj['remarks'] = answer['remarks']
+              multipleFiles = None
               if len(answer['fileName']):
-                multipleFiles = None
                 fileCnt = 1
                 for filedetail in answer['fileName']:
                   if fileCnt == 1:
@@ -559,8 +559,8 @@ try:
                     fileCnt = fileCnt + 1
                   else:
                     multipleFiles = multipleFiles + ' ; ' + config.get('ML_SURVEY_SERVICE_URL', 'evidence_base_url') + filedetail['sourcePath']
-                observationSubQuestionsObj['evidences'] = multipleFiles                                  
-                observationSubQuestionsObj['evidence_count'] = len(answer['fileName'])
+              observationSubQuestionsObj['evidences'] = multipleFiles                                  
+              observationSubQuestionsObj['evidence_count'] = len(answer['fileName'])
               observationSubQuestionsObj['total_evidences'] = evidence_sub_count
 
               # to fetch the parent question of matrix
@@ -908,25 +908,35 @@ except Exception as e:
   errorLogger.error(e, exc_info=True)
 
 with open('sl_observation.json', 'w') as f:
- valuee = obsSubCollec.find({'$and' : [{"status":"completed"},{"solutionId":ObjectId("612cf271f1d64e7b26786524")},{"programId":ObjectId("60e7d35bf2b6e70788065fd2")}]}).count()
+ valuee = obsSubCollec.find({'$and' : [{"status":"completed"},{"solutionId":ObjectId("6225a13da7a4716e464ca139")},{"programId":ObjectId("61d70008b3999a16fc255cd5")},{"userRoleInformation.district":"21eb6eb2-eb2f-4d4b-aab7-62c0e33f5421"}]}).count()
  print(valuee)
- for msg_data in obsSubCollec.find({'$and' : [{"status":"completed"},{"solutionId":ObjectId("612cf271f1d64e7b26786524")},{"programId":ObjectId("60e7d35bf2b6e70788065fd2")}]}):
+ cnt = 1
+ for msg_data in obsSubCollec.find({'$and' : [{"status":"completed"},{"solutionId":ObjectId("6225a13da7a4716e464ca139")},{"programId":ObjectId("61d70008b3999a16fc255cd5")},{"userRoleInformation.district":"21eb6eb2-eb2f-4d4b-aab7-62c0e33f5421"}]}):
+    print(cnt)
+    print(msg_data['_id'])
     obj_arr = obj_creation(msg_data['_id'])
+    cnt = cnt + 1
     
 
 
 
 import pandas as pd
 df = pd.read_json ('sl_observation.json',lines=True)
-#dff = df[['createdBy','role_title','user_stateName','user_districtName','user_blockName','user_schoolUDISE_code','user_schoolName','organisation_name','programName','programExternalId','solutionName','solutionExternalId','domainName','sectionHeader','observationSubmissionId','questionExternalId','questionName','questionResponseLabel','minScore','evidences','remarks']]
-#
 
 df = df[df["solution_type"] == "observation_with_rubric"]
 
-dff = df[['createdBy','role_title','user_stateName','user_districtName','user_blockName','user_schoolUDISE_code','user_schoolName','organisation_name','programName','programExternalId','solutionName','solutionExternalId','observationSubmissionId','domainName','sectionHeader','questionExternalId','questionName','questionResponseLabel','minScore','evidences','remarks','solutionId']] 
-df1 = dff.rename(columns={"questionName":"Question","user_districtName":"District","evidences":"Evidences","questionResponseLabel":"Question_response_label","solutionExternalId":"Observation ID","user_schoolUDISE_code":"School ID","role_title":"User Sub Type","minScore":"Question score","programName":"Program Name","questionExternalId":"Question_external_id","organisation_name":"Org Name","createdBy":"UUID","remarks":"Remarks","user_blockName":"Block","solutionName":"Observation Name","user_schoolName":"School Name","programExternalId":"Program ID","user_stateName":"Declared State","observationSubmissionId":"observation_submission_id","domainName":"Domain Name","sectionHeader":"Criteria Name"})
+dffq = df[['createdBy','role_title','user_stateName','user_districtName','user_blockName','user_schoolUDISE_code','user_schoolName','organisation_name','programName','programExternalId','solutionName','solutionExternalId','observationSubmissionId','domainName','sectionHeader','questionExternalId','questionName','questionResponseLabel','minScore','evidences','remarks','solutionId']] 
+df1q = dffq.rename(columns={"questionName":"Question","user_districtName":"District","evidences":"Evidences","questionResponseLabel":"Question_response_label","solutionExternalId":"Observation ID","user_schoolUDISE_code":"School ID","role_title":"User Sub Type","minScore":"Question score","programName":"Program Name","questionExternalId":"Question_external_id","organisation_name":"Org Name","createdBy":"UUID","remarks":"Remarks","user_blockName":"Block","solutionName":"Observation Name","user_schoolName":"School Name","programExternalId":"Program ID","user_stateName":"Declared State","observationSubmissionId":"observation_submission_id","domainName":"Domain Name","sectionHeader":"Criteria Name"})
+
+
+df1q = df1q.drop_duplicates()
+df1q.to_csv ('question_report_district_Hamirpur.csv', index = None)
+
+dff = df[["createdBy","role_title","user_stateName","user_districtName","user_blockName","user_schoolUDISE_code","user_schoolName","organisation_name","programName","programExternalId","solutionName","solutionExternalId","observationSubmissionId","domainName","domainLevel","childName","level","solutionId"]]
+
+df1 = dff.rename(columns={"user_districtName":"District","solutionExternalId":"Observation ID","user_schoolUDISE_code":"School ID","role_title":"User Sub Type","domainName":"Domain Name","programName":"Program Name","organisation_name":"Org Name","createdBy":"UUID","user_blockName":"Block","childName":"Criteria Name","domainLevel":"Domain Level","solutionName":"Observation Name","user_schoolName":"School Name","programExternalId":"Program ID","user_stateName":"Declared State","observationSubmissionId":"observation_submission_id","level":"Criteria Level"})
 
 
 df1 = df1.drop_duplicates()
-df1.to_csv ('questio_report.csv', index = None)
-
+print(df1.count())
+df1.to_csv('domain_report_district_Hamirpur.csv', index = None)
