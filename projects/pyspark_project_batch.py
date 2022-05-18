@@ -265,6 +265,7 @@ projects_schema = StructType([
 func_return = recreate_task_data(projects_cursorMongo)
 prj_rdd = spark.sparkContext.parallelize(list(func_return))
 projects_df = spark.createDataFrame(prj_rdd,projects_schema)
+prj_rdd.unpersist()
 projects_df = projects_df.withColumn(
     "project_created_type",
     F.when(
@@ -335,7 +336,7 @@ category_df = projects_df.groupby('_id').agg(collect_list('exploded_categories.n
 category_df = category_df.withColumn("categories_name", concat_ws(", ", "category_name"))
 
 projects_df = projects_df.join(category_df, "_id", how = "left")
-
+category_df.unpersist()
 projects_df = projects_df.withColumn("parent_channel", F.lit("SHIKSHALOKAM"))
 
 projects_df = projects_df.withColumn(
@@ -449,6 +450,7 @@ projects_df_cols = projects_df.select(
     element_at(col('userProfile.organisations.organisationId'), -1).alias("organisation_id")
 )
 
+projects_df.unpersist()
 projects_df_cols = projects_df_cols.dropDuplicates()
 projects_userid_df = projects_df_cols.select("createdBy")
 
@@ -457,6 +459,7 @@ entitiesId_projects_df_before = []
 entitiesId_arr = []
 uniqueEntitiesId_arr = []
 entitiesId_projects_df_before = projects_entities_id_df.toJSON().map(lambda j: json.loads(j)).collect()
+projects_entities_id_df.unpersist()
 for eid in entitiesId_projects_df_before:
    try:
     entitiesId_arr.append(eid["state_externalId"])
@@ -507,6 +510,7 @@ ent_schema = StructType(
     )
 entities_rdd = spark.sparkContext.parallelize(list(ent_cursorMongo))
 entities_df = spark.createDataFrame(entities_rdd,ent_schema)
+entities_rdd.unpersist()
 entities_df = melt(entities_df,
         id_vars=["_id","entityType","metaInformation.name"],
         value_vars=["registryDetails.locationId", "registryDetails.code"]
@@ -520,17 +524,20 @@ projects_df_melt = melt(projects_df_cols,
 projects_ent_df_melt = projects_df_melt\
                  .join(entities_df,["variable","value"],how="left")\
                  .select(projects_df_melt["*"],entities_df["name"],entities_df["_id"].alias("entity_ids"))
+entities_df.unpersist()
+projects_df_melt.unpersist()
 projects_ent_df_melt = projects_ent_df_melt.withColumn("flag",F.regexp_replace(F.col("variable"),"_externalId","_name"))
 projects_ent_df_melt = projects_ent_df_melt.groupBy(["project_id"])\
                                .pivot("flag").agg(first(F.col("name")))
 projects_df_final = projects_df_cols.join(projects_ent_df_melt,["project_id"],how="left")
-
+projects_ent_df_melt.unpersist()
+projects_df_cols.unpersist()
 final_projects_df = projects_df_final.dropDuplicates()
-
+projects_df_final.unpersist()
 final_projects_df.coalesce(1).write.format("json").mode("overwrite").save(
     config.get("OUTPUT_DIR", "project") + "/"
 )
-
+final_projects_df.unpersist()
 
 for filename in os.listdir(config.get("OUTPUT_DIR", "project")+"/"):
     if filename.endswith(".json"):
