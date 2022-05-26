@@ -150,9 +150,14 @@ obs_sub_cursorMongo = obsSubmissionsCollec.aggregate(
             }
          },
          "userRoleInformation": 1,
-         "userProfile": 1
-      }
-   }]
+         "userProfile": 1,
+         "themes": 1,
+         "criteria": 1
+      }},
+      {"$addFields":
+          {"themes": {"$map":  {"input": "$themes","as": "r","in":{"name":"$$r.name","pointsBasedLevel":"$$r.pointsBasedLevel","externalId":"$$r.externalId","criteria":{"$map": {"input": "$$r.criteria","as": "s","in":{"criteriaId":{"$toString": "$$s.criteriaId"}}}}}}},
+          "criteria": {"$map": {"input": "$criteria","as": "r","in":{"name":"$$r.name","score":"$$r.score","_id":{"$toString": "$$r._id"},"parentCriteriaId":{"$toString": "$$r.parentCriteriaId"}}}}}}
+    ]
 )
 
 #schema for the observation submission dataframe
@@ -211,6 +216,28 @@ obs_sub_schema = StructType(
                      ]), True)
              )
           ])
+      ),
+      StructField(
+            'themes',ArrayType(
+                     StructType([
+                           StructField('name', StringType(), True),
+                           StructField('pointsBasedLevel', StringType(), True),
+                           StructField('externalId', StringType(), True),
+                           StructField('criteria',ArrayType(
+                                 StructType([
+                                       StructField('criteriaId', StringType(), True)
+                                 ])
+                           ))
+                     ]), True)
+      ),
+      StructField(
+            'criteria',ArrayType(
+                       StructType([
+                             StructField('name', StringType(), True),
+                             StructField('score', StringType(), True),
+                             StructField('parentCriteriaId', StringType(), True),
+                             StructField('_id', StringType(), True)
+                       ]), True)
       )
    ]
 )
@@ -302,8 +329,11 @@ obs_sub_df = obs_sub_df1.select(
    obs_sub_df1["parent_channel"],
    concat_ws(",",F.col("userProfile.framework.board")).alias("board_name"),
    element_at(col('userProfile.organisations.orgName'), -1).alias("organisation_name"),
-   element_at(col('userProfile.organisations.organisationId'), -1).alias("organisation_id")
+   element_at(col('userProfile.organisations.organisationId'), -1).alias("organisation_id"),
+   obs_sub_df1["themes"],obs_sub_df1["criteria"]
 )
+obs_sub_rdd.unpersist()
+obs_sub_df1.unpersist()
 obs_sub_cursorMongo.close()
 
 obs_entities_id_df = obs_sub_df.select("state_externalId","block_externalId","district_externalId","cluster_externalId","school_externalId")
@@ -311,6 +341,7 @@ entitiesId_obs_status_df_before = []
 entitiesId_arr = []
 uniqueEntitiesId_arr = []
 entitiesId_obs_status_df_before = obs_entities_id_df.toJSON().map(lambda j: json.loads(j)).collect()
+obs_entities_id_df.unpersist()
 for eid in entitiesId_obs_status_df_before:
    try:
     entitiesId_arr.append(eid["state_externalId"])
@@ -360,6 +391,7 @@ ent_schema = StructType(
     )
 entities_rdd = spark.sparkContext.parallelize(list(ent_cursorMongo))
 entities_df = spark.createDataFrame(entities_rdd,ent_schema)
+entities_rdd.unpersist()
 entities_df = melt(entities_df,
         id_vars=["_id","entityType","metaInformation.name"],
         value_vars=["registryDetails.locationId", "registryDetails.code"]
@@ -370,17 +402,21 @@ obs_sub_df_melt = melt(obs_sub_df,
         id_vars=["status","entity_externalId","entity_id","entity_type","user_id","solution_id",
             "solution_externalId","submission_id","entity_name","completedDate","program_id",
             "program_externalId","app_name","private_program","solution_type","ecm_marked_na",
-            "updatedAt","role_title","channel","parent_channel","board_name","organisation_name","organisation_id"],
+            "updatedAt","role_title","channel","parent_channel","board_name","organisation_name","organisation_id","themes","criteria"],
         value_vars=["state_externalId","block_externalId","district_externalId","cluster_externalId","school_externalId"]
         )
 obs_ent_sub_df_melt = obs_sub_df_melt\
                  .join(entities_df,["variable","value"],how="left")\
                  .select(obs_sub_df_melt["*"],entities_df["name"],entities_df["_id"].alias("entity_ids"))
+entities_df.unpersist()
+obs_sub_df_melt.unpersist()
 obs_ent_sub_df_melt = obs_ent_sub_df_melt.withColumn("flag",F.regexp_replace(F.col("variable"),"_externalId","_name"))
 obs_ent_sub_df_melt = obs_ent_sub_df_melt.groupBy(["status","submission_id"])\
                                .pivot("flag").agg(first(F.col("name")))
 
 obs_sub_df_final = obs_sub_df.join(obs_ent_sub_df_melt,["status","submission_id"],how="left")
+obs_sub_df.unpersist()
+obs_ent_sub_df_melt.unpersist()
 ent_cursorMongo.close()
 
 #observation solution dataframe
@@ -399,6 +435,7 @@ obs_sol_schema = StructType([
 
 obs_soln_rdd = spark.sparkContext.parallelize(list(obs_sol_cursorMongo))
 obs_soln_df = spark.createDataFrame(obs_soln_rdd,obs_sol_schema)
+obs_soln_rdd.unpersist()
 obs_sol_cursorMongo.close()
 
 #match solution id from solution df to submission df to fetch the solution name
@@ -407,6 +444,8 @@ obs_sub_soln_df = obs_sub_df_final.join(
    obs_sub_df_final.solution_id==obs_soln_df._id,
    'inner'
 ).drop(obs_soln_df["_id"])
+obs_soln_df.unpersist()
+obs_sub_df_final.unpersist()
 obs_sub_soln_df = obs_sub_soln_df.withColumnRenamed("name", "solution_name")
 
 #observation program dataframe
@@ -422,6 +461,7 @@ obs_pgm_schema = StructType([
 
 obs_pgm_rdd = spark.sparkContext.parallelize(list(obs_pgm_cursorMongo))
 obs_pgm_df = spark.createDataFrame(obs_pgm_rdd,obs_pgm_schema)
+obs_pgm_rdd.unpersist()
 obs_pgm_cursorMongo.close()
 
 #match solution id from solution df to submission df to fetch the solution name
@@ -430,8 +470,10 @@ obs_sub_pgm_df = obs_sub_soln_df.join(
    obs_sub_soln_df.program_id==obs_pgm_df._id,
    'inner'
 ).drop(obs_pgm_df["_id"])
+obs_pgm_df.unpersist()
 obs_sub_pgm_df = obs_sub_pgm_df.withColumnRenamed("name", "program_name")
 
+obs_sub_soln_df.unpersist()
 # roles dataframe from mongodb
 roles_cursorMongo = userRolesCollec.aggregate(
    [{"$project": {"_id": {"$toString": "$_id"}, "title": 1}}]
@@ -445,7 +487,9 @@ roles_schema = StructType([
 
 roles_rdd = spark.sparkContext.parallelize(list(roles_cursorMongo))
 roles_df = spark.createDataFrame(roles_rdd, roles_schema)
+roles_rdd.unpersist()
 roles_cursorMongo.close()
+roles_df.unpersist()
 
 # user roles along with entity from elastic search
 userEntityRoleArray = []
@@ -487,23 +531,79 @@ except Exception as e:
 
 headers_user = {'Content-Type': 'application/json'}
 
-obs_sub_df1.cache()
-obs_sub_df.cache()
-obs_sub_df_final.cache()
-obs_soln_df.cache()
-roles_df.cache()
-
 final_df = obs_sub_pgm_df.dropDuplicates()
-
+obs_sub_pgm_df.unpersist()
 final_df.coalesce(1).write.format("json").mode("overwrite").save(
    config.get("OUTPUT_DIR", "observation_status")+"/"
 )
+
+#observation submission distinct count
+final_df_distinct_obs_status = final_df.groupBy("program_name","program_id","solution_name","solution_id","status","state_name","state_externalId","district_name","district_externalId","organisation_name","organisation_id","parent_channel","solution_type","private_program").agg(countDistinct(F.col("submission_id")).alias("unique_submissions"),countDistinct(F.col("entity_id")).alias("unique_entities"),countDistinct(F.col("user_id")).alias("unique_users"))
+final_df_distinct_obs_status = final_df_distinct_obs_status.withColumn("time_stamp", current_timestamp())
+final_df_distinct_obs_status = final_df_distinct_obs_status.dropDuplicates()
+final_df_distinct_obs_status.coalesce(1).write.format("json").mode("overwrite").save(
+   config.get("OUTPUT_DIR","observation_distinctCount_status") + "/"
+)
+
+#observation domain distinct count
+final_df_distinct_obs_domain = final_df.filter((F.col("status") == "completed") & (F.col("solution_type") == "observation_with_rubric"))
+final_df_distinct_obs_domain = final_df_distinct_obs_domain.withColumn("exploded_domain", F.explode_outer(F.col("themes")))\
+                               .withColumn("exploded_domain_criteria", F.explode_outer(F.col("exploded_domain.criteria")))\
+                               .withColumn("exploded_criteria", F.explode_outer(F.col("criteria")))\
+                               .withColumn("criteria_name",F.when((F.col("exploded_domain_criteria.criteriaId")==F.col("exploded_criteria._id"))|(F.col("exploded_domain_criteria.criteriaId")==F.col("exploded_criteria.parentCriteriaId")),F.col("exploded_criteria.name")).otherwise(F.col("exploded_criteria.name")))\
+                               .withColumn("criteria_score",F.when((F.col("exploded_domain_criteria.criteriaId")==F.col("exploded_criteria._id"))|(F.col("exploded_domain_criteria.criteriaId")==F.col("exploded_criteria.parentCriteriaId")),F.col("exploded_criteria.score")).otherwise(F.col("exploded_criteria.score")))\
+                               .withColumn("criteria_id",F.when((F.col("exploded_domain_criteria.criteriaId")==F.col("exploded_criteria._id"))|(F.col("exploded_domain_criteria.criteriaId")==F.col("exploded_criteria.parentCriteriaId")),F.col("exploded_criteria._id")).otherwise(F.col("exploded_criteria._id")))
+
+final_df_distinct_obs_domain1 = final_df_distinct_obs_domain.groupBy("program_name","program_id","solution_name","solution_id","state_name","state_externalId","district_name","district_externalId","organisation_name","organisation_id","parent_channel","solution_type","private_program",F.col("exploded_domain.name").alias("domain_name"),F.col("exploded_domain.externalId").alias("domain_externalId"),F.col("exploded_domain.pointsBasedLevel").alias("domain_level")).agg(countDistinct(F.col("submission_id")).alias("unique_submissions"),countDistinct(F.col("entity_id")).alias("unique_entities"),countDistinct(F.col("user_id")).alias("unique_users"))
+final_df_distinct_obs_domain1 = final_df_distinct_obs_domain1.withColumn("time_stamp", current_timestamp())
+final_df_distinct_obs_domain1 = final_df_distinct_obs_domain1.dropDuplicates()
+final_df_distinct_obs_domain1.coalesce(1).write.format("json").mode("overwrite").save(
+   config.get("OUTPUT_DIR","observation_distinctCount_domain") + "/"
+)
+
+#observation domain criteria distinct count
+final_df_distinct_obs_domain_criteria = final_df_distinct_obs_domain.groupBy("program_name","program_id","solution_name","solution_id","state_name","state_externalId","district_name","district_externalId","organisation_name","organisation_id","parent_channel","solution_type","private_program",F.col("exploded_domain.name").alias("domain_name"),F.col("exploded_domain.externalId").alias("domain_externalId"),F.col("exploded_domain.pointsBasedLevel").alias("domain_level"),F.col("criteria_name"),F.col("criteria_score"),F.col("criteria_id")).agg(countDistinct(F.col("submission_id")).alias("unique_submissions"),countDistinct(F.col("entity_id")).alias("unique_entities"),countDistinct(F.col("user_id")).alias("unique_users"))
+final_df_distinct_obs_domain_criteria = final_df_distinct_obs_domain_criteria.withColumn("time_stamp", current_timestamp())
+final_df_distinct_obs_domain_criteria = final_df_distinct_obs_domain_criteria.dropDuplicates()
+final_df_distinct_obs_domain_criteria.coalesce(1).write.format("json").mode("overwrite").save(
+   config.get("OUTPUT_DIR","observation_distinctCount_domain_criteria") + "/"
+)
+
+final_df.unpersist()
+final_df_distinct_obs_status.unpersist()
+final_df_distinct_obs_domain.unpersist()
+final_df_distinct_obs_domain1.unpersist()
+final_df_distinct_obs_domain_criteria.unpersist()
 
 for filename in os.listdir(config.get("OUTPUT_DIR", "observation_status")+"/"):
    if filename.endswith(".json"):
       os.rename(
          config.get("OUTPUT_DIR", "observation_status") + "/" + filename, 
          config.get("OUTPUT_DIR", "observation_status") + "/sl_observation_status.json"
+      )
+
+#observation submission distinct count
+for filename in os.listdir(config.get("OUTPUT_DIR", "observation_distinctCount_status")+"/"):
+   if filename.endswith(".json"):
+      os.rename(
+         config.get("OUTPUT_DIR", "observation_distinctCount_status") + "/" + filename,
+         config.get("OUTPUT_DIR", "observation_distinctCount_status") + "/ml_observation_distinctCount_status.json"
+      )
+
+#observation domain distinct count
+for filename in os.listdir(config.get("OUTPUT_DIR", "observation_distinctCount_domain")+"/"):
+   if filename.endswith(".json"):
+      os.rename(
+         config.get("OUTPUT_DIR", "observation_distinctCount_domain") + "/" + filename,
+         config.get("OUTPUT_DIR", "observation_distinctCount_domain") + "/ml_observation_distinctCount_domain.json"
+      )
+
+#observation domain criteria distinct count
+for filename in os.listdir(config.get("OUTPUT_DIR", "observation_distinctCount_domain_criteria")+"/"):
+   if filename.endswith(".json"):
+      os.rename(
+         config.get("OUTPUT_DIR", "observation_distinctCount_domain_criteria") + "/" + filename,
+         config.get("OUTPUT_DIR", "observation_distinctCount_domain_criteria") + "/ml_observation_distinctCount_domain_criteria.json"
       )
 
 blob_service_client = BlockBlobService(
@@ -513,6 +613,15 @@ blob_service_client = BlockBlobService(
 container_name = config.get("AZURE", "container_name")
 local_path = config.get("OUTPUT_DIR", "observation_status")
 blob_path = config.get("AZURE", "observation_blob_path")
+#observation submission distinct count
+local_distinctCount_path = config.get("OUTPUT_DIR", "observation_distinctCount_status")
+blob_distinctCount_path = config.get("AZURE", "observation_distinctCount_blob_path")
+#observation domain distinct count
+local_distinctCount_domain_path = config.get("OUTPUT_DIR", "observation_distinctCount_domain")
+blob_distinctCount_domain_path = config.get("AZURE", "observation_distinctCount_domain_blob_path")
+#observation domain criteria distinct count
+local_distinctCount_domain_criteria_path = config.get("OUTPUT_DIR", "observation_distinctCount_domain_criteria")
+blob_distinctCount_domain_criteria_path = config.get("AZURE", "observation_distinctCount_domain_criteria_blob_path")
 
 for files in os.listdir(local_path):
    if "sl_observation_status.json" in files:
@@ -522,15 +631,44 @@ for files in os.listdir(local_path):
          local_path + "/" + files
       )
 
+#observation submission distinct count
+for files in os.listdir(local_distinctCount_path):
+   if "ml_observation_distinctCount_status.json" in files:
+      blob_service_client.create_blob_from_path(
+         container_name,
+         os.path.join(blob_distinctCount_path,files),
+         local_distinctCount_path + "/" + files
+      )
+
+#observation domain distinct count
+for files in os.listdir(local_distinctCount_domain_path):
+   if "ml_observation_distinctCount_domain.json" in files:
+      blob_service_client.create_blob_from_path(
+         container_name,
+         os.path.join(blob_distinctCount_domain_path,files),
+         local_distinctCount_domain_path + "/" + files
+      )
+#observation domain criteria distinct count
+for files in os.listdir(local_distinctCount_domain_criteria_path):
+   if "ml_observation_distinctCount_domain_criteria.json" in files:
+      blob_service_client.create_blob_from_path(
+         container_name,
+         os.path.join(blob_distinctCount_domain_criteria_path,files),
+         local_distinctCount_domain_criteria_path + "/" + files
+      )
+
 sl_status_spec = {}
 sl_status_spec = json.loads(config.get("DRUID","observation_status_injestion_spec"))
 datasources = [sl_status_spec["spec"]["dataSchema"]["dataSource"]]
 ingestion_specs = [json.dumps(sl_status_spec)]
 
+druid_batch_end_point = config.get("DRUID", "batch_url")
+headers = {'Content-Type': 'application/json'}
+
 for i,j in zip(datasources,ingestion_specs):
    druid_end_point = config.get("DRUID", "metadata_url") + i
-   druid_batch_end_point = config.get("DRUID", "batch_url")
-   headers = {'Content-Type': 'application/json'}
+   #druid_batch_end_point = config.get("DRUID", "batch_url")
+   #headers = {'Content-Type': 'application/json'}
    get_timestamp = requests.get(druid_end_point, headers=headers)
    successLogger.debug(get_timestamp)
    if get_timestamp.status_code == 200 :
@@ -603,3 +741,48 @@ for i,j in zip(datasources,ingestion_specs):
          errorLogger.error(start_supervisor.json())
    else:
       errorLogger.error("failed to get the timestamp of the datasource " + i)
+
+#observation submission distinct count
+ml_distinctCnt_obs_status_spec = json.loads(config.get("DRUID","ml_distinctCnt_obs_status_spec"))
+ml_distinctCnt_obs_status_datasource = ml_distinctCnt_obs_status_spec["spec"]["dataSchema"]["dataSource"]
+distinctCnt_obs_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_obs_status_spec), headers=headers)
+if distinctCnt_obs_start_supervisor.status_code == 200:
+   successLogger.debug(
+        "started the batch ingestion task sucessfully for the datasource " + ml_distinctCnt_obs_status_datasource
+   )
+   time.sleep(50)
+else:
+   errorLogger.error(
+        "failed to start batch ingestion task" + str(distinctCnt_obs_start_supervisor.status_code)
+   )
+   errorLogger.error(distinctCnt_obs_start_supervisor.json())
+
+#observation domain distinct count
+ml_distinctCnt_obs_domain_spec = json.loads(config.get("DRUID","ml_distinctCnt_obs_domain_spec"))
+ml_distinctCnt_obs_domain_datasource = ml_distinctCnt_obs_domain_spec["spec"]["dataSchema"]["dataSource"]
+distinctCnt_obs_domain_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_obs_domain_spec), headers=headers)
+if distinctCnt_obs_domain_start_supervisor.status_code == 200:
+   successLogger.debug(
+        "started the batch ingestion task sucessfully for the datasource " + ml_distinctCnt_obs_domain_datasource
+   )
+   time.sleep(50)
+else:
+   errorLogger.error(
+        "failed to start batch ingestion task" + str(distinctCnt_obs_domain_start_supervisor.status_code)
+   )
+   errorLogger.error(distinctCnt_obs_domain_start_supervisor.json())
+
+#observation domain criteria distinct count
+ml_distinctCnt_obs_domain_criteria_spec = json.loads(config.get("DRUID","ml_distinctCnt_obs_domain_criteria_spec"))
+ml_distinctCnt_obs_domain_criteria_datasource = ml_distinctCnt_obs_domain_criteria_spec["spec"]["dataSchema"]["dataSource"]
+distinctCnt_obs_domain_criteria_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_obs_domain_criteria_spec), headers=headers)
+if distinctCnt_obs_domain_criteria_start_supervisor.status_code == 200:
+   successLogger.debug(
+        "started the batch ingestion task sucessfully for the datasource " + ml_distinctCnt_obs_domain_criteria_datasource
+   )
+   time.sleep(50)
+else:
+   errorLogger.error(
+        "failed to start batch ingestion task" + str(distinctCnt_obs_domain_criteria_start_supervisor.status_code)
+   )
+   errorLogger.error(distinctCnt_obs_domain_criteria_start_supervisor.json())
