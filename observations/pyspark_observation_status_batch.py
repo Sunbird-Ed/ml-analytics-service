@@ -107,6 +107,23 @@ try:
 except Exception as e:
    errorLogger.error(e,exc_info=True)
 
+orgSchema = ArrayType(StructType([
+    StructField("orgId", StringType(), False),
+    StructField("orgName", StringType(), False)
+]))
+
+def orgName(val):
+  orgarr = []
+  if val is not None:
+    for org in val:
+        orgObj = {}
+        if org["isSchool"] == False:
+            orgObj['orgId'] = org['organisationId']
+            orgObj['orgName'] = org["orgName"]
+            orgarr.append(orgObj)
+  return orgarr
+orgInfo_udf = udf(orgName,orgSchema)
+
 clientProd = MongoClient(config.get('MONGO', 'mongo_url'))
 db = clientProd[config.get('MONGO', 'database_name')]
 obsSubmissionsCollec = db[config.get('MONGO', 'observation_sub_collection')]
@@ -212,7 +229,8 @@ obs_sub_schema = StructType(
                 'organisations',ArrayType(
                      StructType([
                         StructField('organisationId', StringType(), True),
-                        StructField('orgName', StringType(), True)
+                        StructField('orgName', StringType(), True),
+                        StructField('isSchool', BooleanType(), True)
                      ]), True)
              )
           ])
@@ -300,7 +318,11 @@ obs_sub_df1 = obs_sub_df1.withColumn(
       "observation_with_out_rubric"
    ).otherwise("observation_with_out_rubric")
 )
+
+obs_sub_df1 = obs_sub_df1.withColumn("orgData",orgInfo_udf(F.col("userProfile.organisations")))
+obs_sub_df1 = obs_sub_df1.withColumn("exploded_orgInfo",F.explode_outer(F.col("orgData")))
 obs_sub_df1 = obs_sub_df1.withColumn("parent_channel",F.lit("SHIKSHALOKAM"))
+
 obs_sub_df = obs_sub_df1.select(
    "status", 
    obs_sub_df1["entityExternalId"].alias("entity_externalId"),
@@ -328,8 +350,8 @@ obs_sub_df = obs_sub_df1.select(
    obs_sub_df1["userProfile"]["rootOrgId"].alias("channel"),
    obs_sub_df1["parent_channel"],
    concat_ws(",",F.col("userProfile.framework.board")).alias("board_name"),
-   element_at(col('userProfile.organisations.orgName'), -1).alias("organisation_name"),
-   element_at(col('userProfile.organisations.organisationId'), -1).alias("organisation_id"),
+   obs_sub_df1["exploded_orgInfo"]["orgId"].alias("organisation_id"),
+   obs_sub_df1["exploded_orgInfo"]["orgName"].alias("organisation_name"),
    obs_sub_df1["themes"],obs_sub_df1["criteria"]
 )
 obs_sub_rdd.unpersist()
