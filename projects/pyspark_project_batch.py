@@ -106,6 +106,23 @@ try:
     return _tmp.select(*cols)
 except Exception as e:
    errorLogger.error(e,exc_info=True)
+
+orgSchema = ArrayType(StructType([
+    StructField("orgId", StringType(), False),
+    StructField("orgName", StringType(), False)
+]))
+
+def orgName(val):
+  orgarr = []
+  if val is not None:
+    for org in val:
+        orgObj = {}
+        if org["isSchool"] == False:
+            orgObj['orgId'] = org['organisationId']
+            orgObj['orgName'] = org["orgName"]
+            orgarr.append(orgObj)
+  return orgarr
+orgInfo_udf = udf(orgName,orgSchema)
    
 
 spark = SparkSession.builder.appName("projects").config(
@@ -223,7 +240,8 @@ projects_schema = StructType([
                 'organisations',ArrayType(
                      StructType([
                         StructField('organisationId', StringType(), True),
-                        StructField('orgName', StringType(), True)
+                        StructField('orgName', StringType(), True),
+                        StructField('isSchool', BooleanType(), True)
                      ]), True)
              )
           ])
@@ -391,6 +409,9 @@ projects_df = projects_df.withColumn(
     ).otherwise(projects_df["exploded_taskarr"]["prj_evidence"])
 )
 
+projects_df = projects_df.withColumn("orgData",orgInfo_udf(F.col("userProfile.organisations")))
+projects_df = projects_df.withColumn("exploded_orgInfo",F.explode_outer(F.col("orgData")))
+
 projects_df = projects_df.withColumn("project_goal",regexp_replace(F.col("metaInformation.goal"), "\n", " "))
 projects_df = projects_df.withColumn("area_of_improvement",regexp_replace(F.col("categories_name"), "\n", " "))
 projects_df = projects_df.withColumn("tasks",regexp_replace(F.col("exploded_taskarr.tasks"), "\n", " "))
@@ -445,9 +466,10 @@ projects_df_cols = projects_df.select(
     projects_df["userRoleInformation"]["cluster"].alias("cluster_externalId"),
     projects_df["userRoleInformation"]["school"].alias("school_externalId"),
     projects_df["userProfile"]["rootOrgId"].alias("channel"),
-    concat_ws(",",F.col("userProfile.framework.board")).alias("board_name"),
-    element_at(col('userProfile.organisations.orgName'), -1).alias("organisation_name"),
-    element_at(col('userProfile.organisations.organisationId'), -1).alias("organisation_id")
+    projects_df["exploded_orgInfo"]["orgId"].alias("organisation_id"),
+    projects_df["exploded_orgInfo"]["orgName"].alias("organisation_name"),
+    concat_ws(",",F.col("userProfile.framework.board")).alias("board_name")
+    
 )
 
 projects_df.unpersist()
@@ -537,13 +559,31 @@ projects_df_final.unpersist()
 final_projects_df.coalesce(1).write.format("json").mode("overwrite").save(
     config.get("OUTPUT_DIR", "project") + "/"
 )
+
+#projects submission distinct count
+final_projects_tasks_distinctCnt_df = final_projects_df.filter((F.col("project_deleted_flag") == "false") & (F.col("task_deleted_flag") == "false") & (F.col("sub_task_deleted_flag") == "false"))
+final_projects_tasks_distinctCnt_df = final_projects_df.groupBy("program_name","program_id","project_title","solution_id","status_of_project","state_name","state_externalId","district_name","district_externalId","organisation_name","organisation_id","private_program","project_created_type","parent_channel").agg(countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("createdBy")).alias("unique_users"),countDistinct(when(F.col("task_evidence_status") == "true",True),F.col("project_id")).alias("no_of_imp_with_evidence"))
+final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.withColumn("time_stamp", current_timestamp())
+final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.dropDuplicates()
+final_projects_tasks_distinctCnt_df.coalesce(1).write.format("json").mode("overwrite").save(
+   config.get("OUTPUT_DIR","projects_distinctCount") + "/"
+)
 final_projects_df.unpersist()
+final_projects_tasks_distinctCnt_df.unpersist()
 
 for filename in os.listdir(config.get("OUTPUT_DIR", "project")+"/"):
     if filename.endswith(".json"):
        os.rename(
            config.get("OUTPUT_DIR", "project") + "/" + filename,
            config.get("OUTPUT_DIR", "project") + "/sl_projects.json"
+        )
+
+#projects submission distinct count
+for filename in os.listdir(config.get("OUTPUT_DIR", "projects_distinctCount")+"/"):
+    if filename.endswith(".json"):
+       os.rename(
+           config.get("OUTPUT_DIR", "projects_distinctCount") + "/" + filename,
+           config.get("OUTPUT_DIR", "projects_distinctCount") + "/ml_projects_distinctCount.json"
         )
 
 blob_service_client = BlockBlobService(
@@ -553,6 +593,9 @@ blob_service_client = BlockBlobService(
 container_name = config.get("AZURE", "container_name")
 local_path = config.get("OUTPUT_DIR", "project")
 blob_path = config.get("AZURE", "projects_blob_path")
+#projects submission distinct count
+local_distinctCnt_path = config.get("OUTPUT_DIR", "projects_distinctCount")
+blob_distinctCnt_path = config.get("AZURE", "projects_distinctCnt_blob_path")
 
 for files in os.listdir(local_path):
     if "sl_projects.json" in files:
@@ -561,8 +604,36 @@ for files in os.listdir(local_path):
             os.path.join(blob_path,files),
             local_path + "/" + files
         )
+#projects submission distinct count
+for files in os.listdir(local_distinctCnt_path):
+    if "ml_projects_distinctCount.json" in files:
+        blob_service_client.create_blob_from_path(
+            container_name,
+            os.path.join(blob_distinctCnt_path,files),
+            local_distinctCnt_path + "/" + files
+        )
 
 os.remove(config.get("OUTPUT_DIR", "project") + "/sl_projects.json")
+#projects submission distinct count
+os.remove(config.get("OUTPUT_DIR", "projects_distinctCount") + "/ml_projects_distinctCount.json")
+
+druid_batch_end_point = config.get("DRUID", "batch_url")
+headers = {'Content-Type': 'application/json'}
+
+#projects submission distinct count
+ml_distinctCnt_projects_spec = json.loads(config.get("DRUID","ml_distinctCnt_projects_status_spec"))
+ml_distinctCnt_projects_datasource = ml_distinctCnt_projects_spec["spec"]["dataSchema"]["dataSource"]
+distinctCnt_projects_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_projects_spec), headers=headers)
+if distinctCnt_projects_start_supervisor.status_code == 200:
+   successLogger.debug(
+        "started the batch ingestion task sucessfully for the datasource " + ml_distinctCnt_projects_datasource
+   )
+   time.sleep(50)
+else:
+   errorLogger.error(
+        "failed to start batch ingestion task" + str(distinctCnt_projects_start_supervisor.status_code)
+   )
+   errorLogger.error(distinctCnt_projects_start_supervisor.json())
 
 dimensionsArr = []
 entitiesArr = ["state_externalId", "block_externalId", "district_externalId", "cluster_externalId", "school_externalId",\
@@ -593,8 +664,6 @@ ingestion_specs = [json.dumps(payload)]
 
 for i, j in zip(datasources,ingestion_specs):
     druid_end_point = config.get("DRUID", "metadata_url") + i
-    druid_batch_end_point = config.get("DRUID", "batch_url")
-    headers = {'Content-Type' : 'application/json'}
     get_timestamp = requests.get(druid_end_point, headers=headers)
     if get_timestamp.status_code == 200:
         successLogger.debug("Successfully fetched time stamp of the datasource " + i )
