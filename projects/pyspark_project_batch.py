@@ -121,7 +121,8 @@ spark = SparkSession.builder.appName("projects").config(
 sc = spark.sparkContext
 
 projects_cursorMongo = projectsCollec.aggregate(
-    [{
+    [{"$match":{"isDeleted":False}},
+    {
         "$project": {
             "_id": {"$toString": "$_id"},
             "projectTemplateId": {"$toString": "$projectTemplateId"},
@@ -539,7 +540,6 @@ final_projects_df.coalesce(1).write.format("json").mode("overwrite").save(
 )
 
 #projects submission distinct count
-final_projects_tasks_distinctCnt_df = final_projects_df.filter((F.col("project_deleted_flag") == "false") & (F.col("task_deleted_flag") == "false") & (F.col("sub_task_deleted_flag") == "false"))
 final_projects_tasks_distinctCnt_df = final_projects_df.groupBy("program_name","program_id","project_title","solution_id","status_of_project","state_name","state_externalId","district_name","district_externalId","organisation_name","organisation_id","private_program","project_created_type","parent_channel").agg(countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("createdBy")).alias("unique_users"),countDistinct(when(F.col("task_evidence_status") == "true",True),F.col("project_id")).alias("no_of_imp_with_evidence"))
 final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.withColumn("time_stamp", current_timestamp())
 final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.dropDuplicates()
