@@ -106,6 +106,23 @@ try:
     return _tmp.select(*cols)
 except Exception as e:
    errorLogger.error(e,exc_info=True)
+
+orgSchema = ArrayType(StructType([
+    StructField("orgId", StringType(), False),
+    StructField("orgName", StringType(), False)
+]))
+
+def orgName(val):
+  orgarr = []
+  if val is not None:
+    for org in val:
+        orgObj = {}
+        if org["isSchool"] == False:
+            orgObj['orgId'] = org['organisationId']
+            orgObj['orgName'] = org["orgName"]
+            orgarr.append(orgObj)
+  return orgarr
+orgInfo_udf = udf(orgName,orgSchema)
    
 
 spark = SparkSession.builder.appName("projects").config(
@@ -224,7 +241,8 @@ projects_schema = StructType([
                 'organisations',ArrayType(
                      StructType([
                         StructField('organisationId', StringType(), True),
-                        StructField('orgName', StringType(), True)
+                        StructField('orgName', StringType(), True),
+                        StructField('isSchool', BooleanType(), True)
                      ]), True)
              )
           ])
@@ -392,6 +410,9 @@ projects_df = projects_df.withColumn(
     ).otherwise(projects_df["exploded_taskarr"]["prj_evidence"])
 )
 
+projects_df = projects_df.withColumn("orgData",orgInfo_udf(F.col("userProfile.organisations")))
+projects_df = projects_df.withColumn("exploded_orgInfo",F.explode_outer(F.col("orgData")))
+
 projects_df = projects_df.withColumn("project_goal",regexp_replace(F.col("metaInformation.goal"), "\n", " "))
 projects_df = projects_df.withColumn("area_of_improvement",regexp_replace(F.col("categories_name"), "\n", " "))
 projects_df = projects_df.withColumn("tasks",regexp_replace(F.col("exploded_taskarr.tasks"), "\n", " "))
@@ -446,9 +467,10 @@ projects_df_cols = projects_df.select(
     projects_df["userRoleInformation"]["cluster"].alias("cluster_externalId"),
     projects_df["userRoleInformation"]["school"].alias("school_externalId"),
     projects_df["userProfile"]["rootOrgId"].alias("channel"),
-    concat_ws(",",F.col("userProfile.framework.board")).alias("board_name"),
-    element_at(col('userProfile.organisations.orgName'), -1).alias("organisation_name"),
-    element_at(col('userProfile.organisations.organisationId'), -1).alias("organisation_id")
+    projects_df["exploded_orgInfo"]["orgId"].alias("organisation_id"),
+    projects_df["exploded_orgInfo"]["orgName"].alias("organisation_name"),
+    concat_ws(",",F.col("userProfile.framework.board")).alias("board_name")
+    
 )
 
 projects_df.unpersist()

@@ -126,6 +126,17 @@ try:
 except Exception as e:
   errorLogger.error(e, exc_info=True)
 
+def orgName(val):
+  orgarr = []
+  if val is not None:
+    for org in val:
+        orgObj = {}
+        if org["isSchool"] == False:
+            orgObj['orgId'] = org['organisationId']
+            orgObj['orgName'] = org["orgName"]
+            orgarr.append(orgObj)
+  return orgarr
+
 try:
   #initialising the values
   class node:
@@ -248,8 +259,6 @@ try:
 
       rootOrgId = None
       boardName = None
-      orgId = None
-      orgName = None
       try:
           if obSub["userProfile"] :
               if "rootOrgId" in obSub["userProfile"] and obSub["userProfile"]["rootOrgId"]:
@@ -257,9 +266,6 @@ try:
               if "framework" in obSub["userProfile"] and obSub["userProfile"]["framework"]:
                  if "board" in obSub["userProfile"]["framework"] and len(obSub["userProfile"]["framework"]["board"]) > 0:
                   boardName = ",".join(obSub["userProfile"]["framework"]["board"])
-              if "organisations" in obSub["userProfile"] and len(obSub["userProfile"]["organisations"]) > 0:
-                  orgId = obSub["userProfile"]["organisations"][-1]["organisationId"]
-                  orgName = obSub["userProfile"]["organisations"][-1]["orgName"]
       except KeyError :
           pass
       userRoles = {}
@@ -283,9 +289,7 @@ try:
                     userEntityRelated = getRelatedEntity(ent["_id"])
                     userEntityRelatedResultKeyCheck = None
                     roleObj = {}
-                    roleObj["role_title"] = rol["title"]
-                    roleObj["organisation_name"] = orgName
-                    roleObj["organisation_Id"] = orgId  
+                    roleObj["role_title"] = rol["title"] 
                     if userEntityRelated:
                       userEntityRelatedResultKeyCheck = "result" in userEntityRelated
                       if userEntityRelatedResultKeyCheck == True:
@@ -321,14 +325,22 @@ try:
         roleObj["user_schoolName"] = userSchoolName
         roleObj["user_schoolId"] = userSchool
         roleObj["user_schoolUDISE_code"] = userSchoolUDISE
-        roleObj["organisation_name"] = orgName
-        roleObj["organisation_id"] = orgId
         roleObj["user_boardName"] = boardName
         roleObj["district_externalId"] = districtExternalId
         roleObj["state_externalId"] = stateExternalId
         roleObj["block_externalId"] = blockExternalId
         roleObj["cluster_externalId"] = clusterExternalId
         userRolesArrUnique.append(roleObj)
+
+      try:
+        orgArr = orgName(obSub["userProfile"]["organisations"])
+        if len(orgArr) >0:
+          for org in orgArr:
+             for obj in userRolesArrUnique:
+              obj["organisation_id"] = org["orgId"]
+              obj["organisation_name"] = org["orgName"]
+      except KeyError:
+          pass
 
       if 'answers' in obSub.keys() :  
           answersArr = [ v for v in obSub['answers'].values()]
