@@ -6,14 +6,11 @@ config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
 
 ## This Function adds the metaInformation of task
-def task_detail(task):
+def task_detail(task,del_flg):
    taskObj = {}
    taskObj["_id"] = task["_id"]
    taskObj["tasks"] = task["name"]
-   try:
-      taskObj["deleted_flag"] = task["isDeleted"]
-   except:
-      taskObj["deleted_flag"] = False
+   taskObj["deleted_flag"] = del_flg
 
    try:
       if len(task["attachments"]) > 0:
@@ -78,7 +75,7 @@ def recreate_task_data(prj_data):
           prjinfo.append(prjObj)
       except KeyError:
         pass
-
+    
     taskarr = []
     for  task in prj["tasks"]:        
         arr_len = 0
@@ -90,28 +87,34 @@ def recreate_task_data(prj_data):
           sub_tskLen = len(task["children"])
         except:
           sub_tskLen = 0
+        try:
+          del_flg = task["isDeleted"]
+        except:
+          del_flg = False
         ## To get greater length b/w evidence and subtask
         if attachLen > sub_tskLen:
          arr_len = attachLen        
         elif sub_tskLen > attachLen:
          arr_len = sub_tskLen        
         elif ((sub_tskLen == attachLen) & (sub_tskLen == 0)):
-         taskObj = task_detail(task)        
+          if del_flg == False:
+            taskObj = task_detail(task,del_flg)
          
          ## add remarks value when arrlen is 0
-         try:
-            taskObj["remarks"] = task["remarks"]
-         except Exception as e:
-            pass
+            try:
+               taskObj["remarks"] = task["remarks"]
+            except Exception as e:
+               pass
 
-         taskarr.append(taskObj)
-         arr_len = sub_tskLen  
+            taskarr.append(taskObj)
+            arr_len = sub_tskLen  
         elif (sub_tskLen == attachLen):
          arr_len = sub_tskLen
        
         ## creating task level remarks and evidence obj to avoid repetition
         for index in range(arr_len):
-           taskObj = task_detail(task)
+          if del_flg == False:
+           taskObj = task_detail(task,del_flg)
            try :
              taskObj["taskEvi_type"] = task["attachments"][index]["type"]
              if taskObj["taskEvi_type"] == "link":
@@ -132,26 +135,28 @@ def recreate_task_data(prj_data):
            
            ## Sub task data    
            try :
-            if "children":
-             taskObj["sub_task_date"] = task["children"][index]["syncedAt"]
-             taskObj["sub_task_id"] = task["children"][index]["_id"]
-             taskObj["sub_task_status"] = task["children"][index]["status"]
-             try:
-              taskObj["sub_task_start_date"] = task["children"][index]["startDate"]
-             except KeyError:
-              taskObj["sub_task_start_date"] = ''
-             try:
-              taskObj["sub_task_end_date"] = task["children"][index]["endDate"]
-             except KeyError:
-              pass
-             try :
-              taskObj["sub_task_deleted_flag"] =task["children"][index]["isDeleted"]
-             except :
-              taskObj["sub_task_deleted_flag"] = False   
+             if "children":
+                try:
+                  sub_del_flg = task["children"][index]["isDeleted"]
+                except:
+                  sub_del_flg = False                  
+                if sub_del_flg == False:
+                  taskObj["sub_task_date"] = task["children"][index]["syncedAt"]
+                  taskObj["sub_task_id"] = task["children"][index]["_id"]
+                  taskObj["sub_task_status"] = task["children"][index]["status"]
+                  taskObj["sub_task_deleted_flag"] = sub_del_flg
+                  try:
+                    taskObj["sub_task_start_date"] = task["children"][index]["startDate"]
+                  except KeyError:
+                    taskObj["sub_task_start_date"] = ''
+                  try:
+                    taskObj["sub_task_end_date"] = task["children"][index]["endDate"]
+                  except KeyError:
+                    pass
+                  taskarr.append(taskObj)
            except IndexError:
-            pass
+            taskarr.append(taskObj)
     
-           taskarr.append(taskObj)
 
     ## Formatting project level remarks and evidence
     prjinfo_len = len(prjinfo)
@@ -164,11 +169,13 @@ def recreate_task_data(prj_data):
         for ind in range(len(prjinfo)):
           prjinfo[ind].update(taskarr[ind])
           del((taskarr[ind]))
-          taskarr.append(prjinfo[ind])
+          taskarr.append(prjinfo[ind])        
       except IndexError:
-        taskarr.append(prjinfo[ind])
+        while(ind < prjinfo_len):
+          taskarr.append(prjinfo[ind])
+          ind = ind + 1
     prj["taskarr"] = taskarr
-
+    
     ## delete unwanted keys 
     del_keys = ["attachments","tasks"]
     for key in del_keys:
@@ -177,7 +184,5 @@ def recreate_task_data(prj_data):
       except KeyError:
         pass
     prjarr.append(prj)
-
   return prjarr
-
 
