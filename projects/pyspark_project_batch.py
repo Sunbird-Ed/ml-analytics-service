@@ -244,6 +244,12 @@ projects_schema = StructType([
                         StructField('orgName', StringType(), True),
                         StructField('isSchool', BooleanType(), True)
                      ]), True)
+             ),
+          StructField(
+                'profileUserTypes',ArrayType(
+                     StructType([
+                        StructField('type', StringType(), True)
+                     ]), True)
              )
           ])
     ),
@@ -469,7 +475,8 @@ projects_df_cols = projects_df.select(
     projects_df["userProfile"]["rootOrgId"].alias("channel"),
     projects_df["exploded_orgInfo"]["orgId"].alias("organisation_id"),
     projects_df["exploded_orgInfo"]["orgName"].alias("organisation_name"),
-    concat_ws(",",F.col("userProfile.framework.board")).alias("board_name")
+    concat_ws(",",F.col("userProfile.framework.board")).alias("board_name"),
+    concat_ws(",",array_distinct(F.col("userProfile.profileUserTypes.type"))).alias("user_type")
     
 )
 
@@ -541,7 +548,7 @@ entities_df = melt(entities_df,
             ).dropDuplicates()
 entities_df = entities_df.withColumn("variable",F.concat(F.col("entityType"),F.lit("_externalId")))
 projects_df_melt = melt(projects_df_cols,
-        id_vars=["project_id", "project_created_type", "project_title", "project_title_editable", "program_id", "program_externalId", "program_name", "project_duration", "project_last_sync", "project_updated_date", "project_deleted_flag", "area_of_improvement", "status_of_project", "createdBy", "project_description", "project_goal", "parent_channel", "project_created_date", "task_id", "tasks", "task_assigned_to", "task_start_date", "task_end_date", "tasks_date", "tasks_status", "task_evidence", "task_evidence_status", "sub_task_id", "sub_task", "sub_task_status", "sub_task_date", "sub_task_start_date", "sub_task_end_date", "private_program", "task_deleted_flag", "sub_task_deleted_flag", "project_terms_and_condition", "task_remarks", "project_completed_date", "solution_id", "designation","project_remarks","project_evidence","channel","board_name","organisation_name","organisation_id"],
+        id_vars=["project_id", "project_created_type", "project_title", "project_title_editable", "program_id", "program_externalId", "program_name", "project_duration", "project_last_sync", "project_updated_date", "project_deleted_flag", "area_of_improvement", "status_of_project", "createdBy", "project_description", "project_goal", "parent_channel", "project_created_date", "task_id", "tasks", "task_assigned_to", "task_start_date", "task_end_date", "tasks_date", "tasks_status", "task_evidence", "task_evidence_status", "sub_task_id", "sub_task", "sub_task_status", "sub_task_date", "sub_task_start_date", "sub_task_end_date", "private_program", "task_deleted_flag", "sub_task_deleted_flag", "project_terms_and_condition", "task_remarks", "project_completed_date", "solution_id", "designation","project_remarks","project_evidence","channel","board_name","organisation_name","organisation_id","user_type"],
         value_vars=["state_externalId", "block_externalId", "district_externalId", "cluster_externalId", "school_externalId"]
         )
 projects_ent_df_melt = projects_df_melt\
@@ -651,7 +658,7 @@ submissionReportColumnNamesArr = [
     'project_duration', 'program_externalId', 'private_program', 'task_deleted_flag',
     'sub_task_deleted_flag', 'project_terms_and_condition','task_remarks',
     'organisation_name','project_description','project_completed_date','solution_id',
-     'project_remarks','project_evidence','organisation_id'
+    'project_remarks','project_evidence','organisation_id','user_type','board_name'
 ]
 
 dimensionsArr.extend(submissionReportColumnNamesArr)

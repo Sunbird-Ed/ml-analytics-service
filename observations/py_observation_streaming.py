@@ -259,6 +259,7 @@ try:
 
       rootOrgId = None
       boardName = None
+      user_type = None
       try:
           if obSub["userProfile"] :
               if "rootOrgId" in obSub["userProfile"] and obSub["userProfile"]["rootOrgId"]:
@@ -266,6 +267,13 @@ try:
               if "framework" in obSub["userProfile"] and obSub["userProfile"]["framework"]:
                  if "board" in obSub["userProfile"]["framework"] and len(obSub["userProfile"]["framework"]["board"]) > 0:
                   boardName = ",".join(obSub["userProfile"]["framework"]["board"])
+              try:
+                temp_userType = set([types["type"] for types in obSub["userProfile"]["profileUserTypes"]])
+                user_type = ", ".join(temp_userType)
+                print(user_type)
+              except KeyError:
+                pass
+
       except KeyError :
           pass
       userRoles = {}
@@ -330,6 +338,7 @@ try:
         roleObj["state_externalId"] = stateExternalId
         roleObj["block_externalId"] = blockExternalId
         roleObj["cluster_externalId"] = clusterExternalId
+        roleObj["user_type"] = user_type
         userRolesArrUnique.append(roleObj)
 
       try:
