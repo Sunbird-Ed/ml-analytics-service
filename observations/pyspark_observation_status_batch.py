@@ -232,7 +232,13 @@ obs_sub_schema = StructType(
                         StructField('orgName', StringType(), True),
                         StructField('isSchool', BooleanType(), True)
                      ]), True)
-             )
+             ),
+             StructField(
+                'profileUserTypes',ArrayType(
+                     StructType([
+                        StructField('type', StringType(), True)
+                     ]), True)
+             )          
           ])
       ),
       StructField(
@@ -352,7 +358,8 @@ obs_sub_df = obs_sub_df1.select(
    concat_ws(",",F.col("userProfile.framework.board")).alias("board_name"),
    obs_sub_df1["exploded_orgInfo"]["orgId"].alias("organisation_id"),
    obs_sub_df1["exploded_orgInfo"]["orgName"].alias("organisation_name"),
-   obs_sub_df1["themes"],obs_sub_df1["criteria"]
+   obs_sub_df1["themes"],obs_sub_df1["criteria"],
+   concat_ws(",",array_distinct(F.col("userProfile.profileUserTypes.type"))).alias("user_type")
 )
 obs_sub_rdd.unpersist()
 obs_sub_df1.unpersist()
@@ -424,7 +431,7 @@ obs_sub_df_melt = melt(obs_sub_df,
         id_vars=["status","entity_externalId","entity_id","entity_type","user_id","solution_id",
             "solution_externalId","submission_id","entity_name","completedDate","program_id",
             "program_externalId","app_name","private_program","solution_type","ecm_marked_na",
-            "updatedAt","role_title","channel","parent_channel","board_name","organisation_name","organisation_id","themes","criteria"],
+            "updatedAt","role_title","channel","parent_channel","board_name","organisation_name","organisation_id","themes","criteria","user_type"],
         value_vars=["state_externalId","block_externalId","district_externalId","cluster_externalId","school_externalId"]
         )
 obs_ent_sub_df_melt = obs_sub_df_melt\
