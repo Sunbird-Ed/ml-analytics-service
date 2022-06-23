@@ -578,6 +578,16 @@ final_projects_tasks_distinctCnt_df.coalesce(1).write.format("json").mode("overw
 final_projects_df.unpersist()
 final_projects_tasks_distinctCnt_df.unpersist()
 
+# projects submission distinct count by program level
+final_projects_tasks_distinctCnt_prgmlevel = final_projects_df.groupBy("program_name", "program_id","status_of_project", "state_name","state_externalId","private_program","project_created_type","parent_channel").agg(countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("createdBy")).alias("unique_users"),countDistinct(when(F.col("task_evidence_status") == "true", True), F.col("project_id")).alias("no_of_imp_with_evidence"))
+final_projects_tasks_distinctCnt_prgmlevel = final_projects_tasks_distinctCnt_prgmlevel.withColumn("time_stamp", current_timestamp())
+final_projects_tasks_distinctCnt_prgmlevel = final_projects_tasks_distinctCnt_prgmlevel.dropDuplicates()
+final_projects_tasks_distinctCnt_prgmlevel.coalesce(1).write.format("json").mode("overwrite").save(
+    config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/"
+)
+final_projects_df.unpersist()
+final_projects_tasks_distinctCnt_prgmlevel.unpersist()
+
 for filename in os.listdir(config.get("OUTPUT_DIR", "project")+"/"):
     if filename.endswith(".json"):
        os.rename(
@@ -593,6 +603,14 @@ for filename in os.listdir(config.get("OUTPUT_DIR", "projects_distinctCount")+"/
            config.get("OUTPUT_DIR", "projects_distinctCount") + "/ml_projects_distinctCount.json"
         )
 
+#projects submission distinct count by program level
+for filename in os.listdir(config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel")+"/"):
+    if filename.endswith(".json"):
+       os.rename(
+           config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/" + filename,
+           config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/ml_projects_distinctCount_prgmlevel.json"
+        )
+
 blob_service_client = BlockBlobService(
     account_name=config.get("AZURE", "account_name"), 
     sas_token=config.get("AZURE", "sas_token")
@@ -603,6 +621,10 @@ blob_path = config.get("AZURE", "projects_blob_path")
 #projects submission distinct count
 local_distinctCnt_path = config.get("OUTPUT_DIR", "projects_distinctCount")
 blob_distinctCnt_path = config.get("AZURE", "projects_distinctCnt_blob_path")
+
+#projects submission distinct count program level
+local_distinctCnt_prgmlevel_path = config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel")
+blob_distinctCnt_prgmlevel_path = config.get("AZURE", "projects_distinctCnt_prgmlevel_blob_path")
 
 for files in os.listdir(local_path):
     if "sl_projects.json" in files:
@@ -619,10 +641,20 @@ for files in os.listdir(local_distinctCnt_path):
             os.path.join(blob_distinctCnt_path,files),
             local_distinctCnt_path + "/" + files
         )
+#projects submission distinct count program level
+for files in os.listdir(local_distinctCnt_prgmlevel_path):
+    if "ml_projects_distinctCount_prgmlevel.json" in files:
+        blob_service_client.create_blob_from_path(
+            container_name,
+            os.path.join(blob_distinctCnt_prgmlevel_path,files),
+            local_distinctCnt_prgmlevel_path + "/" + files
+        )
 
 os.remove(config.get("OUTPUT_DIR", "project") + "/sl_projects.json")
 #projects submission distinct count
 os.remove(config.get("OUTPUT_DIR", "projects_distinctCount") + "/ml_projects_distinctCount.json")
+#projects submission distinct count program level
+os.remove(config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/ml_projects_distinctCount_prgmlevel.json")
 
 druid_batch_end_point = config.get("DRUID", "batch_url")
 headers = {'Content-Type': 'application/json'}
@@ -658,7 +690,7 @@ submissionReportColumnNamesArr = [
     'project_duration', 'program_externalId', 'private_program', 'task_deleted_flag',
     'sub_task_deleted_flag', 'project_terms_and_condition','task_remarks',
     'organisation_name','project_description','project_completed_date','solution_id',
-    'project_remarks','project_evidence','organisation_id','user_type','board_name'
+    'project_remarks','project_evidence','organisation_id','user_type'
 ]
 
 dimensionsArr.extend(submissionReportColumnNamesArr)
