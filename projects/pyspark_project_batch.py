@@ -575,7 +575,6 @@ final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.dropDu
 final_projects_tasks_distinctCnt_df.coalesce(1).write.format("json").mode("overwrite").save(
    config.get("OUTPUT_DIR","projects_distinctCount") + "/"
 )
-final_projects_df.unpersist()
 final_projects_tasks_distinctCnt_df.unpersist()
 
 # projects submission distinct count by program level
