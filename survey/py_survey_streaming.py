@@ -12,14 +12,11 @@ import kafka
 import faust
 import logging
 import time
-from cassandra.cluster import Cluster
 from pymongo import MongoClient
 from bson.objectid import ObjectId
-from geopy.distance import geodesic
 from kafka import KafkaConsumer, KafkaProducer
 from kafka.admin import KafkaAdminClient, NewTopic
 from configparser import ConfigParser,ExtendedInterpolation
-from cassandra.query import SimpleStatement,ConsistencyLevel
 from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
@@ -120,8 +117,8 @@ def orgCreator(val):
         for org in val:
             orgObj = {}
             if org["isSchool"] == False:
-                orgObj['orgId'] = org['organisationId']
-                orgObj['orgName'] = org["orgName"]
+                orgObj['organisation_id'] = org['organisationId']
+                orgObj['organisation_name'] = org["orgName"]
                 orgarr.append(orgObj)
     return orgarr
 
