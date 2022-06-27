@@ -270,7 +270,6 @@ try:
               try:
                 temp_userType = set([types["type"] for types in obSub["userProfile"]["profileUserTypes"]])
                 user_type = ", ".join(temp_userType)
-                print(user_type)
               except KeyError:
                 pass
 

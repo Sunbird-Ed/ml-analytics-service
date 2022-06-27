@@ -575,7 +575,6 @@ final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.dropDu
 final_projects_tasks_distinctCnt_df.coalesce(1).write.format("json").mode("overwrite").save(
    config.get("OUTPUT_DIR","projects_distinctCount") + "/"
 )
-final_projects_df.unpersist()
 final_projects_tasks_distinctCnt_df.unpersist()
 
 # projects submission distinct count by program level
@@ -673,6 +672,22 @@ else:
         "failed to start batch ingestion task" + str(distinctCnt_projects_start_supervisor.status_code)
    )
    errorLogger.error(distinctCnt_projects_start_supervisor.json())
+
+#projects submission distinct count program level
+ml_distinctCnt_prgmlevel_projects_spec = json.loads(config.get("DRUID","ml_distinctCnt_prglevel_projects_status_spec"))
+ml_distinctCnt_prgmlevel_projects_datasource = ml_distinctCnt_prgmlevel_projects_spec["spec"]["dataSchema"]["dataSource"]
+distinctCnt_prgmlevel_projects_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_prgmlevel_projects_spec), headers=headers)
+if distinctCnt_prgmlevel_projects_start_supervisor.status_code == 200:
+   successLogger.debug(
+        "started the batch ingestion task sucessfully for the datasource " + ml_distinctCnt_prgmlevel_projects_datasource
+   )
+   time.sleep(50)
+else:
+   errorLogger.error(
+        "failed to start batch ingestion task" + str(distinctCnt_prgmlevel_projects_start_supervisor.status_code)
+   )
+   errorLogger.error(distinctCnt_prgmlevel_projects_start_supervisor.json())
+
 
 dimensionsArr = []
 entitiesArr = ["state_externalId", "block_externalId", "district_externalId", "cluster_externalId", "school_externalId",\
