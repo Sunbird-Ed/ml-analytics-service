@@ -139,13 +139,13 @@ class FinalWorker:
                 finalObj = {}
                 finalObj =  self.creatingObj(self.answer,self.quesexternalId,self.ans_val,self.instNum,self.responseLabel)
                 finalObj.update(self.orgArr[org])
-                producer.send((config.get("KAFKA", "kafka_survey_druid_topic")), json.dumps(finalObj).encode('utf-8'))
+                producer.send((config.get("KAFKA", "survey_druid_topic")), json.dumps(finalObj).encode('utf-8'))
                 producer.flush()
                 successLogger.debug("Send Obj to Kafka")
         else:
             finalObj = {}
             finalObj =  self.creatingObj(self.answer,self.quesexternalId,self.ans_val,self.instNum,self.responseLabel)
-            producer.send((config.get("KAFKA", "kafka_survey_druid_topic")), json.dumps(finalObj).encode('utf-8'))
+            producer.send((config.get("KAFKA", "survey_druid_topic")), json.dumps(finalObj).encode('utf-8'))
             producer.flush()
             successLogger.debug("Send Obj to Kafka")
 
@@ -154,9 +154,9 @@ try:
         successLogger.debug(f"Survey Submission Id : {obSub['_id']}")
         if 'isAPrivateProgram' in obSub :
             surveySubQuestionsArr = []
-            completedDate = obSub['completedDate']
-            createdAt = obSub['createdAt']
-            updatedAt = obSub['updatedAt']
+            completedDate = str(obSub['completedDate'])
+            createdAt = str(obSub['createdAt'])
+            updatedAt = str(obSub['updatedAt'])
             evidencesArr = [v for v in obSub['evidences'].values()]
             evidence_sub_count = 0
             rootOrgId = None
