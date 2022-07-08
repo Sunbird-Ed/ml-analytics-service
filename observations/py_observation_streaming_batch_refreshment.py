@@ -1,21 +1,26 @@
 # -----------------------------------------------------------------
 # Name : sl_py_observation_streaming.py
-# Author : Ashwini.E , Shakthieshwari.A
+# Author : Ashwini.E , Shakthieshwari.A, Snehangsu De
 # Description : Program to read data from one kafka topic and 
 #   produce it to another kafka topic 
 # -----------------------------------------------------------------
 
-from pymongo import MongoClient
-from bson.objectid import ObjectId
+import time
+import logging
 import os, json
+import argparse
 import datetime
 import requests
-from configparser import ConfigParser,ExtendedInterpolation
-import logging
-import logging.handlers
-import time
-from logging.handlers import TimedRotatingFileHandler
+from pymongo import MongoClient
+from bson.objectid import ObjectId
 from azure.storage.blob import BlockBlobService
+from configparser import ConfigParser,ExtendedInterpolation
+from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
+
+parser = argparse.ArgumentParser(description='Please enter last updated date.')
+parser.add_argument('--date', '-d', metavar='date', type=lambda intake_date: datetime.datetime.strptime(intake_date, '%Y-%m-%d'), 
+help='Enter a date with format YYYY-MM-DD.', required=True)
+args = parser.parse_args()
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
@@ -27,28 +32,16 @@ successLogger = logging.getLogger('success log')
 successLogger.setLevel(logging.DEBUG)
 
 # Add the log message handler to the logger
-successHandler = logging.handlers.RotatingFileHandler(
-  config.get('LOGS', 'observation_streaming_success')
-)
-successBackuphandler = TimedRotatingFileHandler(
-  config.get('LOGS', 'observation_streaming_success'),
-  when="w0",
-  backupCount=1
-)
+successHandler = RotatingFileHandler(config.get('LOGS', 'observation_streaming_success'))
+successBackuphandler = TimedRotatingFileHandler(config.get('LOGS', 'observation_streaming_success'),when="w0",backupCount=1)
 successHandler.setFormatter(formatter)
 successLogger.addHandler(successHandler)
 successLogger.addHandler(successBackuphandler)
 
 errorLogger = logging.getLogger('error log')
 errorLogger.setLevel(logging.ERROR)
-errorHandler = logging.handlers.RotatingFileHandler(
-  config.get('LOGS', 'observation_streaming_error')
-)
-errorBackuphandler = TimedRotatingFileHandler(
-  config.get('LOGS', 'observation_streaming_error'),
-  when="w0",
-  backupCount=1
-)
+errorHandler = RotatingFileHandler(config.get('LOGS', 'observation_streaming_error'))
+errorBackuphandler = TimedRotatingFileHandler(config.get('LOGS', 'observation_streaming_error'),when="w0",backupCount=1)
 errorHandler.setFormatter(formatter)
 errorLogger.addHandler(errorHandler)
 errorLogger.addHandler(errorBackuphandler)
@@ -115,6 +108,17 @@ try:
       errorLogger.error(responseUserRoles.text)
 except Exception as e:
   errorLogger.error(e, exc_info=True)
+
+def orgName(val):
+  orgarr = []
+  if val is not None:
+    for org in val:
+        orgObj = {}
+        if org["isSchool"] == False:
+            orgObj['orgId'] = org['organisationId']
+            orgObj['orgName'] = org["orgName"]
+            orgarr.append(orgObj)
+  return orgarr
 
 try:
   #initialising the values
@@ -244,8 +248,8 @@ try:
       
       rootOrgId = None
       boardName = None
-      orgId = None
-      orgName = None
+      user_type = None
+
       try:
           if obSub["userProfile"] :
               if "rootOrgId" in obSub["userProfile"] and obSub["userProfile"]["rootOrgId"]:
@@ -253,9 +257,11 @@ try:
               if "framework" in obSub["userProfile"] and obSub["userProfile"]["framework"]:
                  if "board" in obSub["userProfile"]["framework"] and len(obSub["userProfile"]["framework"]["board"]) > 0:
                   boardName = ",".join(obSub["userProfile"]["framework"]["board"])
-              if "organisations" in obSub["userProfile"] and len(obSub["userProfile"]["organisations"]) > 0:
-                  orgId = obSub["userProfile"]["organisations"][-1]["organisationId"]
-                  orgName = obSub["userProfile"]["organisations"][-1]["orgName"]
+              try:
+                temp_userType = set([types["type"] for types in obSub["userProfile"]["profileUserTypes"]])
+                user_type = ", ".join(temp_userType)
+              except KeyError:
+                pass
       except KeyError :
           pass
 
@@ -318,14 +324,23 @@ try:
         roleObj["user_schoolName"] = userSchoolName
         roleObj["user_schoolId"] = userSchool
         roleObj["user_schoolUDISE_code"] = userSchoolUDISE
-        roleObj["organisation_name"] = orgName
-        roleObj["organisation_id"] = orgId
         roleObj["user_boardName"] = boardName
         roleObj["district_externalId"] = districtExternalId
         roleObj["state_externalId"] = stateExternalId
         roleObj["block_externalId"] = blockExternalId
         roleObj["cluster_externalId"] = clusterExternalId
+        roleObj["user_type"] = user_type
         userRolesArrUnique.append(roleObj)
+
+      try:
+        orgArr = orgName(obSub["userProfile"]["organisations"])
+        if len(orgArr) >0:
+          for org in orgArr:
+            for obj in userRolesArrUnique:
+              obj["organisation_id"] = org["orgId"]
+              obj["organisation_name"] = org["orgName"]
+      except KeyError:
+          pass
 
       if 'answers' in obSub.keys() :  
           answersArr = [ v for v in obSub['answers'].values()]
@@ -904,7 +919,8 @@ except Exception as e:
   errorLogger.error(e, exc_info=True)
 
 with open('sl_observation.json', 'w') as f:
- for msg_data in obsSubCollec.find({"status":"completed"}):
+  for counter, msg_data in enumerate(obsSubCollec.find({"status":"completed", "createdAt": {"$gte": args.date}})): 
+    print(f"Count: {counter} ---- ID: {msg_data['_id']}")
     obj_arr = obj_creation(msg_data['_id'])
 
 container_name = config.get("AZURE", "container_name")
