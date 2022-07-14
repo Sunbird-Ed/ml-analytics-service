@@ -103,11 +103,10 @@ def userDataCollector(val):
                 dataobj[f'{loc["type"]}_name'] = loc["name"]
                 dataobj[f'{loc["type"]}_externalId'] = loc["code"]
         # Get board
-        if val["userProfile"]["framework"]["board"]:
-            try:
-                dataobj["board_name"] = ",".join(val["userProfile"]["framework"]["board"])
-            except KeyError:
-                pass
+        if "framework" in val["userProfile"] and val["userProfile"]["framework"]:
+           if "board" in val["userProfile"]["framework"] and len(val["userProfile"]["framework"]["board"]) > 0:
+               boardName = ",".join(val["userProfile"]["framework"]["board"])
+               dataobj["board_name"] = boardName
     return dataobj
 
 def orgCreator(val):
