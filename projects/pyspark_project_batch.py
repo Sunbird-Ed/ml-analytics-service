@@ -73,7 +73,6 @@ try:
 except Exception as e:
     errorLogger.error(e, exc_info=True)
 
-spark = SparkSession.builder.appName("projects").config("spark.driver.memory", "25g").getOrCreate()
 
 clientProd = MongoClient(config.get('MONGO', 'mongo_url'))
 db = clientProd[config.get('MONGO', 'database_name')]
