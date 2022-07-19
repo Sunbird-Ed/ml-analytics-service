@@ -177,7 +177,7 @@ def recreate_task_data(prj_data):
     prj["taskarr"] = taskarr
     
     ## delete unwanted keys 
-    del_keys = ["attachments","tasks"]
+    del_keys = ["tasks"]
     for key in del_keys:
       try:
         del prj[key]         
