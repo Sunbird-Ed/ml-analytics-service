@@ -174,7 +174,8 @@ projects_cursorMongo = projectsCollec.aggregate(
             "isAPrivateProgram": 1,
             "hasAcceptedTAndC": 1,
             "userRoleInformation": 1,
-            "userProfile": 1
+            "userProfile": 1,
+            "certificate": 1
         }
     }]
 )
@@ -282,7 +283,15 @@ projects_schema = StructType([
           ),True
     ),
     StructField('remarks', StringType(), True),  
-    StructField('evidence', StringType(), True)
+    StructField('evidence', StringType(), True),
+    StructField('certificate',	
+          StructType([	
+            StructField('osid', StringType(), True),	
+            StructField('url', StringType(), True),	
+            StructField('status', StringType(), True),	
+            StructField('issuedOn', StringType(), True)	
+        ])	
+    )
 ])
 
 
@@ -474,6 +483,10 @@ projects_df_cols = projects_df.select(
     projects_df["userProfile"]["rootOrgId"].alias("channel"),
     projects_df["exploded_orgInfo"]["orgId"].alias("organisation_id"),
     projects_df["exploded_orgInfo"]["orgName"].alias("organisation_name"),
+    projects_df["certificate"]["osid"].alias("certificate_id"),	
+    projects_df["certificate"]["url"].alias("certificate_url"),	
+    projects_df["certificate"]["status"].alias("certificate_status"),	
+    projects_df["certificate"]["issuedOn"].alias("certificate_date"),
     concat_ws(",",F.col("userProfile.framework.board")).alias("board_name"),
     concat_ws(",",array_distinct(F.col("userProfile.profileUserTypes.type"))).alias("user_type")
     
@@ -568,7 +581,11 @@ final_projects_df.coalesce(1).write.format("json").mode("overwrite").save(
 )
 
 #projects submission distinct count
+<<<<<<< HEAD
 final_projects_tasks_distinctCnt_df = final_projects_df.groupBy("program_name","program_id","project_title","solution_id","status_of_project","state_name","state_externalId","district_name","district_externalId","organisation_name","organisation_id","private_program","project_created_type","parent_channel").agg(countDistinct(F.col("project_id")).alias("unique_projects")
+=======
+final_projects_tasks_distinctCnt_df = final_projects_df.groupBy("program_name","program_id","project_title","solution_id","status_of_project","state_name","state_externalId","district_name","district_externalId","organisation_name","organisation_id","private_program","project_created_type","parent_channel", "certificate_id", "certificate_url", "certificate_status", "certificate_date").agg(countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("createdBy")).alias("unique_users"),countDistinct(when(F.col("task_evidence_status") == "true",True),F.col("project_id")).alias("no_of_imp_with_evidence"))
+>>>>>>> 1e28bdd3c7ba02da6b3c93326948fe02b6267d85
 final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.withColumn("time_stamp", current_timestamp())
 final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.dropDuplicates()
 final_projects_tasks_distinctCnt_df.coalesce(1).write.format("json").mode("overwrite").save(
@@ -704,7 +721,8 @@ submissionReportColumnNamesArr = [
     'project_duration', 'program_externalId', 'private_program', 'task_deleted_flag',
     'sub_task_deleted_flag', 'project_terms_and_condition','task_remarks',
     'organisation_name','project_description','project_completed_date','solution_id',
-    'project_remarks','project_evidence','organisation_id','user_type'
+    'project_remarks','project_evidence','organisation_id','user_type', 'certificate_id', 
+    'certificate_url', 'certificate_status','certificate_date'
 ]
 
 dimensionsArr.extend(submissionReportColumnNamesArr)
