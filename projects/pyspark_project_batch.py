@@ -286,7 +286,6 @@ projects_schema = StructType([
     StructField('certificate',	
           StructType([	
             StructField('osid', StringType(), True),	
-            StructField('url', StringType(), True),	
             StructField('status', StringType(), True),	
             StructField('issuedOn', StringType(), True)	
         ])	
@@ -509,7 +508,6 @@ projects_df_cols = projects_df.select(
     projects_df["exploded_orgInfo"]["orgId"].alias("organisation_id"),
     projects_df["exploded_orgInfo"]["orgName"].alias("organisation_name"),
     projects_df["certificate"]["osid"].alias("certificate_id"),	
-    projects_df["certificate"]["url"].alias("certificate_url"),	
     projects_df["certificate"]["status"].alias("certificate_status"),	
     projects_df["certificate"]["issuedOn"].alias("certificate_date"),
     concat_ws(",",F.col("userProfile.framework.board")).alias("board_name"),
@@ -585,7 +583,7 @@ entities_df = melt(entities_df,
             ).dropDuplicates()
 entities_df = entities_df.withColumn("variable",F.concat(F.col("entityType"),F.lit("_externalId")))
 projects_df_melt = melt(projects_df_cols,
-        id_vars=["project_id", "project_created_type", "project_title", "project_title_editable", "program_id", "program_externalId", "program_name", "project_duration", "project_last_sync", "project_updated_date", "project_deleted_flag", "area_of_improvement", "status_of_project", "createdBy", "project_description", "project_goal", "parent_channel", "project_created_date", "task_id", "tasks", "task_assigned_to", "task_start_date", "task_end_date", "tasks_date", "tasks_status", "task_evidence", "task_evidence_status", "sub_task_id", "sub_task", "sub_task_status", "sub_task_date", "sub_task_start_date", "sub_task_end_date", "private_program", "task_deleted_flag", "sub_task_deleted_flag", "project_terms_and_condition", "task_remarks", "project_completed_date", "solution_id", "designation","project_remarks","project_evidence","channel","board_name","organisation_name","organisation_id","user_type","evidence_status"],
+        id_vars=["project_id", "project_created_type", "project_title", "project_title_editable", "program_id", "program_externalId", "program_name", "project_duration", "project_last_sync", "project_updated_date", "project_deleted_flag", "area_of_improvement", "status_of_project", "createdBy", "project_description", "project_goal", "parent_channel", "project_created_date", "task_id", "tasks", "task_assigned_to", "task_start_date", "task_end_date", "tasks_date", "tasks_status", "task_evidence", "task_evidence_status", "sub_task_id", "sub_task", "sub_task_status", "sub_task_date", "sub_task_start_date", "sub_task_end_date", "private_program", "task_deleted_flag", "sub_task_deleted_flag", "project_terms_and_condition", "task_remarks", "project_completed_date", "solution_id", "designation","project_remarks","project_evidence","channel","board_name","organisation_name","organisation_id","user_type","evidence_status", "certificate_id", "certificate_status", "certificate_date"],
         value_vars=["state_externalId", "block_externalId", "district_externalId", "cluster_externalId", "school_externalId"]
         )
 projects_ent_df_melt = projects_df_melt\
@@ -606,7 +604,7 @@ final_projects_df.coalesce(1).write.format("json").mode("overwrite").save(
 )
 
 #projects submission distinct count
-final_projects_tasks_distinctCnt_df = final_projects_df.groupBy("program_name","program_id","project_title","solution_id","status_of_project","state_name","state_externalId","district_name","district_externalId","organisation_name","organisation_id","private_program","project_created_type","parent_channel", "certificate_id", "certificate_url", "certificate_status", "certificate_date").agg(countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("createdBy")).alias("unique_users"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status_of_project") == "submitted"),True),F.col("project_id")).alias("no_of_imp_with_evidence"))
+final_projects_tasks_distinctCnt_df = final_projects_df.groupBy("program_name","program_id","project_title","solution_id","status_of_project","state_name","state_externalId","district_name","district_externalId","organisation_name","organisation_id","private_program","project_created_type","parent_channel").agg(countDistinct(when(F.col("certificate_status") == "active",True),F.col("project_id")).alias("no_of_certificate_issued"),countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("createdBy")).alias("unique_users"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status_of_project") == "submitted"),True),F.col("project_id")).alias("no_of_imp_with_evidence"))
 final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.withColumn("time_stamp", current_timestamp())
 final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.dropDuplicates()
 final_projects_tasks_distinctCnt_df.coalesce(1).write.format("json").mode("overwrite").save(
@@ -615,7 +613,7 @@ final_projects_tasks_distinctCnt_df.coalesce(1).write.format("json").mode("overw
 final_projects_tasks_distinctCnt_df.unpersist()
 
 # projects submission distinct count by program level
-final_projects_tasks_distinctCnt_prgmlevel = final_projects_df.groupBy("program_name", "program_id","status_of_project", "state_name","state_externalId","private_program","project_created_type","parent_channel").agg(countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("createdBy")).alias("unique_users"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status_of_project") == "submitted"),True),F.col("project_id")).alias("no_of_imp_with_evidence"))
+final_projects_tasks_distinctCnt_prgmlevel = final_projects_df.groupBy("program_name", "program_id","status_of_project", "state_name","state_externalId","private_program","project_created_type","parent_channel").agg(countDistinct(when(F.col("certificate_status") == "active",True),F.col("project_id")).alias("no_of_certificate_issued"), countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("createdBy")).alias("unique_users"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status_of_project") == "submitted"),True),F.col("project_id")).alias("no_of_imp_with_evidence"))
 final_projects_tasks_distinctCnt_prgmlevel = final_projects_tasks_distinctCnt_prgmlevel.withColumn("time_stamp", current_timestamp())
 final_projects_tasks_distinctCnt_prgmlevel = final_projects_tasks_distinctCnt_prgmlevel.dropDuplicates()
 final_projects_tasks_distinctCnt_prgmlevel.coalesce(1).write.format("json").mode("overwrite").save(
@@ -743,7 +741,7 @@ submissionReportColumnNamesArr = [
     'sub_task_deleted_flag', 'project_terms_and_condition','task_remarks',
     'organisation_name','project_description','project_completed_date','solution_id',
     'project_remarks','project_evidence','organisation_id','user_type', 'certificate_id', 
-    'certificate_url', 'certificate_status','certificate_date'
+    'certificate_status','certificate_date'
 ]
 
 dimensionsArr.extend(submissionReportColumnNamesArr)
