@@ -7,6 +7,7 @@ config.read(config_path[0] + "/config.ini")
 
 ## This Function adds the metaInformation of task
 def task_detail(task,del_flg):
+  if (type(task)==dict) :
    taskObj = {}
    taskObj["_id"] = task["_id"]
    taskObj["tasks"] = task["name"]
