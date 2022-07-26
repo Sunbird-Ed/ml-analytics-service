@@ -114,15 +114,14 @@ db = clientProd[config.get('MONGO', 'database_name')]
 projectsCollec = db[config.get('MONGO', 'projects_collection')]
 entitiesCollec = db[config.get('MONGO', 'entities_collection')]
 
-#for i in projectsCollec.find({"_id":ObjectId("62cb0ef7cd5f3c00077ae4be")}):
-#    print(i["attachments"])
-#    print(i["isAPrivateProgram"])
-#    print(i.keys())
-#sys.exit()
+print("No of improvements started " + str(len(projectsCollec.distinct("_id",{"isAPrivateProgram":False,"isDeleted":False,"programId":{"$ne":ObjectId("60e7d35bf2b6e70788065fd2")},"status":"started"}))))
+print("No of improvements in-progress " + str(len(projectsCollec.distinct("_id",{"isAPrivateProgram":False,"isDeleted":False,"programId":{"$ne":ObjectId("60e7d35bf2b6e70788065fd2")},"status":"inProgress"}))))
+print("No of improvements submitted " + str(len(projectsCollec.distinct("_id",{"isAPrivateProgram":False,"isDeleted":False,"programId":{"$ne":ObjectId("60e7d35bf2b6e70788065fd2")},"status":"submitted"}))))
+print("No of unique users taken up the project " + str(len(projectsCollec.distinct("createdBy",{"isAPrivateProgram":False,"isDeleted":False,"programId":{"$ne":ObjectId("60e7d35bf2b6e70788065fd2")}}))))
+print("No of unique projects published on platform " + str(len(projectsCollec.distinct("solutionId",{"isAPrivateProgram":False,"isDeleted":False,"programId":{"$ne":ObjectId("60e7d35bf2b6e70788065fd2")}}))))
+
 projects_cursorMongo = projectsCollec.aggregate(
       [{"$match":{"isAPrivateProgram":False,"isDeleted":False}},
-#     [{"$match":{"isAPrivateProgram":False,"_id":ObjectId("62cd3a15cd5f3c00077b2a52")}},
-#[{"$match":{"isAPrivateProgram":False,"_id":ObjectId("628854afe95af10009d81cd8")}},
 {
         "$project": {
             "_id": {"$toString": "$_id"},
