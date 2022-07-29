@@ -73,7 +73,6 @@ db = client[config.get('MONGO', 'database_name')]
 solCollec = db[config.get('MONGO', 'solutions_collection')]
 obsCollec = db[config.get('MONGO', 'observations_collection')]
 questionsCollec = db[config.get('MONGO', 'questions_collection')]
-entitiesCollec = db[config.get('MONGO', 'entities_collection')]
 criteriaQuestionsCollec = db[config.get('MONGO', 'criteria_questions_collection')]
 criteriaCollec = db[config.get('MONGO', 'criteria_collection')]
 programsCollec = db[config.get('MONGO', 'programs_collection')]
@@ -85,44 +84,6 @@ try:
       if x not in seen:
         yield x
         seen.append(x)
-except Exception as e:
-  errorLogger.error(e, exc_info=True)
-
-try:
-  def getRelatedEntity(entityId):
-    urlEntityRelated = config.get("ML_SURVEY_SERVICE_URL", "url") + "/" + config.get("ML_SURVEY_SERVICE_URL", "entity_related_end_point") + str(entityId)
-    headersEntityRelated = {
-      'Content-Type': config.get("API_HEADERS", "content_type"),
-      'Authorization': "Bearer "+ config.get("API_HEADERS", "authorization"),
-      'internal-access-token': config.get("API_HEADERS", "internal_access_token")
-    }
-    responseEntityRelated = requests.get(urlEntityRelated, headers=headersEntityRelated)
-    if responseEntityRelated.status_code == 200:
-      successLogger.debug("entityRelated api")
-      return responseEntityRelated.json()
-    else:
-      errorLogger.error(" Failure in EntityRelatedApi ")
-      errorLogger.error(responseEntityRelated)
-      errorLogger.error(responseEntityRelated.text)
-except Exception as e:
-  errorLogger.error(e, exc_info=True)
-
-try:
-  def getUserRoles(userId):
-    urlUserRoles = config.get("ML_SURVEY_SERVICE_URL", "url") + "/" + config.get("ML_SURVEY_SERVICE_URL", "user_profile_end_point") + str(userId)
-    headersUserRoles ={
-      'Content-Type': config.get("API_HEADERS", "content_type"),
-      'Authorization': "Bearer "+ config.get("API_HEADERS", "authorization"),
-      'internal-access-token': config.get("API_HEADERS", "internal_access_token")
-    }
-    responseUserRoles = requests.get(urlUserRoles, headers=headersUserRoles)
-    if responseUserRoles.status_code == 200 :
-      successLogger.debug("user profile api")
-      return responseUserRoles.json()
-    else:
-      errorLogger.error("user profile api failed")
-      errorLogger.error(responseUserRoles)
-      errorLogger.error(responseUserRoles.text)
 except Exception as e:
   errorLogger.error(e, exc_info=True)
 
@@ -204,57 +165,8 @@ try:
       evidence_sub_count = 0
       entityId = obSub['entityId']
 
-      # fetch entity latitude and longitude from the database
-      entityLatitude = None
-      entityLongitude = None
-      for ent in entitiesCollec.find({'_id':ObjectId(entityId)}):
-        try :
-          if ent['metaInformation']['gpsLocation'] :
-            gpsLocation = (ent['metaInformation']['gpsLocation']).split(',')
-            entityLatitude = gpsLocation[0]
-            entityLongitude = gpsLocation[1]
-        except KeyError :
-          entityLatitude = ''
-          entityLongitude = ''
-      stateName = None
-      blockName = None
-      districtName = None
-      districtExternalId = None
-      stateExternalId = None
-      blockExternalId = None
-      clusterExternalId = None
-      clusterName = None
       userSubType = None
-      userSchool = None
-      userSchoolUDISE = None
-      userSchoolName = None
-      entitiesArrIds = []
       if 'userRoleInformation' in obSub:
-       for userRoleKey, userRoleVal in obSub["userRoleInformation"].items():
-          if userRoleKey != "role" :
-             entitiesArrIds.append(userRoleVal)
-       for entUR in entitiesCollec.find({"$or":[{"registryDetails.locationId":
-        {"$in":entitiesArrIds}},{"registryDetails.code":{"$in":entitiesArrIds}}]},
-        {"metaInformation.name":1,"entityType":1,"registryDetails":1}):
-          if entUR["entityType"] == "state":
-             stateName = entUR["metaInformation"]["name"]
-             stateExternalId = obSub["userRoleInformation"]["state"]
-          if entUR["entityType"] == "block":
-             blockName = entUR["metaInformation"]["name"]
-             blockExternalId = obSub["userRoleInformation"]["block"]
-          if entUR["entityType"] == "district":
-             districtName = entUR["metaInformation"]["name"]
-             districtExternalId = obSub["userRoleInformation"]["district"]
-          if entUR["entityType"] == "cluster":
-             clusterName = entUR["metaInformation"]["name"]
-             clusterExternalId = obSub["userRoleInformation"]["cluster"]
-          if entUR["entityType"] == "school":
-             userSchool = str(entUR["_id"])
-             if "code" in entUR["registryDetails"] and entUR["registryDetails"]["code"] :
-                userSchoolUDISE = entUR["registryDetails"]["code"]
-             else :
-                userSchoolUDISE = entUR["registryDetails"]["locationId"]
-             userSchoolName = entUR["metaInformation"]["name"]
        userSubType = obSub["userRoleInformation"]["role"]
 
       rootOrgId = None
@@ -275,70 +187,22 @@ try:
 
       except KeyError :
           pass
-      userRoles = {}
       obsAppName = None
       try :
         obsAppName = obSub["appInformation"]["appName"].lower()
       except KeyError :
         obsAppName = config.get("ML_APP_NAME", "survey_app")
       userRolesArrUnique = []
-      if obsAppName == config.get("ML_APP_NAME", "survey_app") :
-        userRoles = getUserRoles(obSub["createdBy"])
-        userRolesArr = []
-        if userRoles:
-          userRoleKeyCheck = "result" in userRoles
-          if userRoleKeyCheck == True :
-            try :
-              if len(userRoles["result"]["roles"]) > 0 :
-                for rol in userRoles["result"]["roles"] :
-                  for ent in rol["entities"]:
-                    userEntityRelated = None
-                    userEntityRelated = getRelatedEntity(ent["_id"])
-                    userEntityRelatedResultKeyCheck = None
-                    roleObj = {}
-                    roleObj["role_title"] = rol["title"] 
-                    if userEntityRelated:
-                      userEntityRelatedResultKeyCheck = "result" in userEntityRelated
-                      if userEntityRelatedResultKeyCheck == True:
-                        if userEntityRelated["result"]:
-                          if (userEntityRelated["result"]["entityType"] == "district") or (userEntityRelated["result"]["entityType"] == "block") or (userEntityRelated["result"]["entityType"] == "cluster") or (userEntityRelated["result"]["entityType"] == "state"):
-                            roleObj['user_'+userEntityRelated["result"]["entityType"]+'Name'] = userEntityRelated["result"]["metaInformation"]["name"]
-                            roleObj[userEntityRelated["result"]["entityType"]+'_externalId'] = userEntityRelated["result"]["metaInformation"]["externalId"]
-                          if userEntityRelated["result"]["entityType"] == "school" :
-                            roleObj['user_schoolName'] = userEntityRelated["result"]["metaInformation"]["name"]
-                            roleObj['user_schoolId'] = str(userEntityRelated["result"]["metaInformation"]["id"])
-                            roleObj['user_schoolUDISE_code'] = userEntityRelated["result"]["metaInformation"]["externalId"]
-                          for usrEntityData in userEntityRelated["result"]["relatedEntities"]:
-                            if (usrEntityData['entityType'] == "district") or (usrEntityData['entityType'] == "block") or (usrEntityData['entityType'] == "cluster") or (usrEntityData['entityType'] == "state"):
-                              roleObj['user_'+usrEntityData['entityType']+'Name'] = usrEntityData['metaInformation']['name']
-                              roleObj[usrEntityData['entityType']+'_externalId'] = usrEntityData['metaInformation']['externalId']
-                            if usrEntityData['entityType'] == "school" :
-                              roleObj['user_schoolName'] = usrEntityData["metaInformation"]["name"]
-                              roleObj['user_schoolId'] = str(usrEntityData["metaInformation"]["id"])
-                              roleObj['user_schoolUDISE_code'] = usrEntityData["metaInformation"]["externalId"]
-                    userRolesArr.append(roleObj)
-            except KeyError :
-              userRolesArr = []
-
-        if len(userRolesArr) > 0:
-          userRolesArrUnique = list(removeduplicate(userRolesArr))
-      else:
-        roleObj = {}
-        roleObj["role_title"] = userSubType
-        roleObj["user_stateName"] = stateName
-        roleObj["user_blockName"] = blockName
-        roleObj["user_districtName"] = districtName
-        roleObj["user_clusterName"] = clusterName
-        roleObj["user_schoolName"] = userSchoolName
-        roleObj["user_schoolId"] = userSchool
-        roleObj["user_schoolUDISE_code"] = userSchoolUDISE
-        roleObj["user_boardName"] = boardName
-        roleObj["district_externalId"] = districtExternalId
-        roleObj["state_externalId"] = stateExternalId
-        roleObj["block_externalId"] = blockExternalId
-        roleObj["cluster_externalId"] = clusterExternalId
-        roleObj["user_type"] = user_type
-        userRolesArrUnique.append(roleObj)
+      roleObj = {}
+      roleObj["role_title"] = userSubType
+      roleObj["user_boardName"] = boardName
+      roleObj["user_type"] = user_type
+      if "userProfile" in obSub and len(obSub["userProfile"]["userLocations"])>0:
+       for ent in obSub["userProfile"]["userLocations"]:
+          roleObj["user_"+ent["type"]+"Name"] = ent["name"]
+          roleObj[ent["type"]+"_externalId"] = ent["id"]
+          roleObj[ent["type"]+"_code"] = ent["code"]
+      userRolesArrUnique.append(roleObj)
 
       try:
         orgArr = orgName(obSub["userProfile"]["organisations"])
@@ -370,8 +234,7 @@ try:
                 return ''
 
             def creatingObj(
-              answer, quesexternalId, ans_val, instNumber, responseLabel, 
-              entityLatitudeCreateObjFn, entityLongitudeCreateObjFn, usrRolFn
+              answer, quesexternalId, ans_val, instNumber, responseLabel, usrRolFn
             ):
               observationSubQuestionsObj = {}
               observationSubQuestionsObj['observationSubmissionId'] = str(obSub['_id'])
@@ -385,37 +248,6 @@ try:
                   observationSubQuestionsObj['solution_type'] = "observation_with_out_rubric"
               except KeyError:
                 observationSubQuestionsObj['solution_type'] = "observation_with_out_rubric"
-              # geo tag validation , question answered within 200 meters of the selected entity
-              if entityLatitudeCreateObjFn and entityLongitudeCreateObjFn :
-                entityGeoFencing = (entityLatitudeCreateObjFn,entityLongitudeCreateObjFn)
-                answerGpsLocation = []
-                try :
-                  if answer['gpsLocation']:
-                    answerGpsLocation = answer['gpsLocation'].split(',')
-                    answerLatitude = None
-                    answerLongitude = None
-                    answerLatitude = answerGpsLocation[0]
-                    answerLongitude = answerGpsLocation[1]
-                except KeyError :
-                  answerGpsLocation = []
-                
-                if len(answerGpsLocation) > 0 :
-                  answerGeoFencing = (answerLatitude,answerLongitude)
-                  calcuGeoLocMtrs = (geodesic(entityGeoFencing, answerGeoFencing).km)*1000
-                  calcuGeoLocMtrsFloat = float(calcuGeoLocMtrs)
-
-                  if calcuGeoLocMtrsFloat <= float(200) :
-                    observationSubQuestionsObj['location_validated_with_geotag'] = 'verified'
-                    observationSubQuestionsObj['distance_in_meters'] = int(calcuGeoLocMtrsFloat)
-                  else :
-                    observationSubQuestionsObj['location_validated_with_geotag'] = 'not verified'
-                    observationSubQuestionsObj['distance_in_meters'] = int(calcuGeoLocMtrsFloat)
-                else :
-                  observationSubQuestionsObj['location_validated_with_geotag'] = 'gps location not found for question'
-                  observationSubQuestionsObj['distance_in_meters'] = ''
-              else :
-                observationSubQuestionsObj['location_validated_with_geotag'] = 'gps location not found for school'
-                observationSubQuestionsObj['distance_in_meters'] = ''                          
 
               observationSubQuestionsObj['entity'] = str(obSub['entityId'])
               observationSubQuestionsObj['entityExternalId'] = obSub['entityExternalId']
@@ -752,7 +584,7 @@ try:
 
               return observationSubQuestionsObj
 
-            def fetchingQuestiondetails(ansFn, instNumber, entityLatitudeQuesFn, entityLongitudeQuesFn):        
+            def fetchingQuestiondetails(ansFn, instNumber):        
               for ques in questionsCollec.find({'_id':ObjectId(ansFn['qid'])}):
                 if len(ques['options']) == 0:
                   try:
@@ -765,8 +597,7 @@ try:
                             ansFn,ques['externalId'],
                             ansFn['value'],instNumber,
                             ansFn['payload']['labels'][0],
-                            entityLatitudeQuesFn,
-                            entityLongitudeQuesFn,usrRol
+                            usrRol
                           )
                           if finalObj["completedDate"]:
                             producer.send(
@@ -782,8 +613,6 @@ try:
                           ansFn['value'],
                           instNumber,
                           ansFn['payload']['labels'][0],
-                          entityLatitudeQuesFn,
-                          entityLongitudeQuesFn,
                           None
                         ) 
                         if finalObj["completedDate"]:
@@ -803,8 +632,6 @@ try:
                             ansFn['value'],
                             instNumber,
                             ansFn['payload']['labels'],
-                            entityLatitudeQuesFn,
-                            entityLongitudeQuesFn,
                             usrRol
                           )
                           if finalObj["completedDate"]:
@@ -822,8 +649,6 @@ try:
                           ansFn['value'],
                           instNumber,
                           ansFn['payload']['labels'],
-                          entityLatitudeQuesFn,
-                          entityLongitudeQuesFn,
                           None
                         )
                         if finalObj["completedDate"]:
@@ -850,8 +675,6 @@ try:
                                 ansFn['value'],
                                 instNumber,
                                 ansFn['payload']['labels'][0],
-                                entityLatitudeQuesFn,
-                                entityLongitudeQuesFn,
                                 usrRol
                               )
                               if finalObj["completedDate"]:
@@ -868,8 +691,6 @@ try:
                               ansFn['value'],
                               instNumber,
                               ansFn['payload']['labels'][0],
-                              entityLatitudeQuesFn,
-                              entityLongitudeQuesFn,
                               None
                             )
                             if finalObj["completedDate"]:
@@ -892,8 +713,6 @@ try:
                                   ansArr,
                                   instNumber,
                                   quesOpt['label'],
-                                  entityLatitudeQuesFn,
-                                  entityLongitudeQuesFn,
                                   usrRol
                                 )
                                 if finalObj["completedDate"]:
@@ -911,8 +730,6 @@ try:
                                 ansArr,
                                 instNumber,
                                 quesOpt['label'],
-                                entityLatitudeQuesFn,
-                                entityLongitudeQuesFn,
                                 None
                               )
                               if finalObj["completedDate"]:
@@ -925,51 +742,6 @@ try:
                             labelIndex = labelIndex + 1
                     except KeyError:
                       pass
-                # #to check the value is null ie is not answered
-                # try:
-                #   if type(ansFn['value']) == str and ansFn['value'] == '':
-                #     if(len(userRolesArrUnique)) > 0:
-                #       for usrRol in userRolesArrUnique :
-                #         finalObj = {}
-                #         finalObj =  creatingObj(
-                #           ansFn,
-                #           ques['externalId'],
-                #           ansFn['value'],
-                #           instNumber,
-                #           None,
-                #           entityLatitudeQuesFn,
-                #           entityLongitudeQuesFn,
-                #           usrRol
-                #         )
-                #         if finalObj["completedDate"]:
-                #           producer.send(
-                #             (config.get("KAFKA", "observation_druid_topic")), 
-                #             json.dumps(finalObj).encode('utf-8')
-                #           )
-                #           producer.flush()
-                #           successLogger.debug("Send Obj to Kafka")
-                #     else :
-                #       finalObj = {}
-                #       finalObj =  creatingObj(
-                #         ansFn,
-                #         ques['externalId'],
-                #         ansFn['value'],
-                #         instNumber,
-                #         None,
-                #         entityLatitudeQuesFn,
-                #         entityLongitudeQuesFn,
-                #         None
-                #       )
-                #       if finalObj["completedDate"]:
-                #         producer.send(
-                #           (config.get("KAFKA", "observation_druid_topic")), 
-                #           json.dumps(finalObj).encode('utf-8')
-                #         )
-                #         producer.flush()
-                #         successLogger.debug("Send Obj to Kafka")
-                # except KeyError:
-                #   pass
-
             try:
              if (
               ans['responseType'] == 'text' or ans['responseType'] == 'radio' or 
@@ -977,17 +749,17 @@ try:
               ans['responseType'] == 'number' or ans['responseType'] == 'date'
              ):   
               inst_cnt = ''
-              fetchingQuestiondetails(ans,inst_cnt, entityLatitude, entityLongitude)
+              fetchingQuestiondetails(ans,inst_cnt)
              elif ans['responseType'] == 'matrix' and len(ans['value']) > 0:
               inst_cnt =0
               for instances in ans['value']:
                 inst_cnt = inst_cnt + 1
                 if type(instances) == list :
                    for instance in instances:
-                    fetchingQuestiondetails(instance, inst_cnt, entityLatitude, entityLongitude)
+                    fetchingQuestiondetails(instance, inst_cnt)
                 else :
                  for instance in instances.values():
-                  fetchingQuestiondetails(instance, inst_cnt, entityLatitude, entityLongitude)
+                  fetchingQuestiondetails(instance, inst_cnt)
             except KeyError:
               pass    
 except Exception as e:

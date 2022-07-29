@@ -130,7 +130,6 @@ obsSubmissionsCollec = db[config.get('MONGO', 'observation_sub_collection')]
 solutionCollec = db[config.get('MONGO', 'solutions_collection')]
 userRolesCollec = db[config.get("MONGO", 'user_roles_collection')]
 programCollec = db[config.get("MONGO", 'programs_collection')]
-entitiesCollec = db[config.get('MONGO', 'entities_collection')]
 
 #observation submission dataframe
 obs_sub_cursorMongo = obsSubmissionsCollec.aggregate(
@@ -207,11 +206,6 @@ obs_sub_schema = StructType(
       StructField(
           'userRoleInformation',
           StructType([
-              StructField('state', StringType(), True),
-              StructField('block', StringType(), True),
-              StructField('district', StringType(), True),
-              StructField('cluster', StringType(), True),
-              StructField('school', StringType(), True),
               StructField('role', StringType(), True)
          ])
       ),
@@ -238,6 +232,15 @@ obs_sub_schema = StructType(
                      StructType([
                         StructField('type', StringType(), True)
                      ]), True)
+             ),
+             StructField(
+              'userLocations', ArrayType(
+                  StructType([
+                     StructField('name', StringType(), True),
+                     StructField('type', StringType(), True),
+                     StructField('id', StringType(), True),
+                     StructField('code', StringType(), True)
+                  ]),True)
              )          
           ])
       ),
@@ -329,6 +332,10 @@ obs_sub_df1 = obs_sub_df1.withColumn("orgData",orgInfo_udf(F.col("userProfile.or
 obs_sub_df1 = obs_sub_df1.withColumn("exploded_orgInfo",F.explode_outer(F.col("orgData")))
 obs_sub_df1 = obs_sub_df1.withColumn("parent_channel",F.lit("SHIKSHALOKAM"))
 
+obs_sub_expl_ul = obs_sub_df1.withColumn(
+   "exploded_userLocations",F.explode_outer(obs_sub_df1["userProfile"]["userLocations"])
+)
+
 obs_sub_df = obs_sub_df1.select(
    "status", 
    obs_sub_df1["entityExternalId"].alias("entity_externalId"),
@@ -348,11 +355,6 @@ obs_sub_df = obs_sub_df1.select(
    obs_sub_df1["ecm_marked_na"],
    "updatedAt",
    obs_sub_df1["userRoleInformation"]["role"].alias("role_title"),
-   obs_sub_df1["userRoleInformation"]["state"].alias("state_externalId"),
-   obs_sub_df1["userRoleInformation"]["block"].alias("block_externalId"),
-   obs_sub_df1["userRoleInformation"]["district"].alias("district_externalId"),
-   obs_sub_df1["userRoleInformation"]["cluster"].alias("cluster_externalId"),
-   obs_sub_df1["userRoleInformation"]["school"].alias("school_externalId"),
    obs_sub_df1["userProfile"]["rootOrgId"].alias("channel"),
    obs_sub_df1["parent_channel"],
    concat_ws(",",F.col("userProfile.framework.board")).alias("board_name"),
@@ -365,88 +367,31 @@ obs_sub_rdd.unpersist()
 obs_sub_df1.unpersist()
 obs_sub_cursorMongo.close()
 
-obs_entities_id_df = obs_sub_df.select("state_externalId","block_externalId","district_externalId","cluster_externalId","school_externalId")
-entitiesId_obs_status_df_before = []
-entitiesId_arr = []
-uniqueEntitiesId_arr = []
-entitiesId_obs_status_df_before = obs_entities_id_df.toJSON().map(lambda j: json.loads(j)).collect()
-obs_entities_id_df.unpersist()
-for eid in entitiesId_obs_status_df_before:
-   try:
-    entitiesId_arr.append(eid["state_externalId"])
-   except KeyError :
-    pass
-   try:
-    entitiesId_arr.append(eid["block_externalId"])
-   except KeyError :
-    pass
-   try:
-    entitiesId_arr.append(eid["district_externalId"])
-   except KeyError :
-    pass
-   try:
-    entitiesId_arr.append(eid["cluster_externalId"])
-   except KeyError :
-    pass
-   try:
-    entitiesId_arr.append(eid["school_externalId"])
-   except KeyError :
-    pass
-uniqueEntitiesId_arr = list(removeduplicate(entitiesId_arr))
-ent_cursorMongo = entitiesCollec.aggregate(
-   [{"$match": {"$or":[{"registryDetails.locationId":{"$in":uniqueEntitiesId_arr}},{"registryDetails.code":{"$in":uniqueEntitiesId_arr}}]}},
-    {
-      "$project": {
-         "_id": {"$toString": "$_id"},
-         "entityType": 1,
-         "metaInformation": {"name": 1},
-         "registryDetails": 1
-      }
-    }
-   ])
-ent_schema = StructType(
-        [
-            StructField("_id", StringType(), True),
-            StructField("entityType", StringType(), True),
-            StructField("metaInformation",
-                StructType([StructField('name', StringType(), True)])
-            ),
-            StructField("registryDetails",
-                StructType([StructField('locationId', StringType(), True),
-                            StructField('code',StringType(), True)
-                        ])
-            )
-        ]
-    )
-entities_rdd = spark.sparkContext.parallelize(list(ent_cursorMongo))
-entities_df = spark.createDataFrame(entities_rdd,ent_schema)
-entities_rdd.unpersist()
-entities_df = melt(entities_df,
-        id_vars=["_id","entityType","metaInformation.name"],
-        value_vars=["registryDetails.locationId", "registryDetails.code"]
-    ).select("_id","entityType","name","value"
-            ).dropDuplicates()
-entities_df = entities_df.withColumn("variable",F.concat(F.col("entityType"),F.lit("_externalId")))
-obs_sub_df_melt = melt(obs_sub_df,
-        id_vars=["status","entity_externalId","entity_id","entity_type","user_id","solution_id",
-            "solution_externalId","submission_id","entity_name","completedDate","program_id",
-            "program_externalId","app_name","private_program","solution_type","ecm_marked_na",
-            "updatedAt","role_title","channel","parent_channel","board_name","organisation_name","organisation_id","themes","criteria","user_type"],
-        value_vars=["state_externalId","block_externalId","district_externalId","cluster_externalId","school_externalId"]
-        )
-obs_ent_sub_df_melt = obs_sub_df_melt\
-                 .join(entities_df,["variable","value"],how="left")\
-                 .select(obs_sub_df_melt["*"],entities_df["name"],entities_df["_id"].alias("entity_ids"))
-entities_df.unpersist()
-obs_sub_df_melt.unpersist()
-obs_ent_sub_df_melt = obs_ent_sub_df_melt.withColumn("flag",F.regexp_replace(F.col("variable"),"_externalId","_name"))
-obs_ent_sub_df_melt = obs_ent_sub_df_melt.groupBy(["status","submission_id"])\
-                               .pivot("flag").agg(first(F.col("name")))
+entities_df = melt(obs_sub_expl_ul,
+        id_vars=["_id","exploded_userLocations.name","exploded_userLocations.type","exploded_userLocations.id"],
+        value_vars=["exploded_userLocations.code"]
+    ).select("_id","name","value","type","id").dropDuplicates()
+obs_sub_expl_ul.unpersist()
+entities_df = entities_df.withColumn("variable",F.concat(F.col("type"),F.lit("_externalId")))
+entities_df = entities_df.withColumn("variable1",F.concat(F.col("type"),F.lit("_name")))
+entities_df = entities_df.withColumn("variable2",F.concat(F.col("type"),F.lit("_code")))
 
-obs_sub_df_final = obs_sub_df.join(obs_ent_sub_df_melt,["status","submission_id"],how="left")
+entities_df_id=entities_df.groupBy("_id").pivot("variable").agg(first("id"))
+
+entities_df_name=entities_df.groupBy("_id").pivot("variable1").agg(first("name"))
+
+entities_df_value=entities_df.groupBy("_id").pivot("variable2").agg(first("value"))
+
+entities_df_med=entities_df_id.join(entities_df_name,["_id"],how='outer')
+entities_df_res=entities_df_med.join(entities_df_value,["_id"],how='outer')
+entities_df_res=entities_df_res.drop('null')
+
+
+entities_df.unpersist()
+obs_sub_df_final = obs_sub_df.join(entities_df_res,obs_sub_df["submission_id"]==entities_df_res["_id"],how="left")\
+        .drop(entities_df_res["_id"])
 obs_sub_df.unpersist()
-obs_ent_sub_df_melt.unpersist()
-ent_cursorMongo.close()
+entities_df_res.unpersist()
 
 #observation solution dataframe
 obs_sol_cursorMongo = solutionCollec.aggregate(
@@ -503,62 +448,6 @@ obs_pgm_df.unpersist()
 obs_sub_pgm_df = obs_sub_pgm_df.withColumnRenamed("name", "program_name")
 
 obs_sub_soln_df.unpersist()
-# roles dataframe from mongodb
-roles_cursorMongo = userRolesCollec.aggregate(
-   [{"$project": {"_id": {"$toString": "$_id"}, "title": 1}}]
-)
-
-#schema for the observation solution dataframe
-roles_schema = StructType([
-   StructField('title', StringType(), True),
-   StructField('_id', StringType(), True)
-])
-
-roles_rdd = spark.sparkContext.parallelize(list(roles_cursorMongo))
-roles_df = spark.createDataFrame(roles_rdd, roles_schema)
-roles_rdd.unpersist()
-roles_cursorMongo.close()
-roles_df.unpersist()
-
-# user roles along with entity from elastic search
-userEntityRoleArray = []
-
-try:
-   def elasticSearchJson(userEntityJson) :
-      for user in userEntityJson :
-         try:
-            if len(user["_source"]["data"]["roles"]) > 0 :
-               for roleObj in user["_source"]["data"]["roles"]:
-                  try:
-                     if len(roleObj["entities"]) > 0:
-                        for ent in roleObj["entities"]:
-                           entObj = {}
-                           entObj["userId"] = user["_source"]["data"]["userId"]
-                           entObj["roleId"] = roleObj["roleId"]
-                           entObj["roleCode"] =roleObj["code"]
-                           entObj["entityId"] = ent
-                           userEntityRoleArray.append(entObj)
-                     else :
-                        entNoObj = {}
-                        entNoObj["userId"] = user["_source"]["data"]["userId"]
-                        entNoObj["roleId"] = roleObj["roleId"]
-                        entNoObj["roleCode"] = roleObj["code"]
-                        entNoObj["entityId"] = None
-                        userEntityRoleArray.append(entNoObj)
-                  except KeyError :
-                     entNoEntObj = {}
-                     entNoEntObj["userId"] = user["_source"]["data"]["userId"]
-                     entNoEntObj["roleId"] = roleObj["roleId"]
-                     entNoEntObj["roleCode"] = roleObj["code"]
-                     entNoEntObj["entityId"] = None
-                     userEntityRoleArray.append(entNoEntObj)
-                     pass
-         except KeyError :
-            pass 
-except Exception as e:
-   errorLogger.error(e, exc_info=True)
-
-headers_user = {'Content-Type': 'application/json'}
 
 final_df = obs_sub_pgm_df.dropDuplicates()
 obs_sub_pgm_df.unpersist()

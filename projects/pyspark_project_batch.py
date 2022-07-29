@@ -77,7 +77,6 @@ except Exception as e:
 clientProd = MongoClient(config.get('MONGO', 'mongo_url'))
 db = clientProd[config.get('MONGO', 'database_name')]
 projectsCollec = db[config.get('MONGO', 'projects_collection')]
-entitiesCollec = db[config.get('MONGO', 'entities_collection')]
 
 try:
     def removeduplicate(it):
@@ -219,11 +218,6 @@ projects_schema = StructType([
     StructField(
           'userRoleInformation',
           StructType([
-              StructField('state', StringType(), True),
-              StructField('block', StringType(), True),
-              StructField('district', StringType(), True),
-              StructField('cluster', StringType(), True),
-              StructField('school', StringType(), True),
               StructField('role', StringType(), True)
          ])
     ),
@@ -250,7 +244,16 @@ projects_schema = StructType([
                      StructType([
                         StructField('type', StringType(), True)
                      ]), True)
-             )
+             ),
+          StructField(
+              'userLocations', ArrayType(
+                  StructType([
+                     StructField('name', StringType(), True),
+                     StructField('type', StringType(), True),
+                     StructField('id', StringType(), True),
+                     StructField('code', StringType(), True)
+                  ]),True)
+          )
           ])
     ),
     StructField(
@@ -459,6 +462,9 @@ projects_df = projects_df.withColumn(
                 ).otherwise(False)
 )
 
+prj_df_expl_ul = projects_df.withColumn(
+   "exploded_userLocations",F.explode_outer(projects_df["userProfile"]["userLocations"])
+)
 projects_df_cols = projects_df.select(
     projects_df["_id"].alias("project_id"),
     projects_df["project_created_type"],
@@ -499,11 +505,6 @@ projects_df_cols = projects_df.select(
     projects_df["project_completed_date"],
     projects_df["solutionInformation"]["_id"].alias("solution_id"),
     projects_df["userRoleInformation"]["role"].alias("designation"),
-    projects_df["userRoleInformation"]["state"].alias("state_externalId"),
-    projects_df["userRoleInformation"]["block"].alias("block_externalId"),
-    projects_df["userRoleInformation"]["district"].alias("district_externalId"),
-    projects_df["userRoleInformation"]["cluster"].alias("cluster_externalId"),
-    projects_df["userRoleInformation"]["school"].alias("school_externalId"),
     projects_df["userProfile"]["rootOrgId"].alias("channel"),
     projects_df["exploded_orgInfo"]["orgId"].alias("organisation_id"),
     projects_df["exploded_orgInfo"]["orgName"].alias("organisation_name"),
@@ -517,85 +518,32 @@ projects_df_cols = projects_df.select(
 
 projects_df.unpersist()
 projects_df_cols = projects_df_cols.dropDuplicates()
-projects_userid_df = projects_df_cols.select("createdBy")
 
-projects_entities_id_df = projects_df_cols.select("state_externalId","block_externalId","district_externalId","cluster_externalId","school_externalId")
-entitiesId_projects_df_before = []
-entitiesId_arr = []
-uniqueEntitiesId_arr = []
-entitiesId_projects_df_before = projects_entities_id_df.toJSON().map(lambda j: json.loads(j)).collect()
-projects_entities_id_df.unpersist()
-for eid in entitiesId_projects_df_before:
-   try:
-    entitiesId_arr.append(eid["state_externalId"])
-   except KeyError :
-    pass
-   try:
-    entitiesId_arr.append(eid["block_externalId"])
-   except KeyError :
-    pass
-   try:
-    entitiesId_arr.append(eid["district_externalId"])
-   except KeyError :
-    pass
-   try:
-    entitiesId_arr.append(eid["cluster_externalId"])
-   except KeyError :
-    pass
-   try:
-    entitiesId_arr.append(eid["school_externalId"])
-   except KeyError :
-    pass
+entities_df = melt(prj_df_expl_ul,
+        id_vars=["_id","exploded_userLocations.name","exploded_userLocations.type","exploded_userLocations.id"],
+        value_vars=["exploded_userLocations.code"]
+    ).select("_id","name","value","type","id").dropDuplicates()
+prj_df_expl_ul.unpersist()
+entities_df = entities_df.withColumn("variable",F.concat(F.col("type"),F.lit("_externalId")))
+entities_df = entities_df.withColumn("variable1",F.concat(F.col("type"),F.lit("_name")))
+entities_df = entities_df.withColumn("variable2",F.concat(F.col("type"),F.lit("_code")))
 
-uniqueEntitiesId_arr = list(removeduplicate(entitiesId_arr))
-ent_cursorMongo = entitiesCollec.aggregate(
-   [{"$match": {"$or":[{"registryDetails.locationId":{"$in":uniqueEntitiesId_arr}},{"registryDetails.code":{"$in":uniqueEntitiesId_arr}}]}},
-    {
-      "$project": {
-         "_id": {"$toString": "$_id"},
-         "entityType": 1,
-         "metaInformation": {"name": 1},
-         "registryDetails": 1
-      }
-    }
-   ])
-ent_schema = StructType(
-        [
-            StructField("_id", StringType(), True),
-            StructField("entityType", StringType(), True),
-            StructField("metaInformation",
-                StructType([StructField('name', StringType(), True)])
-            ),
-            StructField("registryDetails",
-                StructType([StructField('locationId', StringType(), True),
-                            StructField('code',StringType(), True)
-                        ])
-            )
-        ]
-    )
-entities_rdd = spark.sparkContext.parallelize(list(ent_cursorMongo))
-entities_df = spark.createDataFrame(entities_rdd,ent_schema)
-entities_rdd.unpersist()
-entities_df = melt(entities_df,
-        id_vars=["_id","entityType","metaInformation.name"],
-        value_vars=["registryDetails.locationId", "registryDetails.code"]
-    ).select("_id","entityType","name","value"
-            ).dropDuplicates()
-entities_df = entities_df.withColumn("variable",F.concat(F.col("entityType"),F.lit("_externalId")))
-projects_df_melt = melt(projects_df_cols,
-        id_vars=["project_id", "project_created_type", "project_title", "project_title_editable", "program_id", "program_externalId", "program_name", "project_duration", "project_last_sync", "project_updated_date", "project_deleted_flag", "area_of_improvement", "status_of_project", "createdBy", "project_description", "project_goal", "parent_channel", "project_created_date", "task_id", "tasks", "task_assigned_to", "task_start_date", "task_end_date", "tasks_date", "tasks_status", "task_evidence", "task_evidence_status", "sub_task_id", "sub_task", "sub_task_status", "sub_task_date", "sub_task_start_date", "sub_task_end_date", "private_program", "task_deleted_flag", "sub_task_deleted_flag", "project_terms_and_condition", "task_remarks", "project_completed_date", "solution_id", "designation","project_remarks","project_evidence","channel","board_name","organisation_name","organisation_id","user_type","evidence_status", "certificate_id", "certificate_status", "certificate_date"],
-        value_vars=["state_externalId", "block_externalId", "district_externalId", "cluster_externalId", "school_externalId"]
-        )
-projects_ent_df_melt = projects_df_melt\
-                 .join(entities_df,["variable","value"],how="left")\
-                 .select(projects_df_melt["*"],entities_df["name"],entities_df["_id"].alias("entity_ids"))
+entities_df_id=entities_df.groupBy("_id").pivot("variable").agg(first("id"))
+
+entities_df_name=entities_df.groupBy("_id").pivot("variable1").agg(first("name"))
+
+entities_df_value=entities_df.groupBy("_id").pivot("variable2").agg(first("value"))
+
+entities_df_med=entities_df_id.join(entities_df_name,["_id"],how='outer')
+entities_df_res=entities_df_med.join(entities_df_value,["_id"],how='outer')
+entities_df_res=entities_df_res.drop('null')
+
+
 entities_df.unpersist()
-projects_df_melt.unpersist()
-projects_ent_df_melt = projects_ent_df_melt.withColumn("flag",F.regexp_replace(F.col("variable"),"_externalId","_name"))
-projects_ent_df_melt = projects_ent_df_melt.groupBy(["project_id"])\
-                               .pivot("flag").agg(first(F.col("name")))
-projects_df_final = projects_df_cols.join(projects_ent_df_melt,["project_id"],how="left")
-projects_ent_df_melt.unpersist()
+
+projects_df_final = projects_df_cols.join(entities_df_res,projects_df_cols["project_id"]==entities_df_res["_id"],how='left')\
+        .drop(entities_df_res["_id"])
+entities_df_res.unpersist()
 projects_df_cols.unpersist()
 final_projects_df = projects_df_final.dropDuplicates()
 projects_df_final.unpersist()
@@ -726,7 +674,8 @@ else:
 
 dimensionsArr = []
 entitiesArr = ["state_externalId", "block_externalId", "district_externalId", "cluster_externalId", "school_externalId",\
-              "state_name","block_name","district_name","cluster_name","school_name","board_name"]
+              "state_name","block_name","district_name","cluster_name","school_name","board_name","state_code", \
+              "block_code", "district_code", "cluster_code", "school_code"]
 dimensionsArr = list(set(entitiesArr))
 
 submissionReportColumnNamesArr = [

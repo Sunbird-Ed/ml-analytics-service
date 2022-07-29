@@ -99,9 +99,9 @@ def userDataCollector(val):
         # Get locations
         if val["userProfile"]["userLocations"]:
             for loc in val["userProfile"]["userLocations"]:
-                dataobj[f'{loc["type"]}_id'] = loc["id"]
+                dataobj[f'{loc["type"]}_code'] = loc["code"]
                 dataobj[f'{loc["type"]}_name'] = loc["name"]
-                dataobj[f'{loc["type"]}_externalId'] = loc["code"]
+                dataobj[f'{loc["type"]}_externalId'] = loc["id"]
         # Get board
         if "framework" in val["userProfile"] and val["userProfile"]["framework"]:
            if "board" in val["userProfile"]["framework"] and len(val["userProfile"]["framework"]["board"]) > 0:
