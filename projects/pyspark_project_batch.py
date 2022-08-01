@@ -73,12 +73,10 @@ try:
 except Exception as e:
     errorLogger.error(e, exc_info=True)
 
-spark = SparkSession.builder.appName("projects").config("spark.driver.memory", "25g").getOrCreate()
 
 clientProd = MongoClient(config.get('MONGO', 'mongo_url'))
 db = clientProd[config.get('MONGO', 'database_name')]
 projectsCollec = db[config.get('MONGO', 'projects_collection')]
-entitiesCollec = db[config.get('MONGO', 'entities_collection')]
 
 try:
     def removeduplicate(it):
@@ -175,7 +173,8 @@ projects_cursorMongo = projectsCollec.aggregate(
             "isAPrivateProgram": 1,
             "hasAcceptedTAndC": 1,
             "userRoleInformation": 1,
-            "userProfile": 1
+            "userProfile": 1,
+            "certificate": 1
         }
     }]
 )
@@ -219,11 +218,6 @@ projects_schema = StructType([
     StructField(
           'userRoleInformation',
           StructType([
-              StructField('state', StringType(), True),
-              StructField('block', StringType(), True),
-              StructField('district', StringType(), True),
-              StructField('cluster', StringType(), True),
-              StructField('school', StringType(), True),
               StructField('role', StringType(), True)
          ])
     ),
@@ -244,7 +238,22 @@ projects_schema = StructType([
                         StructField('orgName', StringType(), True),
                         StructField('isSchool', BooleanType(), True)
                      ]), True)
-             )
+             ),
+          StructField(
+                'profileUserTypes',ArrayType(
+                     StructType([
+                        StructField('type', StringType(), True)
+                     ]), True)
+             ),
+          StructField(
+              'userLocations', ArrayType(
+                  StructType([
+                     StructField('name', StringType(), True),
+                     StructField('type', StringType(), True),
+                     StructField('id', StringType(), True),
+                     StructField('code', StringType(), True)
+                  ]),True)
+          )
           ])
     ),
     StructField(
@@ -277,7 +286,19 @@ projects_schema = StructType([
           ),True
     ),
     StructField('remarks', StringType(), True),  
-    StructField('evidence', StringType(), True)
+    StructField('certificate',	
+          StructType([	
+            StructField('osid', StringType(), True),	
+            StructField('status', StringType(), True),	
+            StructField('issuedOn', StringType(), True)	
+        ])	
+    ),
+    StructField(
+        'attachments',
+        ArrayType(
+            StructType([StructField('sourcePath', StringType(), True)])
+        ), True
+    )
 ])
 
 
@@ -338,6 +359,13 @@ projects_df = projects_df.withColumn(
         (projects_df["hasAcceptedTAndC"] == False),
         "false"
     ).otherwise("false")
+)
+
+projects_df = projects_df.withColumn(
+                 "project_evidence_status",
+                 F.when(
+                      size(F.col("attachments"))>=1,True
+                 ).otherwise(False)
 )
 
 projects_df = projects_df.withColumn(
@@ -421,6 +449,22 @@ projects_df = projects_df.withColumn("program_name",regexp_replace(F.col("progra
 projects_df = projects_df.withColumn("task_remarks",regexp_replace(F.col("exploded_taskarr.remarks"), "\n", " "))
 projects_df = projects_df.withColumn("project_remarks",regexp_replace(F.col("exploded_taskarr.prj_remarks"), "\n", " "))
 
+projects_df = projects_df.withColumn(
+                 "evidence_status",
+                F.when(
+                    (projects_df["project_evidence_status"]== True) & (projects_df["exploded_taskarr"]["task_evidence_status"]==True),True
+                ).when(
+                    (projects_df["project_evidence_status"]== True) & (projects_df["exploded_taskarr"]["task_evidence_status"]==False),True
+                ).when(
+                    (projects_df["project_evidence_status"]== False) & (projects_df["exploded_taskarr"]["task_evidence_status"]==True),True
+                ).when(
+                    (projects_df["project_evidence_status"]== True) & (projects_df["exploded_taskarr"]["task_evidence_status"]=="null"),True
+                ).otherwise(False)
+)
+
+prj_df_expl_ul = projects_df.withColumn(
+   "exploded_userLocations",F.explode_outer(projects_df["userProfile"]["userLocations"])
+)
 projects_df_cols = projects_df.select(
     projects_df["_id"].alias("project_id"),
     projects_df["project_created_type"],
@@ -461,99 +505,45 @@ projects_df_cols = projects_df.select(
     projects_df["project_completed_date"],
     projects_df["solutionInformation"]["_id"].alias("solution_id"),
     projects_df["userRoleInformation"]["role"].alias("designation"),
-    projects_df["userRoleInformation"]["state"].alias("state_externalId"),
-    projects_df["userRoleInformation"]["block"].alias("block_externalId"),
-    projects_df["userRoleInformation"]["district"].alias("district_externalId"),
-    projects_df["userRoleInformation"]["cluster"].alias("cluster_externalId"),
-    projects_df["userRoleInformation"]["school"].alias("school_externalId"),
     projects_df["userProfile"]["rootOrgId"].alias("channel"),
     projects_df["exploded_orgInfo"]["orgId"].alias("organisation_id"),
     projects_df["exploded_orgInfo"]["orgName"].alias("organisation_name"),
-    concat_ws(",",F.col("userProfile.framework.board")).alias("board_name")
-    
+    projects_df["certificate"]["osid"].alias("certificate_id"),	
+    projects_df["certificate"]["status"].alias("certificate_status"),	
+    projects_df["certificate"]["issuedOn"].alias("certificate_date"),
+    concat_ws(",",F.col("userProfile.framework.board")).alias("board_name"),
+    concat_ws(",",array_distinct(F.col("userProfile.profileUserTypes.type"))).alias("user_type"),
+    projects_df["evidence_status"]    
 )
 
 projects_df.unpersist()
 projects_df_cols = projects_df_cols.dropDuplicates()
-projects_userid_df = projects_df_cols.select("createdBy")
 
-projects_entities_id_df = projects_df_cols.select("state_externalId","block_externalId","district_externalId","cluster_externalId","school_externalId")
-entitiesId_projects_df_before = []
-entitiesId_arr = []
-uniqueEntitiesId_arr = []
-entitiesId_projects_df_before = projects_entities_id_df.toJSON().map(lambda j: json.loads(j)).collect()
-projects_entities_id_df.unpersist()
-for eid in entitiesId_projects_df_before:
-   try:
-    entitiesId_arr.append(eid["state_externalId"])
-   except KeyError :
-    pass
-   try:
-    entitiesId_arr.append(eid["block_externalId"])
-   except KeyError :
-    pass
-   try:
-    entitiesId_arr.append(eid["district_externalId"])
-   except KeyError :
-    pass
-   try:
-    entitiesId_arr.append(eid["cluster_externalId"])
-   except KeyError :
-    pass
-   try:
-    entitiesId_arr.append(eid["school_externalId"])
-   except KeyError :
-    pass
+entities_df = melt(prj_df_expl_ul,
+        id_vars=["_id","exploded_userLocations.name","exploded_userLocations.type","exploded_userLocations.id"],
+        value_vars=["exploded_userLocations.code"]
+    ).select("_id","name","value","type","id").dropDuplicates()
+prj_df_expl_ul.unpersist()
+entities_df = entities_df.withColumn("variable",F.concat(F.col("type"),F.lit("_externalId")))
+entities_df = entities_df.withColumn("variable1",F.concat(F.col("type"),F.lit("_name")))
+entities_df = entities_df.withColumn("variable2",F.concat(F.col("type"),F.lit("_code")))
 
-uniqueEntitiesId_arr = list(removeduplicate(entitiesId_arr))
-ent_cursorMongo = entitiesCollec.aggregate(
-   [{"$match": {"$or":[{"registryDetails.locationId":{"$in":uniqueEntitiesId_arr}},{"registryDetails.code":{"$in":uniqueEntitiesId_arr}}]}},
-    {
-      "$project": {
-         "_id": {"$toString": "$_id"},
-         "entityType": 1,
-         "metaInformation": {"name": 1},
-         "registryDetails": 1
-      }
-    }
-   ])
-ent_schema = StructType(
-        [
-            StructField("_id", StringType(), True),
-            StructField("entityType", StringType(), True),
-            StructField("metaInformation",
-                StructType([StructField('name', StringType(), True)])
-            ),
-            StructField("registryDetails",
-                StructType([StructField('locationId', StringType(), True),
-                            StructField('code',StringType(), True)
-                        ])
-            )
-        ]
-    )
-entities_rdd = spark.sparkContext.parallelize(list(ent_cursorMongo))
-entities_df = spark.createDataFrame(entities_rdd,ent_schema)
-entities_rdd.unpersist()
-entities_df = melt(entities_df,
-        id_vars=["_id","entityType","metaInformation.name"],
-        value_vars=["registryDetails.locationId", "registryDetails.code"]
-    ).select("_id","entityType","name","value"
-            ).dropDuplicates()
-entities_df = entities_df.withColumn("variable",F.concat(F.col("entityType"),F.lit("_externalId")))
-projects_df_melt = melt(projects_df_cols,
-        id_vars=["project_id", "project_created_type", "project_title", "project_title_editable", "program_id", "program_externalId", "program_name", "project_duration", "project_last_sync", "project_updated_date", "project_deleted_flag", "area_of_improvement", "status_of_project", "createdBy", "project_description", "project_goal", "parent_channel", "project_created_date", "task_id", "tasks", "task_assigned_to", "task_start_date", "task_end_date", "tasks_date", "tasks_status", "task_evidence", "task_evidence_status", "sub_task_id", "sub_task", "sub_task_status", "sub_task_date", "sub_task_start_date", "sub_task_end_date", "private_program", "task_deleted_flag", "sub_task_deleted_flag", "project_terms_and_condition", "task_remarks", "project_completed_date", "solution_id", "designation","project_remarks","project_evidence","channel","board_name","organisation_name","organisation_id"],
-        value_vars=["state_externalId", "block_externalId", "district_externalId", "cluster_externalId", "school_externalId"]
-        )
-projects_ent_df_melt = projects_df_melt\
-                 .join(entities_df,["variable","value"],how="left")\
-                 .select(projects_df_melt["*"],entities_df["name"],entities_df["_id"].alias("entity_ids"))
+entities_df_id=entities_df.groupBy("_id").pivot("variable").agg(first("id"))
+
+entities_df_name=entities_df.groupBy("_id").pivot("variable1").agg(first("name"))
+
+entities_df_value=entities_df.groupBy("_id").pivot("variable2").agg(first("value"))
+
+entities_df_med=entities_df_id.join(entities_df_name,["_id"],how='outer')
+entities_df_res=entities_df_med.join(entities_df_value,["_id"],how='outer')
+entities_df_res=entities_df_res.drop('null')
+
+
 entities_df.unpersist()
-projects_df_melt.unpersist()
-projects_ent_df_melt = projects_ent_df_melt.withColumn("flag",F.regexp_replace(F.col("variable"),"_externalId","_name"))
-projects_ent_df_melt = projects_ent_df_melt.groupBy(["project_id"])\
-                               .pivot("flag").agg(first(F.col("name")))
-projects_df_final = projects_df_cols.join(projects_ent_df_melt,["project_id"],how="left")
-projects_ent_df_melt.unpersist()
+
+projects_df_final = projects_df_cols.join(entities_df_res,projects_df_cols["project_id"]==entities_df_res["_id"],how='left')\
+        .drop(entities_df_res["_id"])
+entities_df_res.unpersist()
 projects_df_cols.unpersist()
 final_projects_df = projects_df_final.dropDuplicates()
 projects_df_final.unpersist()
@@ -562,14 +552,23 @@ final_projects_df.coalesce(1).write.format("json").mode("overwrite").save(
 )
 
 #projects submission distinct count
-final_projects_tasks_distinctCnt_df = final_projects_df.groupBy("program_name","program_id","project_title","solution_id","status_of_project","state_name","state_externalId","district_name","district_externalId","organisation_name","organisation_id","private_program","project_created_type","parent_channel").agg(countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("createdBy")).alias("unique_users"),countDistinct(when(F.col("task_evidence_status") == "true",True),F.col("project_id")).alias("no_of_imp_with_evidence"))
+final_projects_tasks_distinctCnt_df = final_projects_df.groupBy("program_name","program_id","project_title","solution_id","status_of_project","state_name","state_externalId","district_name","district_externalId","organisation_name","organisation_id","private_program","project_created_type","parent_channel").agg(countDistinct(when(F.col("certificate_status") == "active",True),F.col("project_id")).alias("no_of_certificate_issued"),countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("createdBy")).alias("unique_users"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status_of_project") == "submitted"),True),F.col("project_id")).alias("no_of_imp_with_evidence"))
 final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.withColumn("time_stamp", current_timestamp())
 final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.dropDuplicates()
 final_projects_tasks_distinctCnt_df.coalesce(1).write.format("json").mode("overwrite").save(
    config.get("OUTPUT_DIR","projects_distinctCount") + "/"
 )
-final_projects_df.unpersist()
 final_projects_tasks_distinctCnt_df.unpersist()
+
+# projects submission distinct count by program level
+final_projects_tasks_distinctCnt_prgmlevel = final_projects_df.groupBy("program_name", "program_id","status_of_project", "state_name","state_externalId","private_program","project_created_type","parent_channel").agg(countDistinct(when(F.col("certificate_status") == "active",True),F.col("project_id")).alias("no_of_certificate_issued"), countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("createdBy")).alias("unique_users"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status_of_project") == "submitted"),True),F.col("project_id")).alias("no_of_imp_with_evidence"))
+final_projects_tasks_distinctCnt_prgmlevel = final_projects_tasks_distinctCnt_prgmlevel.withColumn("time_stamp", current_timestamp())
+final_projects_tasks_distinctCnt_prgmlevel = final_projects_tasks_distinctCnt_prgmlevel.dropDuplicates()
+final_projects_tasks_distinctCnt_prgmlevel.coalesce(1).write.format("json").mode("overwrite").save(
+    config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/"
+)
+final_projects_df.unpersist()
+final_projects_tasks_distinctCnt_prgmlevel.unpersist()
 
 for filename in os.listdir(config.get("OUTPUT_DIR", "project")+"/"):
     if filename.endswith(".json"):
@@ -586,6 +585,14 @@ for filename in os.listdir(config.get("OUTPUT_DIR", "projects_distinctCount")+"/
            config.get("OUTPUT_DIR", "projects_distinctCount") + "/ml_projects_distinctCount.json"
         )
 
+#projects submission distinct count by program level
+for filename in os.listdir(config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel")+"/"):
+    if filename.endswith(".json"):
+       os.rename(
+           config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/" + filename,
+           config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/ml_projects_distinctCount_prgmlevel.json"
+        )
+
 blob_service_client = BlockBlobService(
     account_name=config.get("AZURE", "account_name"), 
     sas_token=config.get("AZURE", "sas_token")
@@ -596,6 +603,10 @@ blob_path = config.get("AZURE", "projects_blob_path")
 #projects submission distinct count
 local_distinctCnt_path = config.get("OUTPUT_DIR", "projects_distinctCount")
 blob_distinctCnt_path = config.get("AZURE", "projects_distinctCnt_blob_path")
+
+#projects submission distinct count program level
+local_distinctCnt_prgmlevel_path = config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel")
+blob_distinctCnt_prgmlevel_path = config.get("AZURE", "projects_distinctCnt_prgmlevel_blob_path")
 
 for files in os.listdir(local_path):
     if "sl_projects.json" in files:
@@ -612,10 +623,20 @@ for files in os.listdir(local_distinctCnt_path):
             os.path.join(blob_distinctCnt_path,files),
             local_distinctCnt_path + "/" + files
         )
+#projects submission distinct count program level
+for files in os.listdir(local_distinctCnt_prgmlevel_path):
+    if "ml_projects_distinctCount_prgmlevel.json" in files:
+        blob_service_client.create_blob_from_path(
+            container_name,
+            os.path.join(blob_distinctCnt_prgmlevel_path,files),
+            local_distinctCnt_prgmlevel_path + "/" + files
+        )
 
 os.remove(config.get("OUTPUT_DIR", "project") + "/sl_projects.json")
 #projects submission distinct count
 os.remove(config.get("OUTPUT_DIR", "projects_distinctCount") + "/ml_projects_distinctCount.json")
+#projects submission distinct count program level
+os.remove(config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/ml_projects_distinctCount_prgmlevel.json")
 
 druid_batch_end_point = config.get("DRUID", "batch_url")
 headers = {'Content-Type': 'application/json'}
@@ -635,9 +656,26 @@ else:
    )
    errorLogger.error(distinctCnt_projects_start_supervisor.json())
 
+#projects submission distinct count program level
+ml_distinctCnt_prgmlevel_projects_spec = json.loads(config.get("DRUID","ml_distinctCnt_prglevel_projects_status_spec"))
+ml_distinctCnt_prgmlevel_projects_datasource = ml_distinctCnt_prgmlevel_projects_spec["spec"]["dataSchema"]["dataSource"]
+distinctCnt_prgmlevel_projects_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_prgmlevel_projects_spec), headers=headers)
+if distinctCnt_prgmlevel_projects_start_supervisor.status_code == 200:
+   successLogger.debug(
+        "started the batch ingestion task sucessfully for the datasource " + ml_distinctCnt_prgmlevel_projects_datasource
+   )
+   time.sleep(50)
+else:
+   errorLogger.error(
+        "failed to start batch ingestion task" + str(distinctCnt_prgmlevel_projects_start_supervisor.status_code)
+   )
+   errorLogger.error(distinctCnt_prgmlevel_projects_start_supervisor.json())
+
+
 dimensionsArr = []
 entitiesArr = ["state_externalId", "block_externalId", "district_externalId", "cluster_externalId", "school_externalId",\
-              "state_name","block_name","district_name","cluster_name","school_name","board_name"]
+              "state_name","block_name","district_name","cluster_name","school_name","board_name","state_code", \
+              "block_code", "district_code", "cluster_code", "school_code"]
 dimensionsArr = list(set(entitiesArr))
 
 submissionReportColumnNamesArr = [
@@ -651,7 +689,8 @@ submissionReportColumnNamesArr = [
     'project_duration', 'program_externalId', 'private_program', 'task_deleted_flag',
     'sub_task_deleted_flag', 'project_terms_and_condition','task_remarks',
     'organisation_name','project_description','project_completed_date','solution_id',
-     'project_remarks','project_evidence','organisation_id'
+    'project_remarks','project_evidence','organisation_id','user_type', 'certificate_id', 
+    'certificate_status','certificate_date'
 ]
 
 dimensionsArr.extend(submissionReportColumnNamesArr)

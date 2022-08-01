@@ -7,6 +7,7 @@ config.read(config_path[0] + "/config.ini")
 
 ## This Function adds the metaInformation of task
 def task_detail(task,del_flg):
+  if (type(task)==dict) :
    taskObj = {}
    taskObj["_id"] = task["_id"]
    taskObj["tasks"] = task["name"]
@@ -177,7 +178,7 @@ def recreate_task_data(prj_data):
     prj["taskarr"] = taskarr
     
     ## delete unwanted keys 
-    del_keys = ["attachments","tasks"]
+    del_keys = ["tasks"]
     for key in del_keys:
       try:
         del prj[key]         

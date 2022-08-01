@@ -5,26 +5,19 @@
 #   produce it to another kafka topic
 # -----------------------------------------------------------------
 
+
+import sys, os, json
+import datetime
+import kafka
+import faust
+import logging
+import time
 from pymongo import MongoClient
 from bson.objectid import ObjectId
-import sys, os, json, time
-import datetime
-import requests
 from kafka import KafkaConsumer, KafkaProducer
-from configparser import ConfigParser,ExtendedInterpolation
-from cassandra.cluster import Cluster
-from cassandra.query import SimpleStatement,ConsistencyLevel
-import kafka
 from kafka.admin import KafkaAdminClient, NewTopic
-from slackclient import SlackClient
-import faust
-import psycopg2
-from geopy.distance import geodesic
-import logging
-import logging.handlers
-import time
-from logging.handlers import TimedRotatingFileHandler
-import redis
+from configparser import ConfigParser,ExtendedInterpolation
+from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
@@ -36,7 +29,7 @@ successLogger = logging.getLogger('success log')
 successLogger.setLevel(logging.DEBUG)
 
 # Add the log message handler to the logger
-successHandler = logging.handlers.RotatingFileHandler(
+successHandler = RotatingFileHandler(
     config.get('LOGS', 'survey_streaming_success')
 )
 successBackuphandler = TimedRotatingFileHandler(
@@ -50,7 +43,7 @@ successLogger.addHandler(successBackuphandler)
 
 errorLogger = logging.getLogger('error log')
 errorLogger.setLevel(logging.ERROR)
-errorHandler = logging.handlers.RotatingFileHandler(
+errorHandler = RotatingFileHandler(
     config.get('LOGS', 'survey_streaming_error')
 )
 errorBackuphandler = TimedRotatingFileHandler(
@@ -83,44 +76,95 @@ try:
     criteriaCollec = db[config.get('MONGO', 'criteria_collection')]
     programsCollec = db[config.get('MONGO', 'programs_collection')]
 
-    # redis cache connection 
-    redis_connection = redis.ConnectionPool(
-        host=config.get("REDIS", "host"), 
-        decode_responses=True, 
-        port=config.get("REDIS", "port"), 
-        db=config.get("REDIS", "db_name")
-    )
-    datastore = redis.StrictRedis(connection_pool=redis_connection)
-
 except Exception as e:
     errorLogger.error(e, exc_info=True)
 
+def userDataCollector(val):
+    '''Finds the Profile type, locations and framework(board) of an user'''
+    if val is not None:
+        dataobj = {}
+        # Get user Sub type
+        if val["userRoleInformation"]:
+            try:
+                dataobj["user_subtype"] = val["userRoleInformation"]["role"]
+            except KeyError:
+                pass
+        # Get user type
+        if val["userProfile"]["profileUserTypes"]:
+            try:
+                temp_userType = set([types["type"] for types in val["userProfile"]["profileUserTypes"]])
+                dataobj["user_type"] = ", ".join(temp_userType)
+            except KeyError:
+                pass
+        # Get locations
+        if val["userProfile"]["userLocations"]:
+            for loc in val["userProfile"]["userLocations"]:
+                dataobj[f'{loc["type"]}_code'] = loc["code"]
+                dataobj[f'{loc["type"]}_name'] = loc["name"]
+                dataobj[f'{loc["type"]}_externalId'] = loc["id"]
+        # Get board
+        if "framework" in val["userProfile"] and val["userProfile"]["framework"]:
+           if "board" in val["userProfile"]["framework"] and len(val["userProfile"]["framework"]["board"]) > 0:
+               boardName = ",".join(val["userProfile"]["framework"]["board"])
+               dataobj["board_name"] = boardName
+    return dataobj
+
+def orgCreator(val):
+    '''Finds the data for organisation'''
+    orgarr = []
+    if val is not None:
+        for org in val:
+            orgObj = {}
+            if org["isSchool"] == False:
+                orgObj['organisation_id'] = org['organisationId']
+                orgObj['organisation_name'] = org["orgName"]
+                orgarr.append(orgObj)
+    return orgarr
+
+class FinalWorker:
+    '''Class that takes necessary inputs and sends the correct object into Kafka'''
+    def __init__(self, answer, quesexternalId, ans_val, instNumber, responseLabel, orgarr, createObj):
+        self.answer = answer
+        self.quesexternalId = quesexternalId
+        self.ans_val = ans_val
+        self.instNum = instNumber
+        self.responseLabel = responseLabel
+        self.orgArr = orgarr
+        self.creatingObj = createObj
+
+    def run(self):
+        if len(self.orgArr) >0:
+            for org in range(len(self.orgArr)):
+                finalObj = {}
+                finalObj =  self.creatingObj(self.answer,self.quesexternalId,self.ans_val,self.instNum,self.responseLabel)
+                finalObj.update(self.orgArr[org])
+                producer.send((config.get("KAFKA", "survey_druid_topic")), json.dumps(finalObj).encode('utf-8'))
+                producer.flush()
+                successLogger.debug("Send Obj to Kafka")
+        else:
+            finalObj = {}
+            finalObj =  self.creatingObj(self.answer,self.quesexternalId,self.ans_val,self.instNum,self.responseLabel)
+            producer.send((config.get("KAFKA", "survey_druid_topic")), json.dumps(finalObj).encode('utf-8'))
+            producer.flush()
+            successLogger.debug("Send Obj to Kafka")
 
 try:
     def obj_creation(obSub):
-        successLogger.debug("Survey Submission Id : " + obSub['_id'])
+        successLogger.debug(f"Survey Submission Id : {obSub['_id']}")
         if 'isAPrivateProgram' in obSub :
             surveySubQuestionsArr = []
-            completedDate = obSub['completedDate']
-            createdAt = obSub['createdAt']
-            updatedAt = obSub['updatedAt']
+            completedDate = str(obSub['completedDate'])
+            createdAt = str(obSub['createdAt'])
+            updatedAt = str(obSub['updatedAt'])
             evidencesArr = [v for v in obSub['evidences'].values()]
             evidence_sub_count = 0
-
-            # fetch user name from postgres with the help of keycloak id
-            userObj = {}
-            userObj = datastore.hgetall("user:" + obSub["createdBy"])
             rootOrgId = None
-            orgName = None
-            if userObj :
-                try:
-                    rootOrgId = userObj["rootorgid"]
-                except KeyError :
-                    rootOrgId = ''
-                try:
-                    orgName = userObj["orgname"]
-                except KeyError:
-                    orgName = ''
+            try:
+                if obSub["userProfile"]:
+                    if "rootOrgId" in obSub["userProfile"] and obSub["userProfile"]["rootOrgId"]:
+                        rootOrgId = obSub["userProfile"]["rootOrgId"]
+            except KeyError:
+                pass
             if 'answers' in obSub.keys() :  
                     answersArr = [v for v in obSub['answers'].values()]
                     for ans in answersArr:
@@ -294,7 +338,7 @@ try:
                                 surveySubQuestionsObj['instanceParentEcmSequence'] = '' 
                             surveySubQuestionsObj['channel'] = rootOrgId 
                             surveySubQuestionsObj['parent_channel'] = "SHIKSHALOKAM"
-                            surveySubQuestionsObj['organisation_name'] = orgName
+                            surveySubQuestionsObj.update(userDataCollector(obSub))
                             return surveySubQuestionsObj
 
                         # fetching the question details from questions collection
@@ -303,19 +347,9 @@ try:
                                 if len(ques['options']) == 0:
                                     try:
                                         if len(ansFn['payload']['labels']) > 0:
-                                            finalObj = {}
-                                            finalObj =  creatingObj(
-                                                ansFn,ques['externalId'],
-                                                ansFn['value'],
-                                                instNumber,
-                                                ansFn['payload']['labels'][0]
-                                            )
-                                            producer.send(
-                                                (config.get("KAFKA", "survey_druid_topic")), 
-                                                json.dumps(finalObj).encode('utf-8')
-                                            )
-                                            producer.flush()
-                                            successLogger.debug("Send Obj to Kafka")
+                                            orgArr = orgCreator(obSub["userProfile"]["organisations"])
+                                            final_worker = FinalWorker(ansFn,ques['externalId'], ansFn['value'], instNumber, ansFn['payload']['labels'][0], orgArr, creatingObj)
+                                            final_worker.run()
                                     except KeyError :
                                         pass 
                                 else:
@@ -324,35 +358,15 @@ try:
                                         try:
                                             if type(ansFn['value']) == str or type(ansFn['value']) == int:
                                                 if quesOpt['value'] == ansFn['value'] :
-                                                    finalObj = {}
-                                                    finalObj =  creatingObj(
-                                                        ansFn,ques['externalId'],
-                                                        ansFn['value'],
-                                                        instNumber,
-                                                        ansFn['payload']['labels'][0]
-                                                    )
-                                                    producer.send(
-                                                        (config.get("KAFKA", "survey_druid_topic")), 
-                                                        json.dumps(finalObj).encode('utf-8')
-                                                    )
-                                                    producer.flush()
-                                                    successLogger.debug("Send Obj to Kafka") 
+                                                    orgArr = orgCreator(obSub["userProfile"]["organisations"])
+                                                    final_worker = FinalWorker(ansFn,ques['externalId'], ansFn['value'], instNumber, ansFn['payload']['labels'][0], orgArr, creatingObj)
+                                                    final_worker.run()
                                             elif type(ansFn['value']) == list:
                                                 for ansArr in ansFn['value']:
                                                     if quesOpt['value'] == ansArr:
-                                                        finalObj = {}
-                                                        finalObj =  creatingObj(
-                                                            ansFn,ques['externalId'],
-                                                            ansArr,
-                                                            instNumber,
-                                                            quesOpt['label']
-                                                        )
-                                                        producer.send(
-                                                            (config.get("KAFKA", "survey_druid_topic")), 
-                                                            json.dumps(finalObj).encode('utf-8')
-                                                        )
-                                                        producer.flush()
-                                                        successLogger.debug("Send Obj to Kafka")
+                                                        orgArr = orgCreator(obSub["userProfile"]["organisations"])
+                                                        final_worker = FinalWorker(ansFn,ques['externalId'], ansArr, instNumber, quesOpt['label'], orgArr, creatingObj)
+                                                        final_worker.run()
                                         except KeyError:
                                             pass
                                         
