@@ -541,15 +541,15 @@ headers_user = {'Content-Type': 'application/json'}
 
 final_df = obs_sub_pgm_df.dropDuplicates()
 obs_sub_pgm_df.unpersist()
-final_df.coalesce(1).write.format("json").mode("overwrite").save(config.get("OUTPUT_DIR", "observation_status")+"/")
+final_df.coalesce(1).write.format("json").mode("overwrite").save(config.get("OUTPUT_DIR", "observation_status_rollup")+"/")
 final_df.unpersist()
 
 # Create a file to store the data
-for filename in os.listdir(config.get("OUTPUT_DIR", "observation_status")+"/"):
+for filename in os.listdir(config.get("OUTPUT_DIR", "observation_status_rollup")+"/"):
    if filename.endswith(".json"):
       os.rename(
-         config.get("OUTPUT_DIR", "observation_status") + "/" + filename, 
-         config.get("OUTPUT_DIR", "observation_status") + "/sl_observation_status.json"
+         config.get("OUTPUT_DIR", "observation_status_rollup") + "/" + filename, 
+         config.get("OUTPUT_DIR", "observation_status_rollup") + "/sl_observation_status_rollup.json"
       )
 
 
@@ -559,12 +559,12 @@ blob_service_client = BlockBlobService(
    sas_token=config.get("AZURE", "sas_token")
 )
 container_name = config.get("AZURE", "container_name")
-local_path = config.get("OUTPUT_DIR", "observation_status")
-blob_path = config.get("AZURE", "observation_blob_path")
+local_path = config.get("OUTPUT_DIR", "observation_status_rollup")
+blob_path = config.get("AZURE", "observation_blob_path_rollup")
 
 # Creating the blod and uploading the data
 for files in os.listdir(local_path):
-   if "sl_observation_status.json" in files:
+   if "sl_observation_status_rollup.json" in files:
       blob_service_client.create_blob_from_path(
          container_name,
          os.path.join(blob_path,files),

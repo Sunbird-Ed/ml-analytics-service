@@ -530,14 +530,14 @@ projects_ent_df_melt.unpersist()
 projects_df_cols.unpersist()
 final_projects_df = projects_df_final.dropDuplicates()
 projects_df_final.unpersist()
-final_projects_df.coalesce(1).write.format("json").mode("overwrite").save(config.get("OUTPUT_DIR", "project") + "/")
+final_projects_df.coalesce(1).write.format("json").mode("overwrite").save(config.get("OUTPUT_DIR", "project_rollup") + "/")
 
 # Creating a file for project
-for filename in os.listdir(config.get("OUTPUT_DIR", "project")+"/"):
+for filename in os.listdir(config.get("OUTPUT_DIR", "project_rollup")+"/"):
     if filename.endswith(".json"):
        os.rename(
-           config.get("OUTPUT_DIR", "project") + "/" + filename,
-           config.get("OUTPUT_DIR", "project") + "/sl_projects.json"
+           config.get("OUTPUT_DIR", "project_rollup") + "/" + filename,
+           config.get("OUTPUT_DIR", "project_rollup") + "/sl_projects_rollup.json"
         )
 
 # Storing the data in Azure
@@ -546,19 +546,19 @@ blob_service_client = BlockBlobService(
     sas_token=config.get("AZURE", "sas_token")
 )
 container_name = config.get("AZURE", "container_name")
-local_path = config.get("OUTPUT_DIR", "project")
-blob_path = config.get("AZURE", "projects_blob_path")
+local_path = config.get("OUTPUT_DIR", "project_rollup")
+blob_path = config.get("AZURE", "projects_blob_path_rollup")
 
 
 for files in os.listdir(local_path):
-    if "sl_projects.json" in files:
+    if "sl_projects_rollup.json" in files:
         blob_service_client.create_blob_from_path(
             container_name,
             os.path.join(blob_path,files),
             local_path + "/" + files
         )
 
-os.remove(config.get("OUTPUT_DIR", "project") + "/sl_projects.json")
+os.remove(config.get("OUTPUT_DIR", "project_rollup") + "/sl_projects_rollup.json")
 
 
 # Preparing for the druid ingestion

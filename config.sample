@@ -156,6 +156,10 @@ projects_distinctCnt_blob_path = {{ ml_analytics_projects_distinctCnt_azure_blob
 
 projects_distinctCnt_prgmlevel_blob_path = {{ ml_analytics_projects_distinctCnt_prglevel_azure_blob_path }}
 
+projects_blob_path_rollup = {{ ml_analytics_project_azure_blob_path_rollup }}
+
+observation_blob_path_rollup = {{ ml_analytics_observation_azure_blob_path_rollup }}
+
 [OUTPUT_DIR]
 
 project = {{ ml_analytics_project_output_dir }}
@@ -171,3 +175,7 @@ observation_distinctCount_domain_criteria = {{ ml_analytics_obs_distinctCnt_doma
 projects_distinctCount = {{ ml_analytics_projects_distinctCnt_output_dir }}
 
 projects_distinctCount_prgmlevel = {{ ml_analytics_projects_distinctCnt_prglevel_output_dir }}
+
+project_rollup = {{ ml_analytics_project_output_dir_rollup }}
+
+observation_status_rollup = {{ ml_analytics_observation_status_output_dir_rollup }}
