@@ -88,6 +88,10 @@ ml_distinctCnt_projects_status_spec = {{ ml_analytics_druid_distinctCnt_projects
 
 ml_distinctCnt_prglevel_projects_status_spec = {{ ml_analytics_druid_distinctCnt_prglevel_projects_status_injestion_spec }}
 
+observation_status_injestion_spec_rollup = {{ ml_analytics_druid_observation_status_injestion_spec_rollup }}
+
+project_injestion_spec_rollup = {{ ml_analytics_druid_project_injestion_spec_rollup }}
+
 [KAFKA]
 
 url = {{ ml_analytics_kafka_url }}
