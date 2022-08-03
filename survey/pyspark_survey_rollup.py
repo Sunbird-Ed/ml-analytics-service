@@ -350,7 +350,7 @@ blob_service_client = BlockBlobService(
 )
 container_name = config.get("AZURE", "container_name")
 local_path = config.get("OUTPUT_DIR", "survey_rollup")
-blob_path = config.get("AZURE", "survey_blob_path")
+blob_path = config.get("AZURE", "survey_rollup_blob_path")
 
 for files in os.listdir(local_path):
    if "sl_survey_rollup.json" in files:
@@ -361,7 +361,7 @@ for files in os.listdir(local_path):
       )
 
 ml_status_spec = {}
-ml_status_spec = json.loads(config.get("DRUID","survey_rollup_spec"))
+ml_status_spec = json.loads(config.get("DRUID","ml_survey_rollup_spec"))
 datasources = [ml_status_spec["spec"]["dataSchema"]["dataSource"]]
 ingestion_specs = [json.dumps(ml_status_spec)]
 
