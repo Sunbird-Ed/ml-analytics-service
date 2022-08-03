@@ -389,20 +389,20 @@ projects_df = projects_df.withColumn("orgData",orgInfo_udf(F.col("userProfile.or
 projects_df = projects_df.withColumn("exploded_orgInfo",F.explode_outer(F.col("orgData")))
 
 projects_df = projects_df.withColumn("area_of_improvement",regexp_replace(F.col("categories_name"), "\n", " "))
-projects_df = projects_df.withColumn("tasks",regexp_replace(F.col("exploded_taskarr.tasks"), "\n", " "))
+projects_df = projects_df.withColumn("tasks_name",regexp_replace(F.col("exploded_taskarr.tasks"), "\n", " "))
 projects_df = projects_df.withColumn("program_name",regexp_replace(F.col("programInformation.name"), "\n", " "))
 
 projects_df = projects_df.withColumn(
-                 "evidence_status",
-                F.when(
-                    (projects_df["project_evidence_status"]== True) & (projects_df["exploded_taskarr"]["task_evidence_status"]==True),True
-                ).when(
-                    (projects_df["project_evidence_status"]== True) & (projects_df["exploded_taskarr"]["task_evidence_status"]==False),True
-                ).when(
-                    (projects_df["project_evidence_status"]== False) & (projects_df["exploded_taskarr"]["task_evidence_status"]==True),True
-                ).when(
-                    (projects_df["project_evidence_status"]== True) & (projects_df["exploded_taskarr"]["task_evidence_status"]=="null"),True
-                ).otherwise(False)
+        "evidence_status",
+    F.when(
+        (projects_df["project_evidence_status"]== True) & (projects_df["exploded_taskarr"]["task_evidence_status"]==True),True
+    ).when(
+        (projects_df["project_evidence_status"]== True) & (projects_df["exploded_taskarr"]["task_evidence_status"]==False),True
+    ).when(
+        (projects_df["project_evidence_status"]== False) & (projects_df["exploded_taskarr"]["task_evidence_status"]==True),True
+    ).when(
+        (projects_df["project_evidence_status"]== True) & (projects_df["exploded_taskarr"]["task_evidence_status"]=="null"),True
+    ).otherwise(False)
 )
 
 
@@ -423,6 +423,7 @@ projects_df_cols = projects_df.select(
     projects_df["status"].alias("status_of_project"),
     projects_df["userId"].alias("createdBy"),
     projects_df["parent_channel"],
+    projects_df["tasks_name"],
     projects_df["exploded_taskarr"]["_id"].alias("task_id"),
     projects_df["exploded_taskarr"]["status"].alias("tasks_status"),
     projects_df["exploded_taskarr"]["task_evidence_status"].alias("task_evidence_status"),
@@ -515,7 +516,7 @@ entities_df = entities_df.withColumn("variable",F.concat(F.col("entityType"),F.l
 
 # Necessary rows for project cluster
 projects_df_melt = melt(projects_df_cols,
-        id_vars=["project_id", "project_created_type", "project_title", "program_id", "program_externalId", "program_name", "project_updated_date", 
+        id_vars=["project_id", "project_created_type", "project_title", "program_id", "program_externalId", "program_name", "project_updated_date", "tasks_name",
         "area_of_improvement", "status_of_project", "createdBy", "parent_channel", "task_id", "tasks_status", "task_evidence_status", "private_program", 
         "project_terms_and_condition", "solution_id", "designation","board_name","organisation_name","organisation_id","evidence_status", "status_code"],
         value_vars=["state_externalId", "block_externalId", "district_externalId", "cluster_externalId", "school_externalId"]
@@ -572,7 +573,7 @@ dimensionsArr = list(set(entitiesArr))
 
 submissionReportColumnNamesArr = [
     'project_title', 'project_goal', 
-    'area_of_improvement', 'status_of_project', 'tasks', 'tasks_status',
+    'area_of_improvement', 'status_of_project', 'tasks_name', 'tasks_status',
     'designation',
     'task_evidence_status', 'project_id', 'task_id',
     'project_created_type', 'parent_channel', 'program_id',
