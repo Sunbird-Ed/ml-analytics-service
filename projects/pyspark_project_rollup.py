@@ -548,7 +548,7 @@ blob_service_client = BlockBlobService(
 )
 container_name = config.get("AZURE", "container_name")
 local_path = config.get("OUTPUT_DIR", "project_rollup")
-blob_path = config.get("AZURE", "projects_blob_path_rollup")
+blob_path = config.get("AZURE", "projects_rollup_blob_path")
 
 
 for files in os.listdir(local_path):
@@ -587,7 +587,7 @@ submissionReportColumnNamesArr = [
 dimensionsArr.extend(submissionReportColumnNamesArr)
 
 payload = {}
-payload = json.loads(config.get("DRUID","project_injestion_spec_rollup"))
+payload = json.loads(config.get("DRUID","project_rollup_injestion_spec"))
 payload["spec"]["dataSchema"]["dimensionsSpec"]["dimensions"] = dimensionsArr
 datasources = [payload["spec"]["dataSchema"]["dataSource"]]
 ingestion_specs = [json.dumps(payload)]

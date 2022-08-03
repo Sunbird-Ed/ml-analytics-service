@@ -560,7 +560,7 @@ blob_service_client = BlockBlobService(
 )
 container_name = config.get("AZURE", "container_name")
 local_path = config.get("OUTPUT_DIR", "observation_status_rollup")
-blob_path = config.get("AZURE", "observation_blob_path_rollup")
+blob_path = config.get("AZURE", "observation_rollup_blob_path")
 
 # Creating the blod and uploading the data
 for files in os.listdir(local_path):
@@ -574,7 +574,7 @@ for files in os.listdir(local_path):
 
 # Prepraring the Druid query
 sl_status_spec = {}
-sl_status_spec = json.loads(config.get("DRUID","observation_status_injestion_spec_rollup"))
+sl_status_spec = json.loads(config.get("DRUID","observation_status_rollup_injestion_spec"))
 datasources = [sl_status_spec["spec"]["dataSchema"]["dataSource"]]
 ingestion_specs = [json.dumps(sl_status_spec)]
 
