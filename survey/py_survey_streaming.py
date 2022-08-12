@@ -410,9 +410,10 @@ try :
         async for msg in consumer :
             msg_val = msg.decode('utf-8')
             msg_data = json.loads(msg_val)
-            successLogger.debug("========== START OF SURVEY SUBMISSION ========")
-            obj_creation(msg_data)
-            successLogger.debug("********* END OF SURVEY SUBMISSION ***********")
+            if msg_data["status"] == "completed":
+             successLogger.debug("========== START OF SURVEY SUBMISSION ========")
+             obj_creation(msg_data)
+             successLogger.debug("********* END OF SURVEY SUBMISSION ***********")
 except Exception as e:
     errorLogger.error(e, exc_info=True)
 

@@ -175,9 +175,10 @@ try:
    async for msg in consumer :
      msg_val = msg.decode('utf-8')
      msg_data = json.loads(msg_val)
-     successLogger.debug("========== START OF OBSERVATION EVIDENCE SUBMISSION ========")
-     evidence_extraction(msg_data)
-     successLogger.debug("********* END OF OBSERVATION EVIDENCE SUBMISSION ***********")
+     if msg_data["status"] == "completed":
+      successLogger.debug("========== START OF OBSERVATION EVIDENCE SUBMISSION ========")
+      evidence_extraction(msg_data)
+      successLogger.debug("********* END OF OBSERVATION EVIDENCE SUBMISSION ***********")
 except Exception as e:
  errorLogger.error(e, exc_info=True)
 
