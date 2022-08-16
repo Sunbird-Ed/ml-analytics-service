@@ -559,7 +559,7 @@ for files in os.listdir(local_path):
             local_path + "/" + files
         )
 
-os.remove(config.get("OUTPUT_DIR", "project_rollup") + "/sl_projects_rollup.json")
+os.remove(config.get("OUTPUT_DIR", "project_rollup") + "/projects_rollup.json")
 
 
 # Preparing for the druid ingestion
