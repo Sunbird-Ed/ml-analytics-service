@@ -538,7 +538,7 @@ for filename in os.listdir(config.get("OUTPUT_DIR", "project_rollup")+"/"):
     if filename.endswith(".json"):
        os.rename(
            config.get("OUTPUT_DIR", "project_rollup") + "/" + filename,
-           config.get("OUTPUT_DIR", "project_rollup") + "/sl_projects_rollup.json"
+           config.get("OUTPUT_DIR", "project_rollup") + "/projects_rollup.json"
         )
 
 # Storing the data in Azure
@@ -552,7 +552,7 @@ blob_path = config.get("AZURE", "projects_rollup_blob_path")
 
 
 for files in os.listdir(local_path):
-    if "sl_projects_rollup.json" in files:
+    if "projects_rollup.json" in files:
         blob_service_client.create_blob_from_path(
             container_name,
             os.path.join(blob_path,files),
@@ -563,7 +563,7 @@ os.remove(config.get("OUTPUT_DIR", "project_rollup") + "/sl_projects_rollup.json
 
 
 # Preparing for the druid ingestion
-druid_batch_end_point = config.get("DRUID", "batch_url")
+druid_batch_end_point = config.get("DRUID", "batch_rollup_url")
 headers = {'Content-Type': 'application/json'}
 
 dimensionsArr = []
@@ -593,7 +593,7 @@ datasources = [payload["spec"]["dataSchema"]["dataSource"]]
 ingestion_specs = [json.dumps(payload)]
 
 for i, j in zip(datasources,ingestion_specs):
-    druid_end_point = config.get("DRUID", "metadata_url") + i
+    druid_end_point = config.get("DRUID", "metadata_rollup_url") + i
     get_timestamp = requests.get(druid_end_point, headers=headers)
     if get_timestamp.status_code == 200:
         successLogger.debug("Successfully fetched time stamp of the datasource " + i )

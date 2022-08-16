@@ -549,7 +549,7 @@ for filename in os.listdir(config.get("OUTPUT_DIR", "observation_status_rollup")
    if filename.endswith(".json"):
       os.rename(
          config.get("OUTPUT_DIR", "observation_status_rollup") + "/" + filename, 
-         config.get("OUTPUT_DIR", "observation_status_rollup") + "/sl_observation_status_rollup.json"
+         config.get("OUTPUT_DIR", "observation_status_rollup") + "/observation_status_rollup.json"
       )
 
 
@@ -564,7 +564,7 @@ blob_path = config.get("AZURE", "observation_rollup_blob_path")
 
 # Creating the blod and uploading the data
 for files in os.listdir(local_path):
-   if "sl_observation_status_rollup.json" in files:
+   if "observation_status_rollup.json" in files:
       blob_service_client.create_blob_from_path(
          container_name,
          os.path.join(blob_path,files),
