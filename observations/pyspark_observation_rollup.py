@@ -578,13 +578,11 @@ sl_status_spec = json.loads(config.get("DRUID","observation_status_rollup_injest
 datasources = [sl_status_spec["spec"]["dataSchema"]["dataSource"]]
 ingestion_specs = [json.dumps(sl_status_spec)]
 
-druid_batch_end_point = config.get("DRUID", "batch_url")
+druid_batch_end_point = config.get("DRUID", "batch_rollup_url")
 headers = {'Content-Type': 'application/json'}
 
 for i,j in zip(datasources,ingestion_specs):
-   druid_end_point = config.get("DRUID", "metadata_url") + i
-   #druid_batch_end_point = config.get("DRUID", "batch_url")
-   #headers = {'Content-Type': 'application/json'}
+   druid_end_point = config.get("DRUID", "metadata_rollup_url") + i
    get_timestamp = requests.get(druid_end_point, headers=headers)
    successLogger.debug(get_timestamp)
    if get_timestamp.status_code == 200 :
