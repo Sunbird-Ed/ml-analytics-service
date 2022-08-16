@@ -566,29 +566,9 @@ os.remove(config.get("OUTPUT_DIR", "project_rollup") + "/sl_projects_rollup.json
 druid_batch_end_point = config.get("DRUID", "batch_rollup_url")
 headers = {'Content-Type': 'application/json'}
 
-dimensionsArr = []
-entitiesArr = ["state_externalId", "block_externalId", "district_externalId", "cluster_externalId", "school_externalId",\
-              "state_name","block_name","district_name","cluster_name","school_name","board_name"]
-dimensionsArr = list(set(entitiesArr))
-
-submissionReportColumnNamesArr = [
-    'project_title', 'project_goal', 
-    'area_of_improvement', 'status_of_project', 'tasks_name', 'tasks_status',
-    'designation',
-    'task_evidence_status', 'project_id', 'task_id',
-    'project_created_type', 'parent_channel', 'program_id',
-    'program_name', 'project_updated_date', 'createdBy', 
-    'program_externalId', 'private_program', 'task_deleted_flag',
-    'project_terms_and_condition',
-    'organisation_name','solution_id',
-    'organisation_id', 'status_code'
-]
-
-dimensionsArr.extend(submissionReportColumnNamesArr)
 
 payload = {}
 payload = json.loads(config.get("DRUID","project_rollup_injestion_spec"))
-payload["spec"]["dataSchema"]["dimensionsSpec"]["dimensions"] = dimensionsArr
 datasources = [payload["spec"]["dataSchema"]["dataSource"]]
 ingestion_specs = [json.dumps(payload)]
 
