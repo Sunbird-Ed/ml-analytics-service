@@ -208,7 +208,7 @@ sub_df = sub_df.withColumn(
 sub_df = sub_df.withColumn("status_code",
     F.when(
         sub_df["status"] == "started", 1).when(
-        sub_df["status"] == "inprogress", 3).when(
+        sub_df["status"] == "inProgress", 3).when(
         sub_df["status"] == "ratingPending", 5).when(
         sub_df["status"] == "completed", 7).otherwise(0)
 )
