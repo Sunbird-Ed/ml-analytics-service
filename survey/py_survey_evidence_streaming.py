@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------
 # Name : py_survey_evidence_streaming.py
 # Author : Ajay, Snehangsu
-# Description : Gathers data from Kafka topic and pr-processes the data
+# Description : Gathers data from Kafka topic and pre-processes the data to produce into another
 # -----------------------------------------------------------------
 
 import time

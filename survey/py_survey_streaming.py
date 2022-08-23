@@ -2,7 +2,7 @@
 # Name : py_survey_streaming.py
 # Author :
 # Description : Program to read data from one kafka topic and 
-#   produce it to another kafka topic
+# produce it to another kafka topic
 # -----------------------------------------------------------------
 
 
@@ -12,8 +12,6 @@ import kafka
 import faust
 import logging
 import time
-from pymongo import MongoClient
-from bson.objectid import ObjectId
 from kafka import KafkaConsumer, KafkaProducer
 from kafka.admin import KafkaAdminClient, NewTopic
 from configparser import ConfigParser,ExtendedInterpolation
@@ -28,29 +26,18 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s')
 successLogger = logging.getLogger('success log')
 successLogger.setLevel(logging.DEBUG)
 
-# Add the log message handler to the logger
-successHandler = RotatingFileHandler(
-    config.get('LOGS', 'survey_streaming_success')
-)
-successBackuphandler = TimedRotatingFileHandler(
-    config.get('LOGS', 'survey_streaming_success'),
-    when="w0",
-    backupCount=1
-)
+# Handles the success logs
+successHandler = RotatingFileHandler(config.get('LOGS', 'survey_streaming_success'))
+successBackuphandler = TimedRotatingFileHandler(config.get('LOGS', 'survey_streaming_success'),when="w0",backupCount=1)
 successHandler.setFormatter(formatter)
 successLogger.addHandler(successHandler)
 successLogger.addHandler(successBackuphandler)
 
+# Handles the error logs
 errorLogger = logging.getLogger('error log')
 errorLogger.setLevel(logging.ERROR)
-errorHandler = RotatingFileHandler(
-    config.get('LOGS', 'survey_streaming_error')
-)
-errorBackuphandler = TimedRotatingFileHandler(
-    config.get('LOGS', 'survey_streaming_error'),
-    when="w0",
-    backupCount=1
-)
+errorHandler = RotatingFileHandler(config.get('LOGS', 'survey_streaming_error'))
+errorBackuphandler = TimedRotatingFileHandler(config.get('LOGS', 'survey_streaming_error'),when="w0",backupCount=1)
 errorHandler.setFormatter(formatter)
 errorLogger.addHandler(errorHandler)
 errorLogger.addHandler(errorBackuphandler)
@@ -66,15 +53,6 @@ try:
     )
     rawTopicName = app.topic(config.get("KAFKA", "survey_raw_topic"))
     producer = KafkaProducer(bootstrap_servers=[config.get("KAFKA", "url")])
-
-    #db production
-    client = MongoClient(config.get('MONGO', 'mongo_url'))
-    db = client[config.get('MONGO', 'database_name')]
-    solutionsCollec = db[config.get('MONGO', 'solutions_collection')]
-    surveyCollec = db[config.get('MONGO', 'survey_collection')]
-    questionsCollec = db[config.get('MONGO', 'questions_collection')]
-    criteriaCollec = db[config.get('MONGO', 'criteria_collection')]
-    programsCollec = db[config.get('MONGO', 'programs_collection')]
 
 except Exception as e:
     errorLogger.error(e, exc_info=True)
@@ -150,22 +128,24 @@ class FinalWorker:
 
 try:
     def obj_creation(obSub):
+        '''Captures the data and pre-process it before sending to another kafka topic'''
         successLogger.debug(f"Survey Submission Id : {obSub['_id']}")
-        if 'isAPrivateProgram' in obSub :
-            surveySubQuestionsArr = []
-            completedDate = str(obSub['completedDate'])
-            createdAt = str(obSub['createdAt'])
-            updatedAt = str(obSub['updatedAt'])
-            evidencesArr = [v for v in obSub['evidences'].values()]
-            evidence_sub_count = 0
-            rootOrgId = None
-            try:
-                if obSub["userProfile"]:
-                    if "rootOrgId" in obSub["userProfile"] and obSub["userProfile"]["rootOrgId"]:
-                        rootOrgId = obSub["userProfile"]["rootOrgId"]
-            except KeyError:
-                pass
-            if 'answers' in obSub.keys() :  
+        if obSub['status'] == 'completed':
+            if 'isAPrivateProgram' in obSub :
+                surveySubQuestionsArr = []
+                completedDate = str(obSub['completedDate'])
+                createdAt = str(obSub['createdAt'])
+                updatedAt = str(obSub['updatedAt'])
+                evidencesArr = [v for v in obSub['evidences'].values()]
+                evidence_sub_count = 0
+                rootOrgId = None
+                try:
+                    if obSub["userProfile"]:
+                        if "rootOrgId" in obSub["userProfile"] and obSub["userProfile"]["rootOrgId"]:
+                            rootOrgId = obSub["userProfile"]["rootOrgId"]
+                except KeyError:
+                    pass
+                if 'answers' in obSub.keys() :  
                     answersArr = [v for v in obSub['answers'].values()]
                     for ans in answersArr:
                         try:
@@ -175,8 +155,10 @@ try:
                             pass
                     for ans in answersArr:
                         def sequenceNumber(externalId,answer):
-                            for solu in solutionsCollec.find({'_id':ObjectId(obSub['solutionId'])}):
-                                section =  [k for k in solu['sections'].keys()]
+                            if 'solutions' in obSub.keys():
+                                solutionsArr = [v for v in obSub['solutions'].values()]
+                                for solu in solutionsArr:
+                                    section = [k for k in solu['sections'].keys()]
                                 # parsing through questionSequencebyecm to get the sequence number
                                 try:
                                     for num in range(
@@ -212,76 +194,80 @@ try:
                             except KeyError :
                                 surveySubQuestionsObj['programId'] = None
                             try:
-                                for program in programsCollec.find({'externalId':obSub['programExternalId']}):
-                                    surveySubQuestionsObj['programName'] = program['name']
-                            except KeyError :
-                                surveySubQuestionsObj['programName'] = None
+                                if 'programInfo' in obSub:
+                                    surveySubQuestionsObj['programName'] = obSub['programInfo']['name']
+                                else:
+                                    surveySubQuestionsObj['programName'] = ''
+                            except KeyError:
+                                surveySubQuestionsObj['programName'] = ''
 
                             surveySubQuestionsObj['solutionExternalId'] = obSub['solutionExternalId']
                             surveySubQuestionsObj['surveyId'] = str(obSub['surveyId'])
-                            for solu in solutionsCollec.find({'_id':ObjectId(obSub['solutionId'])}):
-                                surveySubQuestionsObj['solutionId'] = str(solu["_id"])
-                                surveySubQuestionsObj['solutionName'] = solu['name']
-                                section = [k for k in solu['sections'].keys()]
+                            surveySubQuestionsObj['solutionId'] = str(obSub["solutionId"])
+                            try:
+                                if 'solutionInfo' in obSub:
+                                    surveySubQuestionsObj['solutionName'] = obSub['solutionInfo']['name']
+                                else:
+                                    surveySubQuestionsObj['solutionName'] = ''
+                            except KeyError:
+                                surveySubQuestionsObj['solutionName'] = ''
+
+                            try:
+                                section = [k for k in obSub['solutionInfo']['sections'].keys()]
                                 surveySubQuestionsObj['section'] = section[0]
-                                surveySubQuestionsObj['questionSequenceByEcm']= sequenceNumber(quesexternalId, answer)
-                                try:
-                                    if solu['scoringSystem'] == 'pointsBasedScoring':
-                                        try:
-                                            surveySubQuestionsObj['totalScore'] = obSub['pointsBasedMaxScore']
-                                        except KeyError :
-                                            surveySubQuestionsObj['totalScore'] = ''
-                                        try:
-                                            surveySubQuestionsObj['scoreAchieved'] = obSub['pointsBasedScoreAchieved']
-                                        except KeyError :
-                                            surveySubQuestionsObj['scoreAchieved'] = ''
-                                        try:
-                                            surveySubQuestionsObj['totalpercentage'] = obSub['pointsBasedPercentageScore']
-                                        except KeyError :
-                                            surveySubQuestionsObj['totalpercentage'] = ''
-                                        try:
-                                            surveySubQuestionsObj['maxScore'] = answer['maxScore']
-                                        except KeyError :
-                                            surveySubQuestionsObj['maxScore'] = ''
-                                        try:
-                                            surveySubQuestionsObj['minScore'] = answer['scoreAchieved']
-                                        except KeyError :
-                                            surveySubQuestionsObj['minScore'] = ''
-                                        try:
-                                            surveySubQuestionsObj['percentageScore'] = answer['percentageScore']
-                                        except KeyError :
-                                            surveySubQuestionsObj['percentageScore'] = ''
-                                        try:
-                                            surveySubQuestionsObj['pointsBasedScoreInParent'] = answer['pointsBasedScoreInParent']
-                                        except KeyError :
-                                            surveySubQuestionsObj['pointsBasedScoreInParent'] = ''
-                                except KeyError:
-                                    surveySubQuestionsObj['totalScore'] = ''
-                                    surveySubQuestionsObj['scoreAchieved'] = ''
-                                    surveySubQuestionsObj['totalpercentage'] = ''
-                                    surveySubQuestionsObj['maxScore'] = ''
-                                    surveySubQuestionsObj['minScore'] = ''
-                                    surveySubQuestionsObj['percentageScore'] = ''
-                                    surveySubQuestionsObj['pointsBasedScoreInParent'] = ''
+                            except KeyError:
+                                surveySubQuestionsObj['section'] = ''
+
+                            surveySubQuestionsObj['questionSequenceByEcm'] = sequenceNumber(quesexternalId, answer)
+                            try:
+                                if obSub['solutionInformation']['scoringSystem'] == 'pointsBasedScoring':
+                                    try:
+                                        surveySubQuestionsObj['totalScore'] = obSub['pointsBasedMaxScore']
+                                    except KeyError :
+                                        surveySubQuestionsObj['totalScore'] = ''
+                                    try:
+                                        surveySubQuestionsObj['scoreAchieved'] = obSub['pointsBasedScoreAchieved']
+                                    except KeyError :
+                                        surveySubQuestionsObj['scoreAchieved'] = ''
+                                    try:
+                                        surveySubQuestionsObj['totalpercentage'] = obSub['pointsBasedPercentageScore']
+                                    except KeyError :
+                                        surveySubQuestionsObj['totalpercentage'] = ''
+                                    try:
+                                        surveySubQuestionsObj['maxScore'] = answer['maxScore']
+                                    except KeyError :
+                                        surveySubQuestionsObj['maxScore'] = ''
+                                    try:
+                                        surveySubQuestionsObj['minScore'] = answer['scoreAchieved']
+                                    except KeyError :
+                                        surveySubQuestionsObj['minScore'] = ''
+                                    try:
+                                        surveySubQuestionsObj['percentageScore'] = answer['percentageScore']
+                                    except KeyError :
+                                        surveySubQuestionsObj['percentageScore'] = ''
+                                    try:
+                                        surveySubQuestionsObj['pointsBasedScoreInParent'] = answer['pointsBasedScoreInParent']
+                                    except KeyError :
+                                        surveySubQuestionsObj['pointsBasedScoreInParent'] = ''
+                            except KeyError:
+                                surveySubQuestionsObj['totalScore'] = ''
+                                surveySubQuestionsObj['scoreAchieved'] = ''
+                                surveySubQuestionsObj['totalpercentage'] = ''
+                                surveySubQuestionsObj['maxScore'] = ''
+                                surveySubQuestionsObj['minScore'] = ''
+                                surveySubQuestionsObj['percentageScore'] = ''
+                                surveySubQuestionsObj['pointsBasedScoreInParent'] = ''
 
                             if 'surveyInformation' in obSub :
-                             if 'name' in obSub['surveyInformation']:
-                              surveySubQuestionsObj['surveyName'] = obSub['surveyInformation']['name']
-                             else :
-                              try:
-                               for ob in surveyCollec.find({'_id':obSub['surveyId']},{'name':1}):
-                                surveySubQuestionsObj['surveyName'] = ob['name']
-                              except KeyError :
-                               surveySubQuestionsObj['surveyName'] = ''
-                            else :
-                             try:
-                              for ob in surveyCollec.find({'_id':obSub['surveyId']},{'name':1}):
-                               surveySubQuestionsObj['surveyName'] = ob['name']
-                             except KeyError :
-                              surveySubQuestionsObj['surveyName'] = ''
+                                if 'name' in obSub['surveyInformation']:
+                                    surveySubQuestionsObj['surveyName'] = obSub['surveyInformation']['name']
+                                else:
+                                    surveySubQuestionsObj['surveyName'] = ''
+                            
                             surveySubQuestionsObj['questionId'] = str(answer['qid'])
                             surveySubQuestionsObj['questionAnswer'] = ans_val
                             surveySubQuestionsObj['questionResponseType'] = answer['responseType']
+
                             if answer['responseType'] == 'number':
                                 if answer['payload']['labels']:
                                     surveySubQuestionsObj['questionResponseLabel_number'] = responseLabel
@@ -295,9 +281,21 @@ try:
                             surveySubQuestionsObj['questionName'] = answer['payload']['question'][0]
                             surveySubQuestionsObj['questionECM'] = answer['evidenceMethod']
                             surveySubQuestionsObj['criteriaId'] = str(answer['criteriaId'])
-                            for crit in criteriaCollec.find({'_id':ObjectId(answer['criteriaId'])}):
-                                surveySubQuestionsObj['criteriaExternalId'] = crit['externalId']
-                                surveySubQuestionsObj['criteriaName'] = crit['name']
+                            
+                            try:
+                                if 'criteria' in obSub.keys():
+                                    for criteria in obSub['criteria']:
+                                        surveySubQuestionsObj['criteriaExternalId'] = criteria['externalId']
+                                        surveySubQuestionsObj['criteriaName'] = criteria['name']
+                                else:
+                                    surveySubQuestionsObj['criteriaExternalId'] = ''
+                                    surveySubQuestionsObj['criteriaName'] = ''
+
+                            except KeyError:
+                                surveySubQuestionsObj['criteriaExternalId'] = ''
+                                surveySubQuestionsObj['criteriaName'] = ''
+
+
                             surveySubQuestionsObj['completedDate'] = completedDate
                             surveySubQuestionsObj['createdAt'] = createdAt
                             surveySubQuestionsObj['updatedAt'] = updatedAt
@@ -410,10 +408,9 @@ try :
         async for msg in consumer :
             msg_val = msg.decode('utf-8')
             msg_data = json.loads(msg_val)
-            if msg_data["status"] == "completed":
-             successLogger.debug("========== START OF SURVEY SUBMISSION ========")
-             obj_creation(msg_data)
-             successLogger.debug("********* END OF SURVEY SUBMISSION ***********")
+            successLogger.debug("========== START OF SURVEY SUBMISSION ========")
+            obj_creation(msg_data)
+            successLogger.debug("********* END OF SURVEY SUBMISSION ***********")
 except Exception as e:
     errorLogger.error(e, exc_info=True)
 
