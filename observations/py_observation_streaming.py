@@ -258,17 +258,7 @@ try:
               observationSubQuestionsObj[entityType+'Name'] = obSub['entityInformation']['name']
               observationSubQuestionsObj[entityType+'ExternalId'] = obSub['entityInformation']['externalId']        
 
-              observationSubQuestionsObj['entityTypeId'] = str(obSub['entityTypeId'])
 
-              try:
-                observationSubQuestionsObj['schoolTypes'] = obSub['entityInformation']['schoolTypes']
-              except KeyError:
-                observationSubQuestionsObj['schoolTypes'] = ''
-
-              try:
-                observationSubQuestionsObj['administrationTypes'] = obSub['entityInformation']['administrationTypes']
-              except KeyError:
-                observationSubQuestionsObj['administrationTypes'] = ''
               observationSubQuestionsObj['createdBy'] = obSub['createdBy']
 
               try:

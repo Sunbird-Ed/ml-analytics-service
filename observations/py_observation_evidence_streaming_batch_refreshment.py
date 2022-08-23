@@ -102,7 +102,6 @@ try:
           observationSubQuestionsObj['entity'] = str(obSub['entityId'])
           observationSubQuestionsObj['entityExternalId'] = obSub['entityExternalId']
           observationSubQuestionsObj['entityName'] = obSub['entityInformation']['name']
-          observationSubQuestionsObj['entityTypeId'] = str(obSub['entityTypeId'])
           observationSubQuestionsObj['entityType'] = str(obSub['entityType'])
           observationSubQuestionsObj['createdBy'] = obSub['createdBy']
           observationSubQuestionsObj['solutionExternalId'] = obSub['solutionExternalId']
