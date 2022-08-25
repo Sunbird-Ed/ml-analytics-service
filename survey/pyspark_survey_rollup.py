@@ -24,7 +24,7 @@ from azure.storage.blob import ContentSettings
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
-config.read("/opt/sparkjobs/ml-analytics-service_staging/config.ini")
+config.read(config_path[0] + "/config.ini")
 
 orgSchema = ArrayType(StructType([
     StructField("orgId", StringType(), False),
@@ -208,7 +208,7 @@ sub_df = sub_df.withColumn(
 sub_df = sub_df.withColumn("status_code",
     F.when(
         sub_df["status"] == "started", 1).when(
-        sub_df["status"] == "inprogress", 3).when(
+        sub_df["status"] == "inProgress", 3).when(
         sub_df["status"] == "ratingPending", 5).when(
         sub_df["status"] == "completed", 7).otherwise(0)
 )
@@ -365,11 +365,11 @@ ml_status_spec = json.loads(config.get("DRUID","ml_survey_rollup_spec"))
 datasources = [ml_status_spec["spec"]["dataSchema"]["dataSource"]]
 ingestion_specs = [json.dumps(ml_status_spec)]
 
-druid_batch_end_point = config.get("DRUID", "batch_url")
+druid_batch_end_point = config.get("DRUID", "batch_rollup_url")
 headers = {'Content-Type': 'application/json'}
 
 for i,j in zip(datasources,ingestion_specs):
-   druid_end_point = config.get("DRUID", "metadata_url") + i
+   druid_end_point = config.get("DRUID", "metadata_rollup_url") + i
    get_timestamp = requests.get(druid_end_point, headers=headers)
    if get_timestamp.status_code == 200 :
       timestamp = get_timestamp.json()

@@ -1,25 +1,21 @@
 # -----------------------------------------------------------------
 # Name : py_survey_evidence_streaming.py
-# Author :
-# Description :
-#
+# Author : Ajay, Snehangsu
+# Description : Gathers data from Kafka topic and pre-processes the data to produce into another
 # -----------------------------------------------------------------
 
-from pymongo import MongoClient
-from bson.objectid import ObjectId
+import time
+import faust
+import logging
+import dateutil
+import requests
 import os, json
 import datetime
 from datetime import date,time
-import requests
-from kafka import KafkaConsumer, KafkaProducer
-import dateutil
 from dateutil import parser as date_parser
+from kafka import KafkaConsumer, KafkaProducer
 from configparser import ConfigParser, ExtendedInterpolation
-import faust
-import logging
-import logging.handlers
-import time
-from logging.handlers import TimedRotatingFileHandler
+from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
@@ -30,34 +26,24 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s')
 successLogger = logging.getLogger('success log')
 successLogger.setLevel(logging.DEBUG)
 
-# Add the log message handler to the logger
-successHandler = logging.handlers.RotatingFileHandler(
-    config.get('LOGS', 'survey_evidence_streaming_success')
-)
-successBackuphandler = TimedRotatingFileHandler(
-    config.get('LOGS', 'survey_evidence_streaming_success'),
-    when="w0",
-    backupCount=1
-)
+# Handles logs for success
+successHandler = RotatingFileHandler(config.get('LOGS', 'survey_evidence_streaming_success'))
+successBackuphandler = TimedRotatingFileHandler(config.get('LOGS', 'survey_evidence_streaming_success'),when="w0",backupCount=1)
 successHandler.setFormatter(formatter)
 successLogger.addHandler(successHandler)
 successLogger.addHandler(successBackuphandler)
 
+# Handles logs for errors
 errorLogger = logging.getLogger('error log')
 errorLogger.setLevel(logging.ERROR)
-errorHandler = logging.handlers.RotatingFileHandler(
-    config.get('LOGS', 'survey_evidence_streaming_error')
-)
-errorBackuphandler = TimedRotatingFileHandler(
-    config.get('LOGS', 'survey_evidence_streaming_error'),
-    when="w0",
-    backupCount=1
-)
+errorHandler = logging.handlers.RotatingFileHandler(config.get('LOGS', 'survey_evidence_streaming_error'))
+errorBackuphandler = TimedRotatingFileHandler(config.get('LOGS', 'survey_evidence_streaming_error'),when="w0",backupCount=1)
 errorHandler.setFormatter(formatter)
 errorLogger.addHandler(errorHandler)
 errorLogger.addHandler(errorBackuphandler)
 
 try:
+    '''Initializing the faust session'''
     app = faust.App(
         'ml_survey_evidence_faust',
         broker='kafka://'+config.get("KAFKA", "url"),
@@ -69,31 +55,29 @@ try:
     kafka_url = config.get("KAFKA", "url")
     producer = KafkaProducer(bootstrap_servers=[kafka_url])
 
-    #db production
-    client = MongoClient(config.get('MONGO', 'mongo_url'))
-    db = client[config.get('MONGO', 'database_name')]
-    questionsCollec = db[config.get('MONGO', 'questions_collection')]
-
 except Exception as e:
     errorLogger.error(e, exc_info=True)
 
 try:
-    def convert(lst): 
+    def convert(lst):
+        '''Joins arguments passed with a comma''' 
         return ','.join(lst)
 except Exception as e:
     errorLogger.error(e, exc_info=True)
 
 try:
     def evidence_extraction(obSub):
-        if 'isAPrivateProgram' in obSub :
-            successLogger.debug("Survey Evidence Submission Id : " + obSub['_id'])
+        '''Gatherig and pre-processing the data from the data passed in the kafka topic'''
+        if obSub['status'] == 'completed':
+            if 'isAPrivateProgram' in obSub:
+                successLogger.debug("Survey Evidence Submission Id : " + obSub['_id'])
             try:
                 completedDate = obSub['completedDate']
             except KeyError:
                 pass
             evidence_sub_count = 0
             try:
-                answersArr = [ v for v in obSub['answers'].values()]
+                answersArr = [v for v in obSub['answers'].values()]
             except KeyError:
                 pass
             for ans in answersArr:
@@ -120,9 +104,12 @@ try:
                 except KeyError:
                     surveySubQuestionsObj['remarks'] = ''
                 surveySubQuestionsObj['questionId'] = str(answer['qid'])
-                for ques in questionsCollec.find({'_id':ObjectId(surveySubQuestionsObj['questionId'])}):
-                    surveySubQuestionsObj['questionExternalId'] = ques['externalId']
-                    surveySubQuestionsObj['questionName'] = ques['question'][0]
+                try:
+                    surveySubQuestionsObj['questionExternalId'] = str(answer['externalId'])
+                    surveySubQuestionsObj['questionName'] = answer['payload']['question'][0]
+                except KeyError:
+                    surveySubQuestionsObj['questionExternalId'] = ''
+                    surveySubQuestionsObj['questionName'] = ''
                 surveySubQuestionsObj['questionResponseType'] = answer['responseType']
                 try:
                     surveySubQuestionsObj['appName'] = obSub["appInformation"]["appName"].lower()

@@ -258,17 +258,7 @@ try:
               observationSubQuestionsObj[entityType+'Name'] = obSub['entityInformation']['name']
               observationSubQuestionsObj[entityType+'ExternalId'] = obSub['entityInformation']['externalId']        
 
-              observationSubQuestionsObj['entityTypeId'] = str(obSub['entityTypeId'])
 
-              try:
-                observationSubQuestionsObj['schoolTypes'] = obSub['entityInformation']['schoolTypes']
-              except KeyError:
-                observationSubQuestionsObj['schoolTypes'] = ''
-
-              try:
-                observationSubQuestionsObj['administrationTypes'] = obSub['entityInformation']['administrationTypes']
-              except KeyError:
-                observationSubQuestionsObj['administrationTypes'] = ''
               observationSubQuestionsObj['createdBy'] = obSub['createdBy']
 
               try:
@@ -771,9 +761,10 @@ try:
     async for msg in consumer :
       msg_val = msg.decode('utf-8')
       msg_data = json.loads(msg_val)
-      successLogger.debug("========== START OF OBSERVATION SUBMISSION ========")
-      obj_creation(msg_data)
-      successLogger.debug("********* END OF OBSERVATION SUBMISSION ***********")
+      if msg_data["status"] == "completed":
+       successLogger.debug("========== START OF OBSERVATION SUBMISSION ========")
+       obj_creation(msg_data)
+       successLogger.debug("********* END OF OBSERVATION SUBMISSION ***********")
 except Exception as e:
   errorLogger.error(e, exc_info=True)
 
