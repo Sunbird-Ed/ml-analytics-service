@@ -318,12 +318,10 @@ try:
                                 surveySubQuestionsObj['instanceParentId'] = ans['qid']
                                 surveySubQuestionsObj['instanceParentResponsetype'] =ans['responseType']
                                 surveySubQuestionsObj['instanceParentCriteriaId'] =ans['criteriaId']
-                                for crit in criteriaCollec.find({'_id':ObjectId(ans['criteriaId'])}):
-                                    surveySubQuestionsObj['instanceParentCriteriaExternalId'] = crit['externalId']
-                                    surveySubQuestionsObj['instanceParentCriteriaName'] = crit['name']
+                                surveySubQuestionsObj['instanceParentCriteriaExternalId'] = ans['criteriaId']
+                                surveySubQuestionsObj['instanceParentCriteriaName'] = None
                                 surveySubQuestionsObj['instanceId'] = instNumber
-                                for ques in questionsCollec.find({'_id':ObjectId(ans['qid'])}):
-                                    surveySubQuestionsObj['instanceParentExternalId'] = ques['externalId']
+                                surveySubQuestionsObj['instanceParentExternalId'] = ans['qid']
                                 surveySubQuestionsObj['instanceParentEcmSequence']= sequenceNumber(
                                     surveySubQuestionsObj['instanceParentExternalId'], answer
                                 )
@@ -341,29 +339,28 @@ try:
 
                         # fetching the question details from questions collection
                         def fetchingQuestiondetails(ansFn,instNumber):        
-                            for ques in questionsCollec.find({'_id':ObjectId(ansFn['qid'])}):
-                                if len(ques['options']) == 0:
+                                if len(ansFn['options']) == 0:
                                     try:
                                         if len(ansFn['payload']['labels']) > 0:
                                             orgArr = orgCreator(obSub["userProfile"]["organisations"])
-                                            final_worker = FinalWorker(ansFn,ques['externalId'], ansFn['value'], instNumber, ansFn['payload']['labels'][0], orgArr, creatingObj)
+                                            final_worker = FinalWorker(ansFn,ansFn['externalId'], ansFn['value'], instNumber, ansFn['payload']['labels'][0], orgArr, creatingObj)
                                             final_worker.run()
                                     except KeyError :
                                         pass 
                                 else:
                                     labelIndex = 0
-                                    for quesOpt in ques['options']:
+                                    for quesOpt in ansFn['options']:
                                         try:
                                             if type(ansFn['value']) == str or type(ansFn['value']) == int:
                                                 if quesOpt['value'] == ansFn['value'] :
                                                     orgArr = orgCreator(obSub["userProfile"]["organisations"])
-                                                    final_worker = FinalWorker(ansFn,ques['externalId'], ansFn['value'], instNumber, ansFn['payload']['labels'][0], orgArr, creatingObj)
+                                                    final_worker = FinalWorker(ansFn,ansFn['externalId'], ansFn['value'], instNumber, ansFn['payload']['labels'][0], orgArr, creatingObj)
                                                     final_worker.run()
                                             elif type(ansFn['value']) == list:
                                                 for ansArr in ansFn['value']:
                                                     if quesOpt['value'] == ansArr:
                                                         orgArr = orgCreator(obSub["userProfile"]["organisations"])
-                                                        final_worker = FinalWorker(ansFn,ques['externalId'], ansArr, instNumber, quesOpt['label'], orgArr, creatingObj)
+                                                        final_worker = FinalWorker(ansFn,ansFn['externalId'], ansArr, instNumber, quesOpt['label'], orgArr, creatingObj)
                                                         final_worker.run()
                                         except KeyError:
                                             pass
