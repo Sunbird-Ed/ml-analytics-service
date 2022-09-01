@@ -64,7 +64,6 @@ clientProd = MongoClient(config.get('MONGO', 'mongo_url'))
 db = clientProd[config.get('MONGO', 'database_name')]
 surveySubCollec = db[config.get('MONGO', 'survey_submissions_collection')]
 solutionCollec = db[config.get('MONGO', 'solutions_collection')]
-userRolesCollec = db[config.get("MONGO", 'user_roles_collection')]
 programCollec = db[config.get("MONGO", 'programs_collection')]
 
 survey_sub_cursorMongo = surveySubCollec.aggregate(
