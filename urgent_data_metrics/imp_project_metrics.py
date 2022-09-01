@@ -303,13 +303,13 @@ os.rename(f'{path}' + f'{result[0]}', f'{path}' + 'data.csv')
 s3 = boto3.client('s3')
 
 s3 = boto3.resource(
-    service_name = config.get('AWS', 'service_name'),
-    aws_access_key_id = config.get('AWS', 'access_key'),
-    aws_secret_access_key = config.get('AWS', 'secret_access_key'),
-    region_name = config.get('AWS', 'region_name'),
+    service_name = config.get('CLOUD_STORAGE', 'service_name'),
+    aws_access_key_id = config.get('CLOUD_STORAGE', 'access_key'),
+    aws_secret_access_key = config.get('CLOUD_STORAGE', 'secret_access_key'),
+    region_name = config.get('CLOUD_STORAGE', 'region_name'),
 )
 
-bucket_name = config.get('AWS', 'bucket_name')
+bucket_name = config.get('CLOUD_STORAGE', 'bucket_name')
 
 time.sleep(5)
 

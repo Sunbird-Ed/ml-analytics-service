@@ -196,7 +196,7 @@ survey_rollup = {{ ml_analytics_survey_rollup_output_dir }}
 
 survey_status = {{ ml_analytics_survey_status_output_dir }}
 
-[AWS]
+[CLOUD_STORAGE]
 
 service_name = {{ AWS_service_name }}
 
