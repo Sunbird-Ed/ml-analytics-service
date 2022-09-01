@@ -26,6 +26,8 @@ from pyspark.sql.functions import element_at, split, col
 import logging
 import logging.handlers
 from logging.handlers import TimedRotatingFileHandler
+import boto3
+import glob
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
@@ -164,19 +166,6 @@ projects_schema = StructType([
               StructField('role', StringType(), True)
          ])
     )
-#    StructField(
-#         'userProfile',
-#         StructType([
-#              StructField(
-#                   'userLocations',ArrayType(
-#                     StructType([
-#                        StructField('name', StringType(), True),
-#                        StructField('id', StringType(), True),
-#                        StructField('type', StringType(), True)
-#                     ]), True)
-#              )
-#         ])
-#   )
 ])
 
 projects_df = spark.createDataFrame(projects_cursorMongo,projects_schema)
@@ -292,16 +281,39 @@ projects_ent_df_melt = projects_ent_df_melt.groupBy(["project_id"])\
 projects_df_final = projects_final_df.join(projects_ent_df_melt,["project_id"],how="left")
 #projects_df_final.show()
 
-state_final_df = projects_df_final.groupBy("state_name").agg(countDistinct(F.col("project_id")).alias("Total_Micro_Improvement_Projects"),countDistinct(when(F.col("status") == "started",True),F.col("project_id")).alias("Total_Micro_Improvement_Started"),countDistinct(when(F.col("status") == "inProgress",True),F.col("project_id")).alias("Total_Micro_Improvement_InProgress"),countDistinct(when(F.col("status") == "submitted",True),F.col("project_id")).alias("Total_Micro_Improvement_Submitted"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status") == "submitted"),True),F.col("project_id")).alias("Total_Micro_Improvement_Submitted_With_Evidence"))
-
-state_final_df.coalesce(1).write.format("csv").option("header",True).mode("overwrite").save(
-    "/opt/sparkjobs/source/urgent_data_metrics/output/state_data/"
-)
-state_final_df.unpersist()
-
 district_final_df = projects_df_final.groupBy("state_name","district_name").agg(countDistinct(F.col("project_id")).alias("Total_Micro_Improvement_Projects"),countDistinct(when(F.col("status") == "started",True),F.col("project_id")).alias("Total_Micro_Improvement_Started"),countDistinct(when(F.col("status") == "inProgress",True),F.col("project_id")).alias("Total_Micro_Improvement_InProgress"),countDistinct(when(F.col("status") == "submitted",True),F.col("project_id")).alias("Total_Micro_Improvement_Submitted"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status") == "submitted"),True),F.col("project_id")).alias("Total_Micro_Improvement_Submitted_With_Evidence")).sort("state_name","district_name")
 
-district_final_df.coalesce(1).write.format("csv").option("header",True).mode("overwrite").save(
-    "/opt/sparkjobs/source/urgent_data_metrics/output/district_data/"
-)
+
+# DF To file
+OUTPUT_PATH = "/opt/sparkjobs/source/urgent_data_metrics/output/"
+district_final_df.coalesce(1).write.format("csv").option("header",True).mode("overwrite").save(OUTPUT_PATH)
 district_final_df.unpersist()
+
+time.sleep(5)
+
+# Renaming a file
+path = OUTPUT_PATH
+extension = 'csv'
+os.chdir(path)
+result = glob.glob(f'*.{extension}')
+os.rename(f'{path}' + f'{result[0]}', f'{path}' + 'data.csv')
+
+
+# Uploading file to AWS-s3
+s3 = boto3.client('s3')
+
+s3 = boto3.resource(
+    service_name = config.get('AWS', 'service_name'),
+    aws_access_key_id = config.get('AWS', 'access_key'),
+    aws_secret_access_key = config.get('AWS', 'secret_access_key'),
+    region_name = config.get('AWS', 'region_name'),
+)
+
+bucket_name = config.get('AWS', 'bucket_name')
+
+time.sleep(5)
+
+s3.Bucket(f'{bucket_name}').upload_file(Filename=f'{OUTPUT_PATH}' + 'data.csv', Key='Manage_Learn_Data/micro_improvement/data.csv')
+
+# print("file got uploaded to AWS")
+print("DONE")
