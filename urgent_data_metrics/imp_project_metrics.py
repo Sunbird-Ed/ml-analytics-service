@@ -285,11 +285,10 @@ district_final_df = projects_df_final.groupBy("state_name","district_name").agg(
 
 
 # DF To file
-OUTPUT_PATH = "/opt/sparkjobs/source/urgent_data_metrics/output/"
+OUTPUT_PATH = "/opt/sparkjobs/ml-analytics-service/urgent_data_metrics/output/"
 district_final_df.coalesce(1).write.format("csv").option("header",True).mode("overwrite").save(OUTPUT_PATH)
 district_final_df.unpersist()
 
-time.sleep(5)
 
 # Renaming a file
 path = OUTPUT_PATH
