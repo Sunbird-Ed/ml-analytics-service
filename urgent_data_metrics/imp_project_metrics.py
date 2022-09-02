@@ -31,8 +31,7 @@ import glob
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
-config.read("/opt/sparkjobs/source/config.ini")
-#config.read(config_path[0] + "/config.ini")
+config.read(config_path[0] + "/config.ini")
 
 formatter = logging.Formatter('%(asctime)s - %(levelname)s')
 
@@ -99,7 +98,7 @@ try:
 except Exception as e:
    errorLogger.error(e,exc_info=True)
 
-spark = SparkSession.builder.appName("projects").config(
+spark = SparkSession.builder.appName("nvsk").config(
     "spark.driver.memory", "50g"
 ).config(
     "spark.executor.memory", "100g"
@@ -116,11 +115,6 @@ db = clientProd[config.get('MONGO', 'database_name')]
 projectsCollec = db[config.get('MONGO', 'projects_collection')]
 entitiesCollec = db[config.get('MONGO', 'entities_collection')]
 
-print("No of improvements started " + str(len(projectsCollec.distinct("_id",{"isAPrivateProgram":False,"isDeleted":False,"programId":{"$ne":ObjectId("60e7d35bf2b6e70788065fd2")},"status":"started"}))))
-print("No of improvements in-progress " + str(len(projectsCollec.distinct("_id",{"isAPrivateProgram":False,"isDeleted":False,"programId":{"$ne":ObjectId("60e7d35bf2b6e70788065fd2")},"status":"inProgress"}))))
-print("No of improvements submitted " + str(len(projectsCollec.distinct("_id",{"isAPrivateProgram":False,"isDeleted":False,"programId":{"$ne":ObjectId("60e7d35bf2b6e70788065fd2")},"status":"submitted"}))))
-print("No of unique users taken up the project " + str(len(projectsCollec.distinct("createdBy",{"isAPrivateProgram":False,"isDeleted":False,"programId":{"$ne":ObjectId("60e7d35bf2b6e70788065fd2")}}))))
-print("No of unique projects published on platform " + str(len(projectsCollec.distinct("solutionId",{"isAPrivateProgram":False,"isDeleted":False,"programId":{"$ne":ObjectId("60e7d35bf2b6e70788065fd2")}}))))
 
 projects_cursorMongo = projectsCollec.aggregate(
       [{"$match":{"isAPrivateProgram":False,"isDeleted":False}},
@@ -130,7 +124,6 @@ projects_cursorMongo = projectsCollec.aggregate(
             "status": 1,
             "attachments":1,
             "tasks": 1,
-#            "userProfile": 1,
             "userRoleInformation": 1
         }
     }]
@@ -279,7 +272,6 @@ projects_ent_df_melt = projects_ent_df_melt.withColumn("flag",F.regexp_replace(F
 projects_ent_df_melt = projects_ent_df_melt.groupBy(["project_id"])\
                                .pivot("flag").agg(first(F.col("name")))
 projects_df_final = projects_final_df.join(projects_ent_df_melt,["project_id"],how="left")
-#projects_df_final.show()
 
 district_final_df = projects_df_final.groupBy("state_name","district_name").agg(countDistinct(F.col("project_id")).alias("Total_Micro_Improvement_Projects"),countDistinct(when(F.col("status") == "started",True),F.col("project_id")).alias("Total_Micro_Improvement_Started"),countDistinct(when(F.col("status") == "inProgress",True),F.col("project_id")).alias("Total_Micro_Improvement_InProgress"),countDistinct(when(F.col("status") == "submitted",True),F.col("project_id")).alias("Total_Micro_Improvement_Submitted"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status") == "submitted"),True),F.col("project_id")).alias("Total_Micro_Improvement_Submitted_With_Evidence")).sort("state_name","district_name")
 
@@ -310,9 +302,7 @@ s3 = boto3.resource(
 
 bucket_name = config.get('CLOUD_STORAGE', 'bucket_name')
 
-time.sleep(5)
-
 s3.Bucket(f'{bucket_name}').upload_file(Filename=f'{OUTPUT_PATH}' + 'data.csv', Key='Manage_Learn_Data/micro_improvement/data.csv')
 
-# print("file got uploaded to AWS")
+print("file got uploaded to AWS")
 print("DONE")
