@@ -61,27 +61,27 @@ class Df_Creation:
       names = []
       try:
          if solution_ID == data[0]["solutionId"]:
-            return data[0]["solutionName"], data[0]['programName']
+            return data[0]["solutionName"].replace(' ', '_'), data[0]['programName'].replace(' ', '_')
       except KeyError:
          if solution_ID == data[0]["solution_id"]:
-            return data[0]["solution_name"],data[0]['program_name']
+            return data[0]["solution_name"].replace(' ', '_'),data[0]['program_name'].replace(' ', '_')
 
 
 class API:
    '''Gathers the access key and return the new enitity observed data'''
    def __init__(self):
-      self.url = "https://preprod.ntp.net.in//auth/realms/sunbird/protocol/openid-connect/token"
+      self.url = "https://staging.sunbirded.org//auth/realms/sunbird/protocol/openid-connect/token"
       self.header = {"Content-Type": "application/x-www-form-urlencoded"}
       self.client = {"client_id": "lms","client_secret": "80ea98b5-f8a3-4745-8994-8bf41d75642e",
                      "grant_type" : "client_credentials","scope": "offline_access"}
       self.token = requests.post(url=self.url, headers=self.header, data=self.client).json()["access_token"]
-      self.data_header = {"Authorization" : "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiI2NDE4YThlOGIzZTU0MzJjYTJiZTE0YjUzNjIxMGU3MyJ9.wN_7N0NwQxhzaMkNAwDFKKRPOcgBHN5-UTS3NCMKssM",
+      self.data_header = {"Authorization" : "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIxNWJkZDRhMWMwOTc0N2EwOWRkZDdmOTQxMTkzZWYxOSJ9.EDGxHfZB-gyTHjF1yFS9Jek5J0uiFjRz0VwR7YTN-fE",
                            "Content-Type" : "application/json",
                            "X-authenticated-user-token" : self.token
                            }
 
    def call_data(self, entity_id):
-      data_url = f"https://survey.diksha.gov.in/assessment/api/v1/entities/relatedEntities/{entity_id}"
+      data_url = f"http://11.3.0.4:8000/private/mlsurvey/api/v1/entities/relatedEntities/{entity_id}"
       data = requests.post(url=data_url, headers=self.data_header)
       return data.json()
 
@@ -132,7 +132,7 @@ sc = spark.sparkContext
 for items in solution_ID:
 
 # Druid Query
-   url_druid =  "http://11.4.3.41:8082/druid/v2?pretty"
+   url_druid =  "http://11.3.2.25:8082/druid/v2?pretty"
    query = {"obs" : 
                   {"queryType": "scan",
                   "dataSource": "sl-observation",
@@ -203,11 +203,11 @@ for items in solution_ID:
 
 # Convert the data into a csv based on program name and solution name
    clock = datetime.datetime.now().date()
-   save_path = f"/opt/sparkjobs/ml-analytics-service/observations/reports/punjab_observed_data/{obs_name[1]}/{obs_name[0]}"
+   save_path = f"/opt/sparkjobs/source/observations/reports/punjab_observed_data/{obs_name[1]}/{obs_name[0]}"
    final_obs_df.write.option("header", True).mode('overwrite').csv(f"{save_path}/ml_obs_{clock}")
    final_obs_status_df.write.option("header", True).mode('overwrite').csv(f"{save_path}/ml_obs_status_{clock}")
 
 # Zipping the files on Program Name
-zip_path = "/opt/sparkjobs/ml-analytics-service/observations/reports/punjab_observed_data"
+zip_path = "/opt/sparkjobs/source/observations/reports/punjab_observed_data"
 shutil.make_archive(f"{zip_path}/{obs_name[1]}_{clock}", 'zip', f"{zip_path}")
 shutil.rmtree(f"{zip_path}/{obs_name[1]}_{clock}")
