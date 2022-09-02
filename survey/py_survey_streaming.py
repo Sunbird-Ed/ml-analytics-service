@@ -339,6 +339,7 @@ try:
 
                         # fetching the question details from questions collection
                         def fetchingQuestiondetails(ansFn,instNumber):        
+                               try:
                                 if len(ansFn['options']) == 0:
                                     try:
                                         if len(ansFn['payload']['labels']) > 0:
@@ -364,7 +365,8 @@ try:
                                                         final_worker.run()
                                         except KeyError:
                                             pass
-                                        
+                               except KeyError:
+                                   pass
                                 # #to check the value is null ie is not answered
                                 # try:
                                 #     if type(ansFn['value']) == str and ansFn['value'] == '':
