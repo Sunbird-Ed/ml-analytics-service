@@ -51,11 +51,13 @@ program_ID = json.loads((args.e).replace('_', ','))
 class Df_Creation:
    '''Create dataframe from json data and also helps gather name of arguments passed'''
    def create(self, data):
+      '''Creates a dataframe from a given json structure'''
       df = sc.parallelize(data).map(lambda data_frame: json.dumps(data_frame))
       df = spark.read.json(df)
       return df
 
    def gather_name(self, data, sid):
+      '''Gathers the name of the ProgramID and Solution ID that is passed'''
       names = []
       try:
          if sid == data[0]["solutionId"]:
@@ -79,11 +81,13 @@ class API:
                            }
 
    def call_data(self, entity_id):
+      '''Returns the data from the entities API in JSON format'''
       data_url = f"http://11.3.0.4:8000/private/mlsurvey/api/v1/entities/relatedEntities/{entity_id}"
       data = requests.post(url=data_url, headers=self.data_header)
       return data.json()
 
    def get_data(self, entity_collection):
+      '''Pre-process the data in the entity collection that is passed'''
       gathered_data = []
       for val in entity_collection:
          new_data = self.call_data(val)
@@ -97,6 +101,7 @@ class Entity:
       self.gathered_entities = []
    
    def entity_sepration(self, value):
+      '''Takes in a json structure and formats the data in an organized way'''
       for items in value:
          entity_breakdown = {}
          entity_breakdown["merge_key"] = items['result']['_id']
@@ -111,6 +116,7 @@ class Entity:
       return self.gathered_entities
 
    def create_new_df(self, unclear_data):
+      '''Creates a new dataframe from the newly gathered data from the entity API'''
       final_entity = self.entity_sepration(unclear_data)
       new_df = sc.parallelize(final_entity)
       new_entity_df = spark.read.json(new_df)
