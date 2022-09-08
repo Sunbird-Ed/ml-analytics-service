@@ -1,22 +1,21 @@
 # -----------------------------------------------------------------
 # Name : sl_py_observation_streaming.py
-# Author : Ashwini.E , Shakthieshwari.A
+# Author : Ashwini.E , Shakthieshwari.A, Snehangsu De
 # Description : Program to read data from one kafka topic and 
-#   produce it to another kafka topic 
+# produce it to another kafka topic 
 # -----------------------------------------------------------------
 
 import faust
-from pymongo import MongoClient
-from bson.objectid import ObjectId
+import time
+import logging
 import os, json
 import datetime
 import requests
+from pymongo import MongoClient
+from bson.objectid import ObjectId
 from kafka import KafkaConsumer, KafkaProducer
 from configparser import ConfigParser,ExtendedInterpolation
-import logging
-import logging.handlers
-import time
-from logging.handlers import TimedRotatingFileHandler
+from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
@@ -28,28 +27,16 @@ successLogger = logging.getLogger('success log')
 successLogger.setLevel(logging.DEBUG)
 
 # Add the log message handler to the logger
-successHandler = logging.handlers.RotatingFileHandler(
-  config.get('LOGS', 'observation_streaming_success')
-)
-successBackuphandler = TimedRotatingFileHandler(
-  config.get('LOGS', 'observation_streaming_success'),
-  when="w0",
-  backupCount=1
-)
+successHandler = logging.handlers.RotatingFileHandler(config.get('LOGS', 'observation_streaming_success'))
+successBackuphandler = TimedRotatingFileHandler(config.get('LOGS', 'observation_streaming_success'),when="w0",backupCount=1)
 successHandler.setFormatter(formatter)
 successLogger.addHandler(successHandler)
 successLogger.addHandler(successBackuphandler)
 
 errorLogger = logging.getLogger('error log')
 errorLogger.setLevel(logging.ERROR)
-errorHandler = logging.handlers.RotatingFileHandler(
-  config.get('LOGS', 'observation_streaming_error')
-)
-errorBackuphandler = TimedRotatingFileHandler(
-  config.get('LOGS', 'observation_streaming_error'),
-  when="w0",
-  backupCount=1
-)
+errorHandler = logging.handlers.RotatingFileHandler(config.get('LOGS', 'observation_streaming_error'))
+errorBackuphandler = TimedRotatingFileHandler(config.get('LOGS', 'observation_streaming_error'),when="w0",backupCount=1)
 errorHandler.setFormatter(formatter)
 errorLogger.addHandler(errorHandler)
 errorLogger.addHandler(errorBackuphandler)
@@ -76,16 +63,6 @@ questionsCollec = db[config.get('MONGO', 'questions_collection')]
 criteriaQuestionsCollec = db[config.get('MONGO', 'criteria_questions_collection')]
 criteriaCollec = db[config.get('MONGO', 'criteria_collection')]
 programsCollec = db[config.get('MONGO', 'programs_collection')]
-
-try:
-  def removeduplicate(it):
-    seen = []
-    for x in it:
-      if x not in seen:
-        yield x
-        seen.append(x)
-except Exception as e:
-  errorLogger.error(e, exc_info=True)
 
 def orgName(val):
   orgarr = []
@@ -257,7 +234,14 @@ try:
               observationSubQuestionsObj[entityType] = str(obSub['entityId'])
               observationSubQuestionsObj[entityType+'Name'] = obSub['entityInformation']['name']
               observationSubQuestionsObj[entityType+'ExternalId'] = obSub['entityInformation']['externalId']        
-
+              observed_entities = obSub['entityInformation']['hierarchy']
+              try:
+                for values in observed_entities:
+                    observationSubQuestionsObj[f'{values["type"]}Name'] = values['name']
+                    observationSubQuestionsObj[f'{values["type"]}ExternalId'] = values['code']
+                    observationSubQuestionsObj[f'{values["type"]}'] = values['id']
+              except KeyError:
+                pass 
 
               observationSubQuestionsObj['createdBy'] = obSub['createdBy']
 

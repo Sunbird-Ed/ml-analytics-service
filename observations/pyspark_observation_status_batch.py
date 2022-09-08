@@ -108,8 +108,8 @@ except Exception as e:
    errorLogger.error(e,exc_info=True)
 
 orgSchema = ArrayType(StructType([
-    StructField("orgId", StringType(), False),
-    StructField("orgName", StringType(), False)
+    StructField("orgId", StringType(), True),
+    StructField("orgName", StringType(), True)
 ]))
 
 def orgName(val):
@@ -123,6 +123,42 @@ def orgName(val):
             orgarr.append(orgObj)
   return orgarr
 orgInfo_udf = udf(orgName,orgSchema)
+
+def observed_data(vts, entype):
+    gathered_entities = []
+    entity_breakdown = {}
+    entity_breakdown[f"observed_{entype}_name"] = vts["name"]
+    try:
+        entity_breakdown[f"observed_{entype}_id"] = vts["registryDetails"]["locationId"]
+        entity_breakdown[f"observed_{entype}_code"] = vts["registryDetails"]["code"]
+    except TypeError:
+        entity_breakdown[f"observed_{entype}_id"] = ''
+        entity_breakdown[f"observed_{entype}_code"] = ''
+    if vts["hierarchy"] is not None:
+        for val in vts["hierarchy"]:
+            entity_breakdown[f"observed_{val['type']}_id"] = val['id']
+            entity_breakdown[f"observed_{val['type']}_name"] = val['name']
+            entity_breakdown[f"observed_{val['type']}_code"] = val['code'] 
+    return entity_breakdown
+
+entity_observed = udf(lambda x,y:observed_data(x,y), StructType([
+                                                         StructField("observed_block_name", StringType(), True),
+                                                         StructField("observed_block_code", StringType(), True),
+                                                         StructField("observed_block_id", StringType(), True),
+                                                         StructField("observed_district_name", StringType(), True),
+                                                         StructField("observed_district_code", StringType(), True),
+                                                         StructField("observed_district_id", StringType(), True),
+                                                         StructField("observed_state_name", StringType(), True),
+                                                         StructField("observed_state_code", StringType(), True),
+                                                         StructField("observed_state_id", StringType(), True),
+                                                         StructField("observed_school_name", StringType(), True),
+                                                         StructField("observed_school_code", StringType(), True),
+                                                         StructField("observed_school_id", StringType(), True),
+                                                         StructField("observed_cluster_name", StringType(), True),
+                                                         StructField("observed_cluster_code", StringType(), True),
+                                                         StructField("observed_cluster_id", StringType(), True)
+]))
+
 
 clientProd = MongoClient(config.get('MONGO', 'mongo_url'))
 db = clientProd[config.get('MONGO', 'database_name')]
@@ -139,7 +175,7 @@ obs_sub_cursorMongo = obsSubmissionsCollec.aggregate(
          "entityId": {"$toString": "$entityId"},
          "status": 1,
          "entityExternalId": 1,
-         "entityInformation": {"name": 1},
+         "entityInformation": {"name": 1,"registryDetails":1,"hierarchy":1},
          "entityType": 1,
          "createdBy": 1,
          "solutionId": {"$toString": "$solutionId"},
@@ -193,8 +229,19 @@ obs_sub_schema = StructType(
       StructField('completedDate', TimestampType(), True),
       StructField('isAPrivateProgram', BooleanType(), True),
       StructField(
-         'entityInformation', 
-         StructType([StructField('name', StringType(), True)])
+         'entityInformation', StructType([
+                StructField('name', StringType(), True),
+                StructField('registryDetails', StructType([
+                    StructField('code', StringType(), True),
+                    StructField('locationId', StringType(), True)
+                ]),True),
+                StructField('hierarchy',ArrayType(
+                    StructType([
+                        StructField('code', StringType(), True),
+                        StructField('name', StringType(), True),
+                        StructField('id', StringType(), True),
+                        StructField('type', StringType(), True)
+                ]), True),True)])
       ),
       StructField(
          'appInformation',
@@ -330,6 +377,7 @@ obs_sub_df1 = obs_sub_df1.withColumn(
 
 obs_sub_df1 = obs_sub_df1.withColumn("orgData",orgInfo_udf(F.col("userProfile.organisations")))
 obs_sub_df1 = obs_sub_df1.withColumn("exploded_orgInfo",F.explode_outer(F.col("orgData")))
+obs_sub_df1 = obs_sub_df1.withColumn("observedData", entity_observed(F.col("entityInformation"), F.col("entityType")))
 obs_sub_df1 = obs_sub_df1.withColumn("parent_channel",F.lit("SHIKSHALOKAM"))
 
 obs_sub_expl_ul = obs_sub_df1.withColumn(
@@ -360,6 +408,21 @@ obs_sub_df = obs_sub_df1.select(
    concat_ws(",",F.col("userProfile.framework.board")).alias("board_name"),
    obs_sub_df1["exploded_orgInfo"]["orgId"].alias("organisation_id"),
    obs_sub_df1["exploded_orgInfo"]["orgName"].alias("organisation_name"),
+   obs_sub_df1["observedData"]["observed_block_name"].alias("observed_block_name"),
+   obs_sub_df1["observedData"]["observed_block_id"].alias("observed_block_id"),
+   obs_sub_df1["observedData"]["observed_block_code"].alias("observed_block_code"),
+   obs_sub_df1["observedData"]["observed_district_name"].alias("observed_district_name"),
+   obs_sub_df1["observedData"]["observed_district_id"].alias("observed_district_id"),
+   obs_sub_df1["observedData"]["observed_district_code"].alias("observed_district_code"),
+   obs_sub_df1["observedData"]["observed_state_name"].alias("observed_state_name"),
+   obs_sub_df1["observedData"]["observed_state_id"].alias("observed_state_id"),
+   obs_sub_df1["observedData"]["observed_state_code"].alias("observed_state_code"),
+   obs_sub_df1["observedData"]["observed_cluster_name"].alias("observed_cluster_name"),
+   obs_sub_df1["observedData"]["observed_cluster_id"].alias("observed_cluster_id"),
+   obs_sub_df1["observedData"]["observed_cluster_code"].alias("observed_cluster_code"),
+   obs_sub_df1["observedData"]["observed_school_name"].alias("observed_school_name"),
+   obs_sub_df1["observedData"]["observed_school_id"].alias("observed_school_id"),
+   obs_sub_df1["observedData"]["observed_school_code"].alias("observed_school_code"),
    obs_sub_df1["themes"],obs_sub_df1["criteria"],
    concat_ws(",",array_distinct(F.col("userProfile.profileUserTypes.type"))).alias("user_type")
 )
