@@ -698,15 +698,30 @@ for i,j in zip(datasources,ingestion_specs):
                   )
                   time.sleep(50)
                else:
+                  errorLogger.error("failed to start batch ingestion task" + i)
                   errorLogger.error(
                      "failed to start batch ingestion task" + str(start_supervisor.status_code)
-                  )    
+                  ) 
+                  errorLogger.error(start_supervisor.text)
+
             else:
                errorLogger.error("failed to enable the datasource " + i)
+               errorLogger.error(
+                    "failed to enable the datasource " + str(enable_datasource.status_code)
+               )
+               errorLogger.error(enable_datasource.text)
          else:
             errorLogger.error("failed to delete the segments of the datasource " + i)
+            errorLogger.error(
+                "failed to delete the segments of the datasource " + str(delete_segments.status_code)
+            )
+            errorLogger.error(delete_segments.text)
       else:
          errorLogger.error("failed to disable the datasource " + i)
+         errorLogger.error(
+                "failed to disable the datasource " + str(disable_datasource.status_code)
+         )
+         errorLogger.error(disable_datasource.text)
 
    elif get_timestamp.status_code == 204:
       start_supervisor = requests.post(druid_batch_end_point, data=j, headers=headers)
@@ -716,12 +731,17 @@ for i,j in zip(datasources,ingestion_specs):
          )
          time.sleep(50)
       else:
+         errorLogger.error("failed to start batch ingestion task" + i)
          errorLogger.error(
             "failed to start batch ingestion task" + str(start_supervisor.status_code)
          )
-         errorLogger.error(start_supervisor.json())
+         errorLogger.error(start_supervisor.text)
    else:
       errorLogger.error("failed to get the timestamp of the datasource " + i)
+      errorLogger.error(
+                "failed to get the timestamp of the datasource " + str(get_timestamp.status_code)
+      )
+      errorLogger.error(get_timestamp.text)
 
 #observation submission distinct count
 ml_distinctCnt_obs_status_spec = json.loads(config.get("DRUID","ml_distinctCnt_obs_status_spec"))
@@ -734,9 +754,9 @@ if distinctCnt_obs_start_supervisor.status_code == 200:
    time.sleep(50)
 else:
    errorLogger.error(
-        "failed to start batch ingestion task" + str(distinctCnt_obs_start_supervisor.status_code)
+        "failed to start batch ingestion task of ml-obs-status " + str(distinctCnt_obs_start_supervisor.status_code)
    )
-   errorLogger.error(distinctCnt_obs_start_supervisor.json())
+   errorLogger.error(distinctCnt_obs_start_supervisor.text)
 
 #observation domain distinct count
 ml_distinctCnt_obs_domain_spec = json.loads(config.get("DRUID","ml_distinctCnt_obs_domain_spec"))
@@ -749,9 +769,9 @@ if distinctCnt_obs_domain_start_supervisor.status_code == 200:
    time.sleep(50)
 else:
    errorLogger.error(
-        "failed to start batch ingestion task" + str(distinctCnt_obs_domain_start_supervisor.status_code)
+        "failed to start batch ingestion task of ml-obs-domain " + str(distinctCnt_obs_domain_start_supervisor.status_code)
    )
-   errorLogger.error(distinctCnt_obs_domain_start_supervisor.json())
+   errorLogger.error(distinctCnt_obs_domain_start_supervisor.text)
 
 #observation domain criteria distinct count
 ml_distinctCnt_obs_domain_criteria_spec = json.loads(config.get("DRUID","ml_distinctCnt_obs_domain_criteria_spec"))
@@ -764,6 +784,6 @@ if distinctCnt_obs_domain_criteria_start_supervisor.status_code == 200:
    time.sleep(50)
 else:
    errorLogger.error(
-        "failed to start batch ingestion task" + str(distinctCnt_obs_domain_criteria_start_supervisor.status_code)
+        "failed to start batch ingestion task of ml-obs-domain-criteria " + str(distinctCnt_obs_domain_criteria_start_supervisor.status_code)
    )
-   errorLogger.error(distinctCnt_obs_domain_criteria_start_supervisor.json())
+   errorLogger.error(distinctCnt_obs_domain_criteria_start_supervisor.text)
