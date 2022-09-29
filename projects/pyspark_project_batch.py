@@ -640,7 +640,7 @@ for items in programs:
 
 # Projects submission distinct count
         final_projects_tasks_distinctCnt_df = final_projects_df.groupBy("program_name","program_id","project_title","solution_id","status_of_project","state_name","state_externalId",
-                                                                    "district_name","district_externalId","organisation_name","organisation_id","private_program","project_created_type",
+                                                                    "district_name","district_externalId","block_name","block_externalId","organisation_name","organisation_id","private_program","project_created_type",
                                                                     "parent_channel").agg(countDistinct(when(F.col("certificate_status") == "active",True),F.col("project_id")).alias("no_of_certificate_issued"),
                                                                     countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("createdBy")).alias("unique_users"),
                                                                     countDistinct(when((F.col("evidence_status") == True)&(F.col("status_of_project") == "submitted"),True),F.col("project_id")).alias("no_of_imp_with_evidence"))
