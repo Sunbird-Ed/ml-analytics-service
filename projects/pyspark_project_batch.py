@@ -12,6 +12,7 @@ import requests
 import pyspark.sql.functions as F
 import logging
 import datetime
+import pyspark.sql.utils as ut
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pymongo import MongoClient
@@ -647,26 +648,31 @@ for items in programs:
             )
 
         # Projects submission distinct count
-            final_projects_tasks_distinctCnt_df = final_projects_df.groupBy("program_name","program_id","project_title","solution_id","status_of_project","state_name","state_externalId",
+            try:
+                final_projects_tasks_distinctCnt_df = final_projects_df.groupBy("program_name","program_id","project_title","solution_id","status_of_project","state_name","state_externalId",
                                                                         "district_name","district_externalId","block_name","block_externalId","organisation_name","organisation_id","private_program","project_created_type",
                                                                         "parent_channel").agg(countDistinct(when(F.col("certificate_status") == "active",True),F.col("project_id")).alias("no_of_certificate_issued"),
                                                                         countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("createdBy")).alias("unique_users"),
                                                                         countDistinct(when((F.col("evidence_status") == True)&(F.col("status_of_project") == "submitted"),True),F.col("project_id")).alias("no_of_imp_with_evidence"))
-            final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.withColumn("time_stamp", current_timestamp())
-            final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.dropDuplicates()
-            final_projects_tasks_distinctCnt_df.coalesce(1).write.format("json").mode("overwrite").save(
-                config.get("OUTPUT_DIR","projects_distinctCount") + "/")
-            final_projects_tasks_distinctCnt_df.unpersist()
-
+                final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.withColumn("time_stamp", current_timestamp())
+                final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.dropDuplicates()
+                final_projects_tasks_distinctCnt_df.coalesce(1).write.format("json").mode("overwrite").save(
+                    config.get("OUTPUT_DIR","projects_distinctCount") + "/")
+                final_projects_tasks_distinctCnt_df.unpersist()
+            except ut.AnalysisException:
+                continue
         # Projects submission distinct count by program level
-            final_projects_tasks_distinctCnt_prgmlevel = final_projects_df.groupBy("program_name", "program_id","status_of_project", "state_name","state_externalId","private_program","project_created_type","parent_channel").agg(countDistinct(when(F.col("certificate_status") == "active",True),F.col("project_id")).alias("no_of_certificate_issued"), countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("createdBy")).alias("unique_users"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status_of_project") == "submitted"),True),F.col("project_id")).alias("no_of_imp_with_evidence"))
-            final_projects_tasks_distinctCnt_prgmlevel = final_projects_tasks_distinctCnt_prgmlevel.withColumn("time_stamp", current_timestamp())
-            final_projects_tasks_distinctCnt_prgmlevel = final_projects_tasks_distinctCnt_prgmlevel.dropDuplicates()
-            final_projects_tasks_distinctCnt_prgmlevel.coalesce(1).write.format("json").mode("overwrite").save(
-                config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/")
-            final_projects_df.unpersist()
-            final_projects_tasks_distinctCnt_prgmlevel.unpersist()
-
+            try:
+                final_projects_tasks_distinctCnt_prgmlevel = final_projects_df.groupBy("program_name", "program_id","status_of_project", "state_name","state_externalId","private_program","project_created_type","parent_channel").agg(countDistinct(when(F.col("certificate_status") == "active",True),F.col("project_id")).alias("no_of_certificate_issued"), countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("createdBy")).alias("unique_users"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status_of_project") == "submitted"),True),F.col("project_id")).alias("no_of_imp_with_evidence"))
+                final_projects_tasks_distinctCnt_prgmlevel = final_projects_tasks_distinctCnt_prgmlevel.withColumn("time_stamp", current_timestamp())
+                final_projects_tasks_distinctCnt_prgmlevel = final_projects_tasks_distinctCnt_prgmlevel.dropDuplicates()
+                final_projects_tasks_distinctCnt_prgmlevel.coalesce(1).write.format("json").mode("overwrite").save(
+                    config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/")
+                final_projects_df.unpersist()
+                final_projects_tasks_distinctCnt_prgmlevel.unpersist()
+            except ut.AnalysisException:
+                continue
+            
 # Renaming the files
             for filename in os.listdir(config.get("OUTPUT_DIR", "project")+"/"):
                 if filename.endswith(".json"):
