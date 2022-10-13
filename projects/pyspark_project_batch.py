@@ -447,8 +447,15 @@ projects_df = projects_df.withColumn(
     ).otherwise(projects_df["exploded_taskarr"]["prj_evidence"])
 )
 
+successLogger.debug(
+        "Organisation logic start time  " + str(datetime.datetime.now())
+   )
 projects_df = projects_df.withColumn("orgData",orgInfo_udf(F.col("userProfile.organisations")))
 projects_df = projects_df.withColumn("exploded_orgInfo",F.explode_outer(F.col("orgData")))
+
+successLogger.debug(
+        "Organisation logic end time  " + str(datetime.datetime.now())
+   )
 
 projects_df = projects_df.withColumn("project_goal",regexp_replace(F.col("metaInformation.goal"), "\n", " "))
 projects_df = projects_df.withColumn("area_of_improvement",regexp_replace(F.col("categories_name"), "\n", " "))
@@ -545,7 +552,13 @@ for eid in entitiesId_projects_df_before:
    except KeyError :
     pass
 
+successLogger.debug(
+        "removeduplicate func call start time  " + str(datetime.datetime.now())
+   )
 uniqueEntitiesId_arr = list(removeduplicate(entitiesId_arr))
+successLogger.debug(
+        "removeduplicate func call end time  " + str(datetime.datetime.now())
+   )
 
 successLogger.debug(
         "Entities mongo query start time  " + str(datetime.datetime.now())
