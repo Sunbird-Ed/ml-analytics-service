@@ -745,8 +745,9 @@ for items in programs:
             errorLogger.error(start_supervisor.text)
     
 # Projects submission distinct count
-        ml_distinctCnt_projects_spec = json.loads(config.get("DRUID","ml_distinctCnt_projects_status_spec"))   
-        ml_distinctCnt_projects_spec_uri = f"azure://telemetry-data-store/projects/ml_projects_distinctCount_{items}.json"
+        ml_distinctCnt_projects_spec = json.loads(config.get("DRUID","ml_distinctCnt_projects_status_spec"))
+        ml_distinctCnt_projects_spec['spec']['ioConfig'].update({"appendToExisting":True})   
+        ml_distinctCnt_projects_spec_uri = f"azure://telemetry-data-store/projects/distinctCount/ml_projects_distinctCount_{items}.json"
         ml_distinctCnt_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"][0] = ml_distinctCnt_projects_spec_uri               
         ml_distinctCnt_projects_datasource = ml_distinctCnt_projects_spec["spec"]["dataSchema"]["dataSource"]
         distinctCnt_projects_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_projects_spec), headers=headers)
@@ -760,7 +761,8 @@ for items in programs:
 
 # Projects submission distinct count program level
         ml_distinctCnt_prgmlevel_projects_spec = json.loads(config.get("DRUID","ml_distinctCnt_prglevel_projects_status_spec"))
-        ml_distinctCnt_prgmlevel_projects_uri = f"azure://telemetry-data-store/projects/ml_projects_distinctCount_prgmlevel_{items}.json"
+        ml_distinctCnt_prgmlevel_projects_spec['spec']['ioConfig'].update({"appendToExisting":True})
+        ml_distinctCnt_prgmlevel_projects_uri = f"azure://telemetry-data-store/projects/distinctCountPrglevel/ml_projects_distinctCount_prgmlevel_{items}.json"
         ml_distinctCnt_prgmlevel_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"][0] = ml_distinctCnt_prgmlevel_projects_uri       
         ml_distinctCnt_prgmlevel_projects_datasource = ml_distinctCnt_prgmlevel_projects_spec["spec"]["dataSchema"]["dataSource"]
         distinctCnt_prgmlevel_projects_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_prgmlevel_projects_spec), headers=headers)
