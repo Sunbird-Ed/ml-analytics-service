@@ -6,11 +6,12 @@ config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
 
 ## This Function adds the metaInformation of task
-def task_detail(task,del_flg):
+def task_detail(task,del_flg,cntr):
   if (type(task)==dict) :
    taskObj = {}
    taskObj["_id"] = task["_id"]
    taskObj["tasks"] = task["name"]
+   taskObj["task_sequence"] = cntr
    taskObj["deleted_flag"] = del_flg
 
    try:
@@ -78,6 +79,7 @@ def recreate_task_data(prj_data):
         pass
     
     taskarr = []
+    cntr = 1
     for  task in prj["tasks"]:        
         arr_len = 0
         try :
@@ -99,7 +101,7 @@ def recreate_task_data(prj_data):
          arr_len = sub_tskLen        
         elif ((sub_tskLen == attachLen) & (sub_tskLen == 0)):
           if del_flg == False:
-            taskObj = task_detail(task,del_flg)
+            taskObj = task_detail(task,del_flg,cntr)
          
          ## add remarks value when arrlen is 0
             try:
@@ -115,7 +117,7 @@ def recreate_task_data(prj_data):
         ## creating task level remarks and evidence obj to avoid repetition
         for index in range(arr_len):
           if del_flg == False:
-           taskObj = task_detail(task,del_flg)
+           taskObj = task_detail(task,del_flg,cntr)
            try :
              taskObj["taskEvi_type"] = task["attachments"][index]["type"]
              if taskObj["taskEvi_type"] == "link":
@@ -157,6 +159,7 @@ def recreate_task_data(prj_data):
                   taskarr.append(taskObj)
            except IndexError:
             taskarr.append(taskObj)
+        cntr = cntr + 1
     
 
     ## Formatting project level remarks and evidence

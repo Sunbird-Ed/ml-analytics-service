@@ -240,6 +240,7 @@ projects_schema = StructType([
              StructType([
                   StructField('tasks', StringType(), True),
                   StructField('_id', StringType(), True),
+                  StructField('task_sequence', IntegerType(), True),
                   StructField('sub_task_id', StringType(), True),
                   StructField('sub_task', StringType(), True),
                   StructField('sub_task_date',TimestampType(), True),
@@ -479,7 +480,7 @@ projects_df_cols = projects_df.select(
     projects_df["private_program"],
     projects_df["task_deleted_flag"],projects_df["sub_task_deleted_flag"],
     projects_df["project_terms_and_condition"],
-    projects_df["task_remarks"],
+    projects_df["task_remarks"],projects_df["exploded_taskarr"]["task_sequence"].alias("task_sequence"),
     projects_df["project_completed_date"],
     projects_df["solutionInformation"]["_id"].alias("solution_id"),
     projects_df["userRoleInformation"]["role"].alias("designation"),
@@ -494,7 +495,23 @@ projects_df_cols = projects_df.select(
     projects_df["evidence_status"]    
 )
 
+projects_task_cnt = projects_df_cols.groupBy("project_id").agg(countDistinct(F.col("task_id")).alias("task_count"))
+
+projects_prj_evi= projects_df_cols.groupBy("project_id").agg(countDistinct("project_evidence").alias("project_evidence_count"))
+projects_dff = projects_task_cnt.join(projects_prj_evi,["project_id"],"left")
+projects_dff.show()
+
+projects_tsk_evi = projects_df_cols.groupBy("project_id","task_id").agg(countDistinct("task_evidence").alias("task_evidence_count"))
+projects_tsk_evi.show()
+projects_df_cols = projects_df_cols.join(projects_dff,["project_id"],"left")
+projects_df_cols = projects_df_cols.join(projects_tsk_evi,["project_id","task_id"],"left")
+
 projects_df.unpersist()
+projects_prj_evi.unpersist()
+projects_task_cnt.unpersist()
+projects_dff.unpersist()
+projects_task_cnt.unpersist()
+projects_tsk_evi.unpersist()
 projects_df_cols = projects_df_cols.dropDuplicates()
 
 entities_df = melt(prj_df_expl_ul,
@@ -676,7 +693,7 @@ submissionReportColumnNamesArr = [
     'sub_task_deleted_flag', 'project_terms_and_condition','task_remarks',
     'organisation_name','project_description','project_completed_date','solution_id',
     'project_remarks','project_evidence','organisation_id','user_type', 'certificate_id', 
-    'certificate_status','certificate_date'
+    'certificate_status','certificate_date',{"type":"long","name":"task_count"},{"type":"long","name":"task_evidence_count"},{"type":"long","name":"project_evidence_count"},{"type":"long","name":"task_sequence"}
 ]
 
 dimensionsArr.extend(submissionReportColumnNamesArr)
