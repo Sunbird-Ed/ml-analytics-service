@@ -721,7 +721,7 @@ except Exception as e:
   errorLogger.error(e, exc_info=True)
 
 with open('sl_observation.json', 'w') as f:
-  for counter, msg_data in enumerate(obsSubCollec.find({"status":"completed", "solutionId": args.solution_id)): 
+  for counter, msg_data in enumerate(obsSubCollec.find({"status":"completed", "solutionId": ObjectId(args.solution_id)})): 
     print(f"Count: {counter} ---- ID: {msg_data['_id']}")
     obj_arr = obj_creation(msg_data['_id'])
 
