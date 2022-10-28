@@ -2,7 +2,7 @@
 source /etc/profile
 export PYSPARK_PYTHON=python3
 export TZ=Asia/Kolkata date
-
+# source /opt/sparkjobs/ml-analytics-service/shell_script_config
 echo "RUNNING JOB"
 
 echo ""
