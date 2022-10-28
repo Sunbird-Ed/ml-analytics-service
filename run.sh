@@ -2,7 +2,7 @@
 source /etc/profile
 export PYSPARK_PYTHON=python3
 export TZ=Asia/Kolkata date
-source /opt/sparkjobs/ml-analytics-service/shell_script_config
+# source /opt/sparkjobs/ml-analytics-service/shell_script_config
 echo "RUNNING JOB"
 
 echo ""
@@ -10,7 +10,6 @@ echo "$(date)"
 echo "====================================="
 echo "Daily Projects Batch Job Ingestion == Started"
 . /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory 15g /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_batch.py
-done
 echo "Daily Projects Batch Job Ingestion == Completed"
 echo "*************************************"
 
