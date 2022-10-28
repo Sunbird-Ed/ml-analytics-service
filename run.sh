@@ -9,15 +9,7 @@ echo ""
 echo "$(date)"
 echo "====================================="
 echo "Daily Projects Batch Job Ingestion == Started"
-queryRes=$(mongo "$mongo_url/$mongo_db_name" --quiet --eval="db.projects.distinct('programId')");
-regStr="^ObjectId"
-for programId in $queryRes
-do
-    if [[ $programId =~ $regStr ]]  
-    then 
-        echo "${programId/,}"
-        . /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory 15g --program_id ${programId/,} /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_batch.py
-    fi
+. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory 15g /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_batch.py
 done
 echo "Daily Projects Batch Job Ingestion == Completed"
 echo "*************************************"

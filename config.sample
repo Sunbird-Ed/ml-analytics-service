@@ -146,9 +146,15 @@ survey_streaming_error = {{ ml_analytics_survey_log_folder_path }}/error.log
 
 account_name = {{ ml_analytics_azure_account_name }}
 
+public_account_name = {{ ml_analytics_public_azure_account_name }}
+
+public_access_key = {{ ml_analytics_public_azure_access_key}}
+
 sas_token = {{ ml_analytics_azure_sas_token }}
 
 container_name = {{ ml_analytics_azure_container_name }}
+
+public_container_name = {{ ml_analytics_public_azure_container_name }}
 
 observation_blob_path = {{ ml_analytics_observation_azure_blob_path }}
 
@@ -171,6 +177,8 @@ observation_rollup_blob_path = {{ ml_analytics_observation_rollup_azure_blob_pat
 survey_rollup_blob_path = {{ ml_analytics_survey_rollup_azure_blob_path }}
 
 survey_blob_path = {{ ml_analytics_survey_azure_blob_path }}
+
+projects_program_csv = {{ ml_analytics_program_dashboard_azure_blob_path }}
 
 [OUTPUT_DIR]
 
@@ -213,3 +221,11 @@ bucket_name = {{ ml_AWS_bucket_name }}
 token = {{ml_slack_token}}
 
 channel = {{ml_slack_channel}}
+
+[VAM]
+
+druid_query_url = {{ ml_druid_query_data }}
+
+program_dashboard_data = {{ ml_program_dashboard_data }}
+
+
