@@ -54,7 +54,7 @@ dashdata = json.loads(config.get("VAM", "program_dashboard_data"))
 # Azure details
 blob_service_client = BlockBlobService(
     account_name=config.get("AZURE", "public_account_name"), 
-    access_key=config.get("AZURE", "public_access_key")
+    account_key=config.get("AZURE", "public_access_key")
 )
 container_name = config.get("AZURE", "public_container_name")
 local_path =  config.get("OUTPUT_DIR", "project_rollup")
