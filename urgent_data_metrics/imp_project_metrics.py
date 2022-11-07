@@ -17,7 +17,6 @@ import pyspark.sql.functions as F
 from pyspark.sql.types import *
 from pyspark.sql import Row
 from collections import OrderedDict, Counter
-import databricks.koalas as ks
 import datetime
 from datetime import date
 from pyspark.sql import DataFrame
