@@ -80,7 +80,7 @@ class Creator:
         filter_task_state_df = filter_task_state_df.filter(filter_task_state_df["Project Status"] == "submitted")
         filter_task_state_df = filter_task_state_df.dropDuplicates()
         filter_task_state_df = filter_task_state_df.sort(col("District"), col("Block"), col("UUID"), col("Task Sequence"))
-        filter_task_state_df.drop("Task Sequence")
+        filter_task_state_df = filter_task_state_df.drop("Task Sequence")
         filter_task_state_df.coalesce(1).write.option("header", True).mode('overwrite').csv(f"{local_path}/{stname}/filter_task_detail/STATEWISE_{solname}_{datetime.datetime.now().date()}")
         filter_task_state_df.unpersist()
     
@@ -115,7 +115,8 @@ class Creator:
         filter_dist_task = filter_dist_task.filter(filter_dist_task["Project Status"] == "submitted")
         filter_dist_task = filter_dist_task.dropDuplicates()
         filter_dist_task = filter_dist_task.na.fill("null")
-        filter_dist_task = filter_dist_task.sort(col("District").asc(), col("Block").asc(), col("UUID").asc(), col("Task Sequence").asc())                                
+        filter_dist_task = filter_dist_task.sort(col("District").asc(), col("Block").asc(), col("UUID").asc(), col("Task Sequence").asc())
+        filter_dist_task = filter_dist_task.drop("Task Sequence")                              
         filter_dist_task.coalesce(1).write.option("header", True).mode('overwrite').csv(f"{local_path}/{stname}/filter_task_detail/{dist}/{solname}/distwise_{datetime.datetime.now().date()}")
         filter_dist_task.unpersist()
     
