@@ -273,9 +273,15 @@ try:
                                     surveySubQuestionsObj['questionResponseLabel_number'] = responseLabel
                                 else:
                                     surveySubQuestionsObj['questionResponseLabel_number'] = ''
-                            if answer['payload']['labels']:
-                                surveySubQuestionsObj['questionResponseLabel'] = responseLabel
-                            else:
+                            try:
+                             if answer['payload']['labels']:
+                                if answer['responseType'] == 'text':
+                                 surveySubQuestionsObj['questionResponseLabel'] = "'"+responseLabel+"'"
+                                else:
+                                 surveySubQuestionsObj['questionResponseLabel'] = responseLabel
+                             else:
+                                surveySubQuestionsObj['questionResponseLabel'] = ''
+                            except KeyError :
                                 surveySubQuestionsObj['questionResponseLabel'] = ''
                             surveySubQuestionsObj['questionExternalId'] = quesexternalId
                             surveySubQuestionsObj['questionName'] = answer['payload']['question'][0]
@@ -299,7 +305,10 @@ try:
                             surveySubQuestionsObj['completedDate'] = completedDate
                             surveySubQuestionsObj['createdAt'] = createdAt
                             surveySubQuestionsObj['updatedAt'] = updatedAt
-                            surveySubQuestionsObj['remarks'] = answer['remarks']
+                            if answer['remarks'] :
+                             surveySubQuestionsObj['remarks'] = "'"+answer['remarks']+"'"
+                            else :
+                             surveySubQuestionsObj['remarks'] = None
                             if len(answer['fileName']):
                                 multipleFiles = None
                                 fileCnt = 1
