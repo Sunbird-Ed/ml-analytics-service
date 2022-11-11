@@ -157,6 +157,8 @@ def recreate_task_data(prj_data):
                   except KeyError:
                     pass
                   taskarr.append(taskObj)
+                else:
+                  taskarr.append(taskObj) 
            except IndexError:
             taskarr.append(taskObj)
         cntr = cntr + 1

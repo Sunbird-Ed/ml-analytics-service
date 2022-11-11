@@ -21,7 +21,6 @@ from pyspark.sql import Row
 from collections import OrderedDict, Counter
 from cassandra.cluster import Cluster
 from cassandra.query import SimpleStatement, ConsistencyLevel
-import databricks.koalas as ks
 from azure.storage.blob import BlockBlobService, PublicAccess
 from azure.storage.blob import ContentSettings
 import logging

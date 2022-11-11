@@ -361,7 +361,10 @@ try:
                   observationSubQuestionsObj['questionResponseLabel_number'] = 0
               try:
                if answer['payload']['labels']:
-                 observationSubQuestionsObj['questionResponseLabel'] = responseLabel
+                 if answer['responseType'] == 'text':
+                   observationSubQuestionsObj['questionResponseLabel'] = "'"+responseLabel+"'"
+                 else :
+                   observationSubQuestionsObj['questionResponseLabel'] = responseLabel
                else:
                  observationSubQuestionsObj['questionResponseLabel'] = ''
               except KeyError :
@@ -373,7 +376,10 @@ try:
               observationSubQuestionsObj['completedDate'] = completedDate
               observationSubQuestionsObj['createdAt'] = createdAt
               observationSubQuestionsObj['updatedAt'] = updatedAt
-              observationSubQuestionsObj['remarks'] = answer['remarks']
+              if answer['remarks'] :
+               observationSubQuestionsObj['remarks'] = "'"+answer['remarks']+"'"
+              else :
+               observationSubQuestionsObj['remarks'] = None
               if len(answer['fileName']):
                 multipleFiles = None
                 fileCnt = 1
