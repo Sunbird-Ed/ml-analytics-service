@@ -82,6 +82,8 @@ urlQuery = http://{{ ml_analytics_druid_query_url }}/druid/v2?pretty
 
 observation_status_injestion_spec = {{ ml_analytics_druid_observation_status_injestion_spec }}
 
+urlQuery = http://{{ ml_analytics_druid_query_url }}/druid/v2?pretty
+
 project_injestion_spec = {{ ml_analytics_druid_project_injestion_spec }}
 
 ml_distinctCnt_obs_status_spec = {{ ml_analytics_druid_distinctCnt_obs_injestion_spec }}
