@@ -3,7 +3,7 @@ import boto3
 
 class AWS:
     '''
-    Class to inititate and upload data in Oracle
+    Class to inititate and upload data in Amazon Web Services
     '''
     def __init__(self, accessKey, secretAccessKey, regionName, bucketName):
         self.aws_client = boto3.resource(

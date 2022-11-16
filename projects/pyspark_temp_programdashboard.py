@@ -17,16 +17,20 @@ from udf_func import *
 from pyspark.sql.types import *
 from pyspark.sql import Row
 from slackclient import SlackClient
-from azure.storage.blob import ContentSettings
 from pyspark.sql.functions import element_at, split, col
 from configparser import ConfigParser,ExtendedInterpolation
-from azure.storage.blob import BlockBlobService, PublicAccess
 from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
 formatter = logging.Formatter('%(asctime)s - %(levelname)s')
+sys.path.append(config.get("COMMON", "cloud_module_path"))
+
+from multi_cloud import MultiCloud
+
+
+cloud_init = MultiCloud()
 
 # Success logger
 successLogger = logging.getLogger('success log')
@@ -51,14 +55,8 @@ interval = '1901-01-01/2101-01-01'
 url = config.get('VAM', 'druid_query_url')
 dashdata = json.loads(config.get("VAM", "program_dashboard_data"))
 
-# Azure details
-blob_service_client = BlockBlobService(
-    account_name=config.get("AZURE", "public_account_name"), 
-    account_key=config.get("AZURE", "public_access_key")
-)
-container_name = config.get("AZURE", "public_container_name")
 local_path =  config.get("OUTPUT_DIR", "project_rollup")
-blob_path =  config.get("AZURE", "projects_program_csv")
+blob_path =  config.get("COMMON", "projects_program_csv")
 
 class Creator:
 
@@ -383,10 +381,7 @@ for values in dashdata:
 for files in os.listdir(local_path):
     if files.endswith(".zip"):
         state_dir = files.split('_')[0]
-        blob_service_client.create_blob_from_path(
-                        container_name,
-                        os.path.join(f"{blob_path}/{state_dir}",files),
-                        f"{local_path}/{files}")
+        cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = files)
 
 gc.collect()
 shutil.rmtree(local_path)

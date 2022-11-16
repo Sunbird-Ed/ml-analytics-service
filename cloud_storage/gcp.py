@@ -3,7 +3,7 @@ from google.cloud import storage
    
 class GCP:
     '''
-    Class to inititate and upload data in Oracle
+    Class to inititate and upload data in Google Cloud
     '''
         
     def __init__(self, secret_data, bucketName):

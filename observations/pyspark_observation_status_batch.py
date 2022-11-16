@@ -24,8 +24,7 @@ from cassandra.query import SimpleStatement, ConsistencyLevel
 from azure.storage.blob import BlockBlobService, PublicAccess
 from azure.storage.blob import ContentSettings
 import logging
-import logging.handlers
-from logging.handlers import TimedRotatingFileHandler
+from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
 from pyspark.sql import DataFrame
 from typing import Iterable
 from pyspark.sql.functions import element_at, split, col
@@ -33,35 +32,28 @@ from pyspark.sql.functions import element_at, split, col
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
+sys.path.append(config.get("COMMON", "cloud_module_path"))
 
+from multi_cloud import MultiCloud
+
+
+cloud_init = MultiCloud()
 formatter = logging.Formatter('%(asctime)s - %(levelname)s')
 
 successLogger = logging.getLogger('success log')
 successLogger.setLevel(logging.DEBUG)
 
 # Add the log message handler to the logger
-successHandler = logging.handlers.RotatingFileHandler(
-   config.get('LOGS','observation_status_success')
-)
-successBackuphandler = TimedRotatingFileHandler(
-   config.get('LOGS','observation_status_success'),
-   when="w0",
-   backupCount=1
-)
+successHandler = RotatingFileHandler(config.get('LOGS','observation_status_success'))
+successBackuphandler = TimedRotatingFileHandler(config.get('LOGS','observation_status_success'),when="w0",backupCount=1)
 successHandler.setFormatter(formatter)
 successLogger.addHandler(successHandler)
 successLogger.addHandler(successBackuphandler)
 
 errorLogger = logging.getLogger('error log')
 errorLogger.setLevel(logging.ERROR)
-errorHandler = logging.handlers.RotatingFileHandler(
-   config.get('LOGS','observation_status_error')
-)
-errorBackuphandler = TimedRotatingFileHandler(
-   config.get('LOGS','observation_status_error'),
-   when="w0",
-   backupCount=1
-)
+errorHandler = RotatingFileHandler(config.get('LOGS','observation_status_error'))
+errorBackuphandler = TimedRotatingFileHandler(config.get('LOGS','observation_status_error'),when="w0",backupCount=1)
 errorHandler.setFormatter(formatter)
 errorLogger.addHandler(errorHandler)
 errorLogger.addHandler(errorBackuphandler)
@@ -586,56 +578,39 @@ for filename in os.listdir(config.get("OUTPUT_DIR", "observation_distinctCount_d
          config.get("OUTPUT_DIR", "observation_distinctCount_domain_criteria") + "/ml_observation_distinctCount_domain_criteria.json"
       )
 
-blob_service_client = BlockBlobService(
-   account_name=config.get("AZURE", "account_name"), 
-   sas_token=config.get("AZURE", "sas_token")
-)
-container_name = config.get("AZURE", "container_name")
 local_path = config.get("OUTPUT_DIR", "observation_status")
-blob_path = config.get("AZURE", "observation_blob_path")
+blob_path = config.get("COMMON", "observation_blob_path")
+
 #observation submission distinct count
 local_distinctCount_path = config.get("OUTPUT_DIR", "observation_distinctCount_status")
-blob_distinctCount_path = config.get("AZURE", "observation_distinctCount_blob_path")
+blob_distinctCount_path = config.get("COMMON", "observation_distinctCount_blob_path")
+
 #observation domain distinct count
 local_distinctCount_domain_path = config.get("OUTPUT_DIR", "observation_distinctCount_domain")
-blob_distinctCount_domain_path = config.get("AZURE", "observation_distinctCount_domain_blob_path")
+blob_distinctCount_domain_path = config.get("COMMON", "observation_distinctCount_domain_blob_path")
+
 #observation domain criteria distinct count
 local_distinctCount_domain_criteria_path = config.get("OUTPUT_DIR", "observation_distinctCount_domain_criteria")
-blob_distinctCount_domain_criteria_path = config.get("AZURE", "observation_distinctCount_domain_criteria_blob_path")
+blob_distinctCount_domain_criteria_path = config.get("COMMON", "observation_distinctCount_domain_criteria_blob_path")
 
 for files in os.listdir(local_path):
    if "sl_observation_status.json" in files:
-      blob_service_client.create_blob_from_path(
-         container_name,
-         os.path.join(blob_path,files),
-         local_path + "/" + files
-      )
+      cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = files)
 
 #observation submission distinct count
 for files in os.listdir(local_distinctCount_path):
    if "ml_observation_distinctCount_status.json" in files:
-      blob_service_client.create_blob_from_path(
-         container_name,
-         os.path.join(blob_distinctCount_path,files),
-         local_distinctCount_path + "/" + files
-      )
+      cloud_init.upload_to_cloud(blob_Path = blob_distinctCount_path, local_Path = local_distinctCount_path, file_Name = files)
 
 #observation domain distinct count
 for files in os.listdir(local_distinctCount_domain_path):
    if "ml_observation_distinctCount_domain.json" in files:
-      blob_service_client.create_blob_from_path(
-         container_name,
-         os.path.join(blob_distinctCount_domain_path,files),
-         local_distinctCount_domain_path + "/" + files
-      )
+      cloud_init.upload_to_cloud(blob_Path = blob_distinctCount_domain_path, local_Path = local_distinctCount_domain_path, file_Name = files)
+
 #observation domain criteria distinct count
 for files in os.listdir(local_distinctCount_domain_criteria_path):
    if "ml_observation_distinctCount_domain_criteria.json" in files:
-      blob_service_client.create_blob_from_path(
-         container_name,
-         os.path.join(blob_distinctCount_domain_criteria_path,files),
-         local_distinctCount_domain_criteria_path + "/" + files
-      )
+      cloud_init.upload_to_cloud(blob_Path = blob_distinctCount_domain_criteria_path, local_Path = local_distinctCount_domain_criteria_path, file_Name = files)
 
 sl_status_spec = {}
 sl_status_spec = json.loads(config.get("DRUID","observation_status_injestion_spec"))

@@ -3,7 +3,7 @@ from azure.storage.blob import BlockBlobService
 
 class MSAzure:
     '''
-    Class to inititate and upload data in Oracle
+    Class to inititate and upload data in Microsoft Azure
     '''
     def __init__(self, accountName, sasToken, containerName, accountKey):
         if accountKey:
