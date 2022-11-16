@@ -408,6 +408,18 @@ projects_df = projects_df.withColumn(
             F.lit(config.get('ML_SURVEY_SERVICE_URL', 'evidence_base_url')),
             projects_df["exploded_taskarr"]["task_evidence"]
         )
+    ).when(
+        (projects_df["exploded_taskarr"]["task_evidence"].isNotNull() == True) & 
+        (projects_df["exploded_taskarr"]["task_evidence"]!="") &
+        (projects_df["exploded_taskarr"]["taskEvi_type"] == "link"),
+            F.concat(
+                F.lit("'"),
+                regexp_replace(projects_df["exploded_taskarr"]["task_evidence"], "\n", " "),
+                F.lit("'")
+            )
+    ).when(
+        (projects_df["exploded_taskarr"]["task_evidence"].isNull() == True),
+        F.lit("unknown")
     ).otherwise(projects_df["exploded_taskarr"]["task_evidence"])
 )
 
@@ -445,6 +457,18 @@ projects_df = projects_df.withColumn(
             F.lit(config.get('ML_SURVEY_SERVICE_URL', 'evidence_base_url')),
             projects_df["exploded_taskarr"]["prj_evidence"]
         )
+    ).when(
+        (projects_df["exploded_taskarr"]["prj_evidence"].isNotNull() == True) & 
+        (projects_df["exploded_taskarr"]["prj_evidence"]!="") &
+        (projects_df["exploded_taskarr"]["prjEvi_type"] == "link"),
+            F.concat(
+                F.lit("'"),
+                regexp_replace(projects_df["exploded_taskarr"]["prj_evidence"], "\n", " "),
+                F.lit("'")
+            )
+    ).when(
+        (projects_df["exploded_taskarr"]["prj_evidence"].isNull() == True),
+        F.lit("unknown")
     ).otherwise(projects_df["exploded_taskarr"]["prj_evidence"])
 )
 
