@@ -839,7 +839,10 @@ for i, j in zip(datasources,ingestion_specs):
                 time.sleep(300)
 
                 enable_datasource = requests.get(druid_end_point, headers=headers)
-                if enable_datasource.status_code == 204:
+                if enable_datasource.status_code == 200:
+                   time.sleep(300)
+                   enable_datasource_repeat = requests.get(druid_end_point, headers=headers)
+                if (enable_datasource.status_code == 204) | (enable_datasource_repeat.status_code == 204):
                     successLogger.debug("successfully enabled the datasource " + i)
                     
                     time.sleep(300)
