@@ -19,7 +19,6 @@ import pyspark.sql.functions as F
 from pyspark.sql.types import *
 from pyspark.sql import Row
 from collections import OrderedDict, Counter
-import databricks.koalas as ks
 from azure.storage.blob import BlockBlobService, PublicAccess
 from azure.storage.blob import ContentSettings
 import logging
@@ -409,6 +408,18 @@ projects_df = projects_df.withColumn(
             F.lit(config.get('ML_SURVEY_SERVICE_URL', 'evidence_base_url')),
             projects_df["exploded_taskarr"]["task_evidence"]
         )
+    ).when(
+        (projects_df["exploded_taskarr"]["task_evidence"].isNotNull() == True) & 
+        (projects_df["exploded_taskarr"]["task_evidence"]!="") &
+        (projects_df["exploded_taskarr"]["taskEvi_type"] == "link"),
+            F.concat(
+                F.lit("'"),
+                regexp_replace(projects_df["exploded_taskarr"]["task_evidence"], "\n", " "),
+                F.lit("'")
+            )
+    ).when(
+        (projects_df["exploded_taskarr"]["task_evidence"].isNull() == True),
+        F.lit("unknown")
     ).otherwise(projects_df["exploded_taskarr"]["task_evidence"])
 )
 
@@ -446,6 +457,18 @@ projects_df = projects_df.withColumn(
             F.lit(config.get('ML_SURVEY_SERVICE_URL', 'evidence_base_url')),
             projects_df["exploded_taskarr"]["prj_evidence"]
         )
+    ).when(
+        (projects_df["exploded_taskarr"]["prj_evidence"].isNotNull() == True) & 
+        (projects_df["exploded_taskarr"]["prj_evidence"]!="") &
+        (projects_df["exploded_taskarr"]["prjEvi_type"] == "link"),
+            F.concat(
+                F.lit("'"),
+                regexp_replace(projects_df["exploded_taskarr"]["prj_evidence"], "\n", " "),
+                F.lit("'")
+            )
+    ).when(
+        (projects_df["exploded_taskarr"]["prj_evidence"].isNull() == True),
+        F.lit("unknown")
     ).otherwise(projects_df["exploded_taskarr"]["prj_evidence"])
 )
 
@@ -459,12 +482,12 @@ successLogger.debug(
    )
    
 projects_df = projects_df.withColumn("project_goal",regexp_replace(F.col("metaInformation.goal"), "\n", " "))
-projects_df = projects_df.withColumn("area_of_improvement",regexp_replace(F.col("categories_name"), "\n", " "))
-projects_df = projects_df.withColumn("tasks",regexp_replace(F.col("exploded_taskarr.tasks"), "\n", " "))
-projects_df = projects_df.withColumn("sub_task",regexp_replace(F.col("exploded_taskarr.sub_task"), "\n", " "))
+projects_df = projects_df.withColumn("area_of_improvement",F.when((F.col("categories_name").isNotNull()) & (F.col("categories_name")!=""),F.concat(F.lit("'"),regexp_replace(F.col("categories_name"), "\n", " "),F.lit("'"))).otherwise(F.lit("unknown")))
+projects_df = projects_df.withColumn("tasks",F.when((F.col("exploded_taskarr.tasks").isNotNull()) & (F.col("exploded_taskarr.tasks")!=""),F.concat(F.lit("'"),regexp_replace(F.col("exploded_taskarr.tasks"), "\n", " "),F.lit("'"))).otherwise(F.lit("unknown")))
+projects_df = projects_df.withColumn("sub_task",F.when((F.col("exploded_taskarr.sub_task").isNotNull()) & (F.col("exploded_taskarr.sub_task")!=""),F.concat(F.lit("'"),regexp_replace(F.col("exploded_taskarr.sub_task"), "\n", " "),F.lit("'"))).otherwise(F.lit("unknown")))	
 projects_df = projects_df.withColumn("program_name",regexp_replace(F.col("programInformation.name"), "\n", " "))
-projects_df = projects_df.withColumn("task_remarks",regexp_replace(F.col("exploded_taskarr.remarks"), "\n", " "))
-projects_df = projects_df.withColumn("project_remarks",regexp_replace(F.col("exploded_taskarr.prj_remarks"), "\n", " "))
+projects_df = projects_df.withColumn("task_remarks",F.when((F.col("exploded_taskarr.remarks").isNotNull()) & (F.col("exploded_taskarr.remarks")!=""),F.concat(F.lit("'"),regexp_replace(F.col("exploded_taskarr.remarks"), "\n", " "),F.lit("'"))).otherwise(F.lit("unknown")))
+projects_df = projects_df.withColumn("project_remarks",F.when((F.col("exploded_taskarr.prj_remarks").isNotNull()) & (F.col("exploded_taskarr.prj_remarks")!=""),F.concat(F.lit("'"),regexp_replace(F.col("exploded_taskarr.prj_remarks"), "\n", " "),F.lit("'"))).otherwise(F.lit("unknown")))
 
 projects_df = projects_df.withColumn(
                  "evidence_status",
@@ -482,11 +505,20 @@ projects_df = projects_df.withColumn(
 prj_df_expl_ul = projects_df.withColumn(
    "exploded_userLocations",F.explode_outer(projects_df["userProfile"]["userLocations"])
 )
+
+projects_df = projects_df.withColumn(
+    "project_title_editable", F.when((F.col("title").isNotNull()) & (F.col("title")!=""),F.concat(F.lit("'"),F.col("title"),F.lit("'"))).otherwise(F.lit("unknown"))
+)
+
+projects_df = projects_df.withColumn(
+    "project_description", F.when((F.col("description").isNotNull()) & (F.col("description")!=""),F.concat(F.lit("'"),F.col("description"),F.lit("'"))).otherwise(F.lit("unknown"))
+)
+
 projects_df_cols = projects_df.select(
     projects_df["_id"].alias("project_id"),
     projects_df["project_created_type"],
     projects_df["project_title"],
-    projects_df["title"].alias("project_title_editable"),
+    projects_df["project_title_editable"],
     projects_df["programId"].alias("program_id"),
     projects_df["programExternalId"].alias("program_externalId"),
     projects_df["program_name"],
@@ -497,7 +529,7 @@ projects_df_cols = projects_df.select(
     projects_df["area_of_improvement"],
     projects_df["status"].alias("status_of_project"),
     projects_df["userId"].alias("createdBy"),
-    projects_df["description"].alias("project_description"),
+    projects_df["project_description"],
     projects_df["project_goal"],projects_df["project_evidence"],
     projects_df["parent_channel"],
     projects_df["createdAt"].alias("project_created_date"),
@@ -510,7 +542,7 @@ projects_df_cols = projects_df.select(
     projects_df["task_evidence"],
     projects_df["exploded_taskarr"]["task_evidence_status"].alias("task_evidence_status"),
     projects_df["exploded_taskarr"]["sub_task_id"].alias("sub_task_id"),
-    projects_df["exploded_taskarr"]["sub_task"].alias("sub_task"),
+    projects_df["sub_task"],
     projects_df["exploded_taskarr"]["sub_task_status"].alias("sub_task_status"),
     projects_df["exploded_taskarr"]["sub_task_date"].alias("sub_task_date"),
     projects_df["exploded_taskarr"]["sub_task_start_date"].alias("sub_task_start_date"),
@@ -831,7 +863,10 @@ for i, j in zip(datasources,ingestion_specs):
                 time.sleep(300)
 
                 enable_datasource = requests.get(druid_end_point, headers=headers)
-                if enable_datasource.status_code == 204:
+                if enable_datasource.status_code == 200:
+                   time.sleep(300)
+                   enable_datasource_repeat = requests.get(druid_end_point, headers=headers)
+                if (enable_datasource.status_code == 204) | (enable_datasource_repeat.status_code == 204):
                     successLogger.debug("successfully enabled the datasource " + i)
                     
                     time.sleep(300)
