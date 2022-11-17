@@ -328,8 +328,8 @@ projects_df = projects_df.withColumn(
     "project_title",
     F.when(
         projects_df["solutionInformation"]["name"].isNotNull() == True,
-        regexp_replace(projects_df["solutionInformation"]["name"], "\n", " ")
-    ).otherwise(regexp_replace(projects_df["title"], "\n", " "))
+        regexp_replace(projects_df["solutionInformation"]["name"], "\n|\"", "")
+    ).otherwise(regexp_replace(projects_df["title"], "\n|\"", ""))
 )
 
 projects_df = projects_df.withColumn(
@@ -414,7 +414,7 @@ projects_df = projects_df.withColumn(
         (projects_df["exploded_taskarr"]["taskEvi_type"] == "link"),
             F.concat(
                 F.lit("'"),
-                regexp_replace(projects_df["exploded_taskarr"]["task_evidence"], "\n", " "),
+                regexp_replace(projects_df["exploded_taskarr"]["task_evidence"], "\n|\"", ""),
                 F.lit("'")
             )
     ).when(
@@ -463,7 +463,7 @@ projects_df = projects_df.withColumn(
         (projects_df["exploded_taskarr"]["prjEvi_type"] == "link"),
             F.concat(
                 F.lit("'"),
-                regexp_replace(projects_df["exploded_taskarr"]["prj_evidence"], "\n", " "),
+                regexp_replace(projects_df["exploded_taskarr"]["prj_evidence"], "\n|\"", ""),
                 F.lit("'")
             )
     ).when(
@@ -481,13 +481,13 @@ successLogger.debug(
         "Organisation logic end time  " + str(datetime.datetime.now())
    )
    
-projects_df = projects_df.withColumn("project_goal",regexp_replace(F.col("metaInformation.goal"), "\n", " "))
-projects_df = projects_df.withColumn("area_of_improvement",F.when((F.col("categories_name").isNotNull()) & (F.col("categories_name")!=""),F.concat(F.lit("'"),regexp_replace(F.col("categories_name"), "\n", " "),F.lit("'"))).otherwise(F.lit("unknown")))
-projects_df = projects_df.withColumn("tasks",F.when((F.col("exploded_taskarr.tasks").isNotNull()) & (F.col("exploded_taskarr.tasks")!=""),F.concat(F.lit("'"),regexp_replace(F.col("exploded_taskarr.tasks"), "\n", " "),F.lit("'"))).otherwise(F.lit("unknown")))
-projects_df = projects_df.withColumn("sub_task",F.when((F.col("exploded_taskarr.sub_task").isNotNull()) & (F.col("exploded_taskarr.sub_task")!=""),F.concat(F.lit("'"),regexp_replace(F.col("exploded_taskarr.sub_task"), "\n", " "),F.lit("'"))).otherwise(F.lit("unknown")))	
-projects_df = projects_df.withColumn("program_name",regexp_replace(F.col("programInformation.name"), "\n", " "))
-projects_df = projects_df.withColumn("task_remarks",F.when((F.col("exploded_taskarr.remarks").isNotNull()) & (F.col("exploded_taskarr.remarks")!=""),F.concat(F.lit("'"),regexp_replace(F.col("exploded_taskarr.remarks"), "\n", " "),F.lit("'"))).otherwise(F.lit("unknown")))
-projects_df = projects_df.withColumn("project_remarks",F.when((F.col("exploded_taskarr.prj_remarks").isNotNull()) & (F.col("exploded_taskarr.prj_remarks")!=""),F.concat(F.lit("'"),regexp_replace(F.col("exploded_taskarr.prj_remarks"), "\n", " "),F.lit("'"))).otherwise(F.lit("unknown")))
+projects_df = projects_df.withColumn("project_goal",regexp_replace(F.col("metaInformation.goal"), "\n|\"", ""))
+projects_df = projects_df.withColumn("area_of_improvement",F.when((F.col("categories_name").isNotNull()) & (F.col("categories_name")!=""),F.concat(F.lit("'"),regexp_replace(F.col("categories_name"), "\n|\"", ""),F.lit("'"))).otherwise(F.lit("unknown")))
+projects_df = projects_df.withColumn("tasks",F.when((F.col("exploded_taskarr.tasks").isNotNull()) & (F.col("exploded_taskarr.tasks")!=""),F.concat(F.lit("'"),regexp_replace(F.col("exploded_taskarr.tasks"), "\n|\"", ""),F.lit("'"))).otherwise(F.lit("unknown")))
+projects_df = projects_df.withColumn("sub_task",F.when((F.col("exploded_taskarr.sub_task").isNotNull()) & (F.col("exploded_taskarr.sub_task")!=""),F.concat(F.lit("'"),regexp_replace(F.col("exploded_taskarr.sub_task"), "\n|\"", ""),F.lit("'"))).otherwise(F.lit("unknown")))	
+projects_df = projects_df.withColumn("program_name",regexp_replace(F.col("programInformation.name"), "\n|\"", ""))
+projects_df = projects_df.withColumn("task_remarks",F.when((F.col("exploded_taskarr.remarks").isNotNull()) & (F.col("exploded_taskarr.remarks")!=""),F.concat(F.lit("'"),regexp_replace(F.col("exploded_taskarr.remarks"), "\n|\"", ""),F.lit("'"))).otherwise(F.lit("unknown")))
+projects_df = projects_df.withColumn("project_remarks",F.when((F.col("exploded_taskarr.prj_remarks").isNotNull()) & (F.col("exploded_taskarr.prj_remarks")!=""),F.concat(F.lit("'"),regexp_replace(F.col("exploded_taskarr.prj_remarks"), "\n|\"", ""),F.lit("'"))).otherwise(F.lit("unknown")))
 
 projects_df = projects_df.withColumn(
                  "evidence_status",
@@ -863,19 +863,15 @@ for i, j in zip(datasources,ingestion_specs):
                 time.sleep(300)
 
                 enable_datasource = requests.get(druid_end_point, headers=headers)
-                if enable_datasource.status_code == 200:
-                   time.sleep(300)
-                   enable_datasource_repeat = requests.get(druid_end_point, headers=headers)
-                if (enable_datasource.status_code == 204) | (enable_datasource_repeat.status_code == 204):
-                    successLogger.debug("successfully enabled the datasource " + i)
-                    
-                    time.sleep(300)
-                    
+                if enable_datasource.status_code == 200 or enable_datasource.status_code == 204:                
+                    time.sleep(600)
+                    successLogger.debug("successfully enabled the datasource " + i)   
                     print(j)
+
                     start_supervisor = requests.post(
                         druid_batch_end_point, data=j, headers=headers
                     )
-                    successLogger.debug("ingest data")
+                    successLogger.debug("--- INGEST DATA ---")
                     if start_supervisor.status_code == 200:
                         bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Succesfully ingested the data in {i}")
                         successLogger.debug(
