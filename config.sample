@@ -6,6 +6,7 @@ integrated_app = {{ ml_analytics_integrated_app_name }}
 
 integrated_portal = {{ ml_analytics_integrated_portal_name }}
 
+
 [API_HEADERS]
 
 content_type = application/json
@@ -13,6 +14,7 @@ content_type = application/json
 authorization = {{ ml_analytics_api_authorization_key }}
 
 internal_access_token = {{ ml_analytics_api_access_token }}
+
 
 [ML_SURVEY_SERVICE_URL]
 
@@ -24,24 +26,15 @@ user_profile_end_point = assessment/api/v1/userExtension/getProfile/
 
 evidence_base_url = {{ ml_analytics_evidence_base_url }}
 
-[MONGO]
 
-# --------------
-# Mongo  url
-#---------------
+[MONGO]
 
 url = mongodb://{{ ml_analytics_mongodb_url }}
 
-# -----------------------
-# Mongo database name
-# -----------------------
-
 database_name = {{ ml_analytics_mongo_db_name }}
 
-# -------------------
-# Mongo Collections
-# -------------------
 
+# ------ Mongo Collections ------- #
 observation_sub_collection = {{ ml_analytics_mongo_observation_submission_collection }}
 
 solutions_collection = {{ ml_analytics_mongo_solution_collection }}
@@ -67,6 +60,7 @@ projects_collection = {{ ml_analytics_mongo_projects_collection }}
 survey_submissions_collection = {{ ml_analytics_mongo_survey_submissions_collection }}
 
 survey_collection = {{ ml_analytics_mongo_survey_collection }}
+
 
 [DRUID]
 
@@ -110,6 +104,7 @@ survey_query_spec = {{ml_analytics_druid_survey_query_spec}}
 
 survey_injestion_spec = {{ml_analytics_druid_survey_batch_ingestion_spec}}
 
+
 [KAFKA]
 
 url = {{ ml_analytics_kafka_url }}
@@ -125,6 +120,7 @@ survey_evidence_druid_topic = {{ ml_analytics_kafka_survey_evidence_topic_name }
 survey_raw_topic = {{ ml_analytics_kafka_survey_topic_name }}
 
 survey_druid_topic = {{ ml_analytics_kafka_survey_druid_topic_name }}
+
 
 [LOGS]
 
@@ -152,47 +148,50 @@ survey_streaming_success = {{ ml_analytics_survey_log_folder_path }}/success.log
 
 survey_streaming_error = {{ ml_analytics_survey_log_folder_path }}/error.log
 
+
+[ORACLE]
+
+endpoint_url = {{ ml_ORACLE_endpoint_url }}
+
+access_key = {{ ml_ORACLE_access_key }}
+
+secret_access_key = {{ ml_ORACLE_secret_access_key }}
+
+region_name = {{ ml_ORACLE_region_name }}
+
+bucket_name = {{ ml_ORACLE_bucket_name }}
+
+
+[GCP]
+
+secret_data = {{ ml_GCP_secret_json_file }}
+
+bucket_name = {{ ml_GCP_bucket_name }}
+
+
+[AWS]
+
+service_name = {{ ml_AWS_service_name }}
+
+access_key = {{ ml_AWS_access_key }}
+
+secret_access_key = {{ ml_AWS_secret_access_key }}
+
+region_name = {{ ml_AWS_region_name }}
+
+bucket_name = {{ ml_AWS_bucket_name }}
+
+
 [AZURE]
 
 account_name = {{ ml_analytics_azure_account_name }}
-
-public_account_name = {{ ml_analytics_public_azure_account_name }}
-
-public_access_key = {{ ml_analytics_public_azure_access_key}}
 
 sas_token = {{ ml_analytics_azure_sas_token }}
 
 container_name = {{ ml_analytics_azure_container_name }}
 
-public_container_name = {{ ml_analytics_public_azure_container_name }}
+account_key = {{ ml_analytics_azure_account_key }}
 
-observation_blob_path = {{ ml_analytics_observation_azure_blob_path }}
-
-projects_blob_path = {{ ml_analytics_project_azure_blob_path }}
-
-observation_distinctCount_blob_path = {{ ml_analytics_obs_distinctCnt_azure_blob_path }}
-
-observation_distinctCount_domain_blob_path = {{ ml_analytics_obs_distinctCnt_domain_azure_blob_path }}
-
-observation_distinctCount_domain_criteria_blob_path = {{ ml_analytics_obs_distinctCnt_domain_criteria_azure_blob_path }}
-
-projects_distinctCnt_blob_path = {{ ml_analytics_projects_distinctCnt_azure_blob_path }}
-
-projects_distinctCnt_prgmlevel_blob_path = {{ ml_analytics_projects_distinctCnt_prglevel_azure_blob_path }}
-
-projects_rollup_blob_path = {{ ml_analytics_project_rollup_azure_blob_path }}
-
-observation_rollup_blob_path = {{ ml_analytics_observation_rollup_azure_blob_path }}
-
-survey_rollup_blob_path = {{ ml_analytics_survey_rollup_azure_blob_path }}
-
-survey_blob_path = {{ ml_analytics_survey_azure_blob_path }}
-
-projects_program_csv = {{ ml_analytics_program_dashboard_azure_blob_path }}
-
-observation_batch_ingestion_data_del = {{ ml_analytics_observation_batchupdate_azure_blob_path }}
-
-survey_batch_ingestion_data_del = {{ml_analytics_survey_batchupdate_azure_blob_path}}
 
 [OUTPUT_DIR]
 
@@ -226,23 +225,13 @@ survey_sub_ids = {{ml_analytics_survey_submission_id_filepath}}
 
 survey_druid_data = {{ml_analytics_survey_batchupdate_output_dir}}
 
-[CLOUD_STORAGE]
-
-service_name = {{ ml_AWS_service_name }}
-
-access_key = {{ ml_AWS_access_key }}
-
-secret_access_key = {{ ml_AWS_secret_access_key }}
-
-region_name = {{ ml_AWS_region_name }}
-
-bucket_name = {{ ml_AWS_bucket_name }}
 
 [SLACK]
 
 token = {{ml_slack_token}}
 
 channel = {{ml_slack_channel}}
+
 
 [VAM]
 
@@ -251,3 +240,34 @@ druid_query_url = {{ ml_druid_query_data }}
 program_dashboard_data = {{ ml_program_dashboard_data }}
 
 
+[COMMON]
+
+cloud_module_path = {{ ml_analytics_cloud_package_path }}
+
+observation_blob_path = {{ ml_analytics_observation_azure_blob_path }}
+
+projects_blob_path = {{ ml_analytics_project_azure_blob_path }}
+
+observation_distinctCount_blob_path = {{ ml_analytics_obs_distinctCnt_azure_blob_path }}
+
+observation_distinctCount_domain_blob_path = {{ ml_analytics_obs_distinctCnt_domain_azure_blob_path }}
+
+observation_distinctCount_domain_criteria_blob_path = {{ ml_analytics_obs_distinctCnt_domain_criteria_azure_blob_path }}
+
+projects_distinctCnt_blob_path = {{ ml_analytics_projects_distinctCnt_azure_blob_path }}
+
+projects_distinctCnt_prgmlevel_blob_path = {{ ml_analytics_projects_distinctCnt_prglevel_azure_blob_path }}
+
+projects_rollup_blob_path = {{ ml_analytics_project_rollup_azure_blob_path }}
+
+observation_rollup_blob_path = {{ ml_analytics_observation_rollup_azure_blob_path }}
+
+survey_rollup_blob_path = {{ ml_analytics_survey_rollup_azure_blob_path }}
+
+survey_blob_path = {{ ml_analytics_survey_azure_blob_path }}
+
+projects_program_csv = {{ ml_analytics_program_dashboard_azure_blob_path }}
+
+observation_batch_ingestion_data_del = {{ ml_analytics_observation_batchupdate_azure_blob_path }}
+
+cname_url = {{ ml_analytics_cname_url }}

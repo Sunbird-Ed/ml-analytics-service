@@ -735,7 +735,7 @@ with open('sl_observation.json', 'w') as f:
     print(f"Count: {counter} ---- ID: {msg_data['_id']}")
     obj_arr = obj_creation(msg_data['_id'])
 
-local_path = config.get("OUTPUT_DIR", "observation")
+local_path = config.get("OUTPUT_DIR", "observation_status")
 blob_path = config.get("COMMON", "observations_blob_path")
 
 
