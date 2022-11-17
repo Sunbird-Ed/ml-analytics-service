@@ -35,8 +35,7 @@ config.read(config_path[0] + "/config.ini")
 bot = SlackClient(config.get("SLACK","token"))
 sys.path.append(config.get("COMMON", "cloud_module_path"))
 
-from multi_cloud import MultiCloud
-
+from cloud import MultiCloud
 
 cloud_init = MultiCloud()
 formatter = logging.Formatter('%(asctime)s - %(levelname)s')
