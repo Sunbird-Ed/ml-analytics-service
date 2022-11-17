@@ -239,7 +239,7 @@ try:
                             try:
                              if answer['payload']['labels']:
                                 if answer['responseType'] == 'text':
-                                 surveySubQuestionsObj['questionResponseLabel'] = "'"+responseLabel+"'"
+                                 surveySubQuestionsObj['questionResponseLabel'] = "'"+ re.sub("\n|\"","",responseLabel) +"'"
                                 else:
                                  surveySubQuestionsObj['questionResponseLabel'] = responseLabel
                              else:
@@ -257,7 +257,7 @@ try:
                             surveySubQuestionsObj['createdAt'] = createdAt
                             surveySubQuestionsObj['updatedAt'] = updatedAt
                             if answer['remarks'] :
-                             surveySubQuestionsObj['remarks'] = "'"+answer['remarks']+"'"
+                             surveySubQuestionsObj['remarks'] = "'"+ re.sub("\n|\"","",answer['remarks']) +"'"
                             else :
                              surveySubQuestionsObj['remarks'] = None
                             if len(answer['fileName']):
