@@ -104,6 +104,8 @@ survey_query_spec = {{ml_analytics_druid_survey_query_spec}}
 
 survey_injestion_spec = {{ml_analytics_druid_survey_batch_ingestion_spec}}
 
+intervals = {{ml_analytics_druid_interval_list}}
+
 
 [KAFKA]
 
@@ -269,5 +271,7 @@ survey_blob_path = {{ ml_analytics_survey_azure_blob_path }}
 projects_program_csv = {{ ml_analytics_program_dashboard_azure_blob_path }}
 
 observation_batch_ingestion_data_del = {{ ml_analytics_observation_batchupdate_azure_blob_path }}
+
+survey_batch_ingestion_data_del = {{ml_analytics_survey_batchupdate_azure_blob_path}}
 
 cname_url = {{ ml_analytics_cname_url }}
