@@ -844,19 +844,15 @@ for i, j in zip(datasources,ingestion_specs):
                 time.sleep(300)
 
                 enable_datasource = requests.get(druid_end_point, headers=headers)
-                if enable_datasource.status_code == 200:
-                   time.sleep(300)
-                   enable_datasource_repeat = requests.get(druid_end_point, headers=headers)
-                if (enable_datasource.status_code == 204) | (enable_datasource_repeat.status_code == 204):
-                    successLogger.debug("successfully enabled the datasource " + i)
-                    
-                    time.sleep(300)
-                    
+                if enable_datasource.status_code == 200 or enable_datasource.status_code == 204:                
+                    time.sleep(600)
+                    successLogger.debug("successfully enabled the datasource " + i)   
                     print(j)
+
                     start_supervisor = requests.post(
                         druid_batch_end_point, data=j, headers=headers
                     )
-                    successLogger.debug("ingest data")
+                    successLogger.debug("--- INGEST DATA ---")
                     if start_supervisor.status_code == 200:
                         bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Succesfully ingested the data in {i}")
                         successLogger.debug(
