@@ -6,7 +6,7 @@
 # -----------------------------------------------------------------
 
 import faust
-import time
+import time, re
 import logging
 import os, json
 import datetime
