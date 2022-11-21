@@ -5,7 +5,7 @@
 #   produce it to another kafka topic 
 # -----------------------------------------------------------------
 
-import time
+import time, re
 import logging
 import os, json
 import argparse

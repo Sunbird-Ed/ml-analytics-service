@@ -7,7 +7,7 @@
 
 from pymongo import MongoClient
 from bson.objectid import ObjectId
-import sys, os, json, time
+import sys, os, json, time, re
 import datetime
 import requests
 from configparser import ConfigParser,ExtendedInterpolation

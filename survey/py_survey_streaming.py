@@ -11,7 +11,7 @@ import datetime
 import kafka
 import faust
 import logging
-import time
+import time, re
 from kafka import KafkaConsumer, KafkaProducer
 from kafka.admin import KafkaAdminClient, NewTopic
 from configparser import ConfigParser,ExtendedInterpolation
