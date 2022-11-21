@@ -19,8 +19,6 @@ import pyspark.sql.functions as F
 from pyspark.sql.types import *
 from pyspark.sql import Row
 from collections import OrderedDict, Counter
-from azure.storage.blob import BlockBlobService, PublicAccess
-from azure.storage.blob import ContentSettings
 from typing import Iterable
 from slackclient import SlackClient
 
@@ -28,6 +26,10 @@ config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
 bot = SlackClient(config.get("SLACK","token"))
+
+sys.path.append(config.get("COMMON","cloud_module_path"))
+from cloud import MultiCloud
+cloud_init = MultiCloud()
 
 orgSchema = ArrayType(StructType([
     StructField("orgId", StringType(), False),
@@ -340,21 +342,12 @@ for filename in os.listdir(config.get("OUTPUT_DIR", "survey_status")+"/"):
          config.get("OUTPUT_DIR", "survey_status") + "/sl_survey_status.json"
       )
 
-blob_service_client = BlockBlobService(
-   account_name=config.get("AZURE", "account_name"), 
-   sas_token=config.get("AZURE", "sas_token")
-)
-container_name = config.get("AZURE", "container_name")
 local_path = config.get("OUTPUT_DIR", "survey_status")
-blob_path = config.get("AZURE", "survey_blob_path")
+blob_path = config.get("COMMON", "survey_blob_path")
 
 for files in os.listdir(local_path):
    if "sl_survey_status.json" in files:
-      blob_service_client.create_blob_from_path(
-         container_name,
-         os.path.join(blob_path,files),
-         local_path + "/" + files
-      )
+      cloud_init.upload_to_cloud(blob_path,local_path,"sl_survey_status.json")
 
 ml_status_spec = {}
 ml_status_spec = json.loads(config.get("DRUID","survey_status_injestion_spec"))
@@ -398,9 +391,9 @@ for i,j in zip(datasources,ingestion_specs):
             time.sleep(300)
 
             enable_datasource = requests.get(druid_end_point, headers=headers)
-            if enable_datasource.status_code == 204:
+            if enable_datasource.status_code == 204 or enable_datasource.status_code == 200:
                bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Enabled the datasource for {i}")
-               time.sleep(300)
+               time.sleep(600)
 
                start_supervisor = requests.post(druid_batch_end_point, data=j, headers=headers)
                if start_supervisor.status_code == 200:

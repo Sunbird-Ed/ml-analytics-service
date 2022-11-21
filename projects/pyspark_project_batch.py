@@ -19,11 +19,8 @@ import pyspark.sql.functions as F
 from pyspark.sql.types import *
 from pyspark.sql import Row
 from collections import OrderedDict, Counter
-from azure.storage.blob import BlockBlobService, PublicAccess
-from azure.storage.blob import ContentSettings
 import logging
-import logging.handlers
-from logging.handlers import TimedRotatingFileHandler
+from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
 import datetime
 from slackclient import SlackClient
 from datetime import date
@@ -36,14 +33,18 @@ config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
 bot = SlackClient(config.get("SLACK","token"))
+sys.path.append(config.get("COMMON", "cloud_module_path"))
 
+from cloud import MultiCloud
+
+cloud_init = MultiCloud()
 formatter = logging.Formatter('%(asctime)s - %(levelname)s')
 
 successLogger = logging.getLogger('success log')
 successLogger.setLevel(logging.DEBUG)
 
 # Add the log message handler to the logger
-successHandler = logging.handlers.RotatingFileHandler(config.get('LOGS', 'project_success'))
+successHandler = RotatingFileHandler(config.get('LOGS', 'project_success'))
 successBackuphandler = TimedRotatingFileHandler(config.get('LOGS','project_success'), when="w0",backupCount=1)
 successHandler.setFormatter(formatter)
 successLogger.addHandler(successHandler)
@@ -51,7 +52,7 @@ successLogger.addHandler(successBackuphandler)
 
 errorLogger = logging.getLogger('error log')
 errorLogger.setLevel(logging.ERROR)
-errorHandler = logging.handlers.RotatingFileHandler(config.get('LOGS', 'project_error'))
+errorHandler = RotatingFileHandler(config.get('LOGS', 'project_error'))
 errorBackuphandler = TimedRotatingFileHandler(config.get('LOGS', 'project_error'),when="w0",backupCount=1)
 errorHandler.setFormatter(formatter)
 errorLogger.addHandler(errorHandler)
@@ -699,71 +700,51 @@ for filename in os.listdir(config.get("OUTPUT_DIR", "projects_distinctCount_prgm
            config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/" + filename,
            config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/ml_projects_distinctCount_prgmlevel.json"
         )
-successLogger.debug(
-        "Renaming file end time  " + str(datetime.datetime.now())
-   ) 
+successLogger.debug("Renaming file end time  " + str(datetime.datetime.now())) 
   
-successLogger.debug(
-        "Uploading to Azure start time  " + str(datetime.datetime.now())
-   )
-blob_service_client = BlockBlobService(
-    account_name=config.get("AZURE", "account_name"), 
-    sas_token=config.get("AZURE", "sas_token")
-)
-container_name = config.get("AZURE", "container_name")
+successLogger.debug("Uploading to Azure start time  " + str(datetime.datetime.now()))
+
 local_path = config.get("OUTPUT_DIR", "project")
-blob_path = config.get("AZURE", "projects_blob_path")
+blob_path = config.get("COMMON", "projects_blob_path")
+
 #projects submission distinct count
 local_distinctCnt_path = config.get("OUTPUT_DIR", "projects_distinctCount")
-blob_distinctCnt_path = config.get("AZURE", "projects_distinctCnt_blob_path")
+blob_distinctCnt_path = config.get("COMMON", "projects_distinctCnt_blob_path")
 
 #projects submission distinct count program level
 local_distinctCnt_prgmlevel_path = config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel")
-blob_distinctCnt_prgmlevel_path = config.get("AZURE", "projects_distinctCnt_prgmlevel_blob_path")
+blob_distinctCnt_prgmlevel_path = config.get("COMMON", "projects_distinctCnt_prgmlevel_blob_path")
 
 for files in os.listdir(local_path):
     if "sl_projects.json" in files:
-        blob_service_client.create_blob_from_path(
-            container_name,
-            os.path.join(blob_path,files),
-            local_path + "/" + files
-        )
+        cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = files)
+
 #projects submission distinct count
 for files in os.listdir(local_distinctCnt_path):
     if "ml_projects_distinctCount.json" in files:
-        blob_service_client.create_blob_from_path(
-            container_name,
-            os.path.join(blob_distinctCnt_path,files),
-            local_distinctCnt_path + "/" + files
-        )
+        cloud_init.upload_to_cloud(blob_Path = blob_distinctCnt_path, local_Path = local_distinctCnt_path, file_Name = files)
+
 #projects submission distinct count program level
 for files in os.listdir(local_distinctCnt_prgmlevel_path):
     if "ml_projects_distinctCount_prgmlevel.json" in files:
-        blob_service_client.create_blob_from_path(
-            container_name,
-            os.path.join(blob_distinctCnt_prgmlevel_path,files),
-            local_distinctCnt_prgmlevel_path + "/" + files
-        )
-successLogger.debug(
-        "Uploading to azure end time  " + str(datetime.datetime.now())
-   )
-successLogger.debug(
-        "Removing file start time  " + str(datetime.datetime.now())
-   )  
+        cloud_init.upload_to_cloud(blob_Path = blob_distinctCnt_prgmlevel_path, local_Path = local_distinctCnt_prgmlevel_path, file_Name = files)
+
+successLogger.debug("Uploading to azure end time  " + str(datetime.datetime.now()))
+successLogger.debug("Removing file start time  " + str(datetime.datetime.now()))  
 os.remove(config.get("OUTPUT_DIR", "project") + "/sl_projects.json")
+
 #projects submission distinct count
 os.remove(config.get("OUTPUT_DIR", "projects_distinctCount") + "/ml_projects_distinctCount.json")
+
 #projects submission distinct count program level
 os.remove(config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/ml_projects_distinctCount_prgmlevel.json")
-successLogger.debug(
-        "Removing file end time  " + str(datetime.datetime.now())
-   )
+
+successLogger.debug("Removing file end time  " + str(datetime.datetime.now()))
 druid_batch_end_point = config.get("DRUID", "batch_url")
 headers = {'Content-Type': 'application/json'}
 
-successLogger.debug(
-        "Ingestion start time  " + str(datetime.datetime.now())
-   )
+successLogger.debug("Ingestion start time  " + str(datetime.datetime.now()))
+
 #projects submission distinct count
 ml_distinctCnt_projects_spec = json.loads(config.get("DRUID","ml_distinctCnt_projects_status_spec"))
 ml_distinctCnt_projects_datasource = ml_distinctCnt_projects_spec["spec"]["dataSchema"]["dataSource"]
@@ -863,19 +844,15 @@ for i, j in zip(datasources,ingestion_specs):
                 time.sleep(300)
 
                 enable_datasource = requests.get(druid_end_point, headers=headers)
-                if enable_datasource.status_code == 200:
-                   time.sleep(300)
-                   enable_datasource_repeat = requests.get(druid_end_point, headers=headers)
-                if (enable_datasource.status_code == 204) | (enable_datasource_repeat.status_code == 204):
-                    successLogger.debug("successfully enabled the datasource " + i)
-                    
-                    time.sleep(300)
-                    
+                if enable_datasource.status_code == 200 or enable_datasource.status_code == 204:                
+                    time.sleep(600)
+                    successLogger.debug("successfully enabled the datasource " + i)   
                     print(j)
+
                     start_supervisor = requests.post(
                         druid_batch_end_point, data=j, headers=headers
                     )
-                    successLogger.debug("ingest data")
+                    successLogger.debug("--- INGEST DATA ---")
                     if start_supervisor.status_code == 200:
                         bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Succesfully ingested the data in {i}")
                         successLogger.debug(
