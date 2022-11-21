@@ -6,7 +6,7 @@
 # -----------------------------------------------------------------
 
 import faust
-import time
+import time, re
 import logging
 import os, json
 import datetime
@@ -362,7 +362,7 @@ try:
               try:
                if answer['payload']['labels']:
                  if answer['responseType'] == 'text':
-                   observationSubQuestionsObj['questionResponseLabel'] = "'"+responseLabel+"'"
+                   observationSubQuestionsObj['questionResponseLabel'] = "'"+ re.sub("\n|\"","",responseLabel) +"'"
                  else :
                    observationSubQuestionsObj['questionResponseLabel'] = responseLabel
                else:
@@ -377,7 +377,7 @@ try:
               observationSubQuestionsObj['createdAt'] = createdAt
               observationSubQuestionsObj['updatedAt'] = updatedAt
               if answer['remarks'] :
-               observationSubQuestionsObj['remarks'] = "'"+answer['remarks']+"'"
+               observationSubQuestionsObj['remarks'] = "'"+ re.sub("\n|\"","",answer['remarks']) +"'"
               else :
                observationSubQuestionsObj['remarks'] = None
               if len(answer['fileName']):
