@@ -398,9 +398,9 @@ for i,j in zip(datasources,ingestion_specs):
             time.sleep(300)
 
             enable_datasource = requests.get(druid_end_point, headers=headers)
-            if enable_datasource.status_code == 204:
+            if enable_datasource.status_code == 204 or enable_datasource.status_code == 200:
                bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Enabled the datasource for {i}")
-               time.sleep(300)
+               time.sleep(600)
 
                start_supervisor = requests.post(druid_batch_end_point, data=j, headers=headers)
                if start_supervisor.status_code == 200:
