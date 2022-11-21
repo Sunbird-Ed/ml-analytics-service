@@ -275,3 +275,4 @@ observation_batch_ingestion_data_del = {{ ml_analytics_observation_batchupdate_a
 survey_batch_ingestion_data_del = {{ml_analytics_survey_batchupdate_azure_blob_path}}
 
 cname_url = {{ ml_analytics_cname_url }}
+
