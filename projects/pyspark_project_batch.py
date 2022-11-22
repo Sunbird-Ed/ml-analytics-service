@@ -417,9 +417,6 @@ projects_df = projects_df.withColumn(
                 regexp_replace(projects_df["exploded_taskarr"]["task_evidence"], "\n|\"", ""),
                 F.lit("'")
             )
-    ).when(
-        (projects_df["exploded_taskarr"]["task_evidence"].isNull() == True),
-        F.lit("unknown")
     ).otherwise(projects_df["exploded_taskarr"]["task_evidence"])
 )
 
@@ -466,9 +463,6 @@ projects_df = projects_df.withColumn(
                 regexp_replace(projects_df["exploded_taskarr"]["prj_evidence"], "\n|\"", ""),
                 F.lit("'")
             )
-    ).when(
-        (projects_df["exploded_taskarr"]["prj_evidence"].isNull() == True),
-        F.lit("unknown")
     ).otherwise(projects_df["exploded_taskarr"]["prj_evidence"])
 )
 
@@ -482,12 +476,12 @@ successLogger.debug(
    )
    
 projects_df = projects_df.withColumn("project_goal",regexp_replace(F.col("metaInformation.goal"), "\n|\"", ""))
-projects_df = projects_df.withColumn("area_of_improvement",F.when((F.col("categories_name").isNotNull()) & (F.col("categories_name")!=""),F.concat(F.lit("'"),regexp_replace(F.col("categories_name"), "\n|\"", ""),F.lit("'"))).otherwise(F.lit("unknown")))
-projects_df = projects_df.withColumn("tasks",F.when((F.col("exploded_taskarr.tasks").isNotNull()) & (F.col("exploded_taskarr.tasks")!=""),F.concat(F.lit("'"),regexp_replace(F.col("exploded_taskarr.tasks"), "\n|\"", ""),F.lit("'"))).otherwise(F.lit("unknown")))
-projects_df = projects_df.withColumn("sub_task",F.when((F.col("exploded_taskarr.sub_task").isNotNull()) & (F.col("exploded_taskarr.sub_task")!=""),F.concat(F.lit("'"),regexp_replace(F.col("exploded_taskarr.sub_task"), "\n|\"", ""),F.lit("'"))).otherwise(F.lit("unknown")))	
+projects_df = projects_df.withColumn("area_of_improvement",F.when((F.col("categories_name").isNotNull()) & (F.col("categories_name")!=""),F.concat(F.lit("'"),regexp_replace(F.col("categories_name"), "\n|\"", ""),F.lit("'"))).otherwise(F.col("categories_name")))
+projects_df = projects_df.withColumn("tasks",F.when((F.col("exploded_taskarr.tasks").isNotNull()) & (F.col("exploded_taskarr.tasks")!=""),F.concat(F.lit("'"),regexp_replace(F.col("exploded_taskarr.tasks"), "\n|\"", ""),F.lit("'"))).otherwise(F.col("exploded_taskarr.tasks")))
+projects_df = projects_df.withColumn("sub_task",F.when((F.col("exploded_taskarr.sub_task").isNotNull()) & (F.col("exploded_taskarr.sub_task")!=""),F.concat(F.lit("'"),regexp_replace(F.col("exploded_taskarr.sub_task"), "\n|\"", ""),F.lit("'"))).otherwise(F.col("exploded_taskarr.sub_task")))	
 projects_df = projects_df.withColumn("program_name",regexp_replace(F.col("programInformation.name"), "\n|\"", ""))
-projects_df = projects_df.withColumn("task_remarks",F.when((F.col("exploded_taskarr.remarks").isNotNull()) & (F.col("exploded_taskarr.remarks")!=""),F.concat(F.lit("'"),regexp_replace(F.col("exploded_taskarr.remarks"), "\n|\"", ""),F.lit("'"))).otherwise(F.lit("unknown")))
-projects_df = projects_df.withColumn("project_remarks",F.when((F.col("exploded_taskarr.prj_remarks").isNotNull()) & (F.col("exploded_taskarr.prj_remarks")!=""),F.concat(F.lit("'"),regexp_replace(F.col("exploded_taskarr.prj_remarks"), "\n|\"", ""),F.lit("'"))).otherwise(F.lit("unknown")))
+projects_df = projects_df.withColumn("task_remarks",F.when((F.col("exploded_taskarr.remarks").isNotNull()) & (F.col("exploded_taskarr.remarks")!=""),F.concat(F.lit("'"),regexp_replace(F.col("exploded_taskarr.remarks"), "\n|\"", ""),F.lit("'"))).otherwise(F.col("exploded_taskarr.remarks")))
+projects_df = projects_df.withColumn("project_remarks",F.when((F.col("exploded_taskarr.prj_remarks").isNotNull()) & (F.col("exploded_taskarr.prj_remarks")!=""),F.concat(F.lit("'"),regexp_replace(F.col("exploded_taskarr.prj_remarks"), "\n|\"", ""),F.lit("'"))).otherwise(F.col("exploded_taskarr.prj_remarks")))
 
 projects_df = projects_df.withColumn(
                  "evidence_status",
@@ -507,11 +501,11 @@ prj_df_expl_ul = projects_df.withColumn(
 )
 
 projects_df = projects_df.withColumn(
-    "project_title_editable", F.when((F.col("title").isNotNull()) & (F.col("title")!=""),F.concat(F.lit("'"),F.col("title"),F.lit("'"))).otherwise(F.lit("unknown"))
+    "project_title_editable", F.when((F.col("title").isNotNull()) & (F.col("title")!=""),F.concat(F.lit("'"),F.col("title"),F.lit("'"))).otherwise(F.col("title"))
 )
 
 projects_df = projects_df.withColumn(
-    "project_description", F.when((F.col("description").isNotNull()) & (F.col("description")!=""),F.concat(F.lit("'"),F.col("description"),F.lit("'"))).otherwise(F.lit("unknown"))
+    "project_description", F.when((F.col("description").isNotNull()) & (F.col("description")!=""),F.concat(F.lit("'"),F.col("description"),F.lit("'"))).otherwise(F.col("description"))
 )
 
 projects_df_cols = projects_df.select(
