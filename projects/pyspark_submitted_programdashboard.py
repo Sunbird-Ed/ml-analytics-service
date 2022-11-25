@@ -273,7 +273,7 @@ for values in dashdata:
                         {
                             "type": "selector",
                             "dimension": "status_of_project",
-                            "values": "submitted"
+                            "value": "submitted"
                         }]
 
     response = requests.post(url, headers={"Content-Type": "application/json"}, data=json.dumps(druid_query))
