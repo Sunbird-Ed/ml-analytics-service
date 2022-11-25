@@ -67,7 +67,6 @@ class Creator:
                                             "Org Name", "Program Name", "Program ID", "Project ID", "Project Title", "Project Objective", "Category", "Project start date of the user",
                                             "Project completion date of the user", "Project Duration", "Project Status", "Tasks", "Sub-Tasks", "Task Evidence", "Task Remarks", 
                                             "Project Evidence", "Project Remarks")
-        task_state_df = task_state_df.filter(task_state_df["Project Status"] == "submitted")
         task_state_df = task_state_df.dropDuplicates()
         task_state_df = task_state_df.sort(col("UUID").asc(), col("Program ID").asc(), col("Project ID").asc(), col("Tasks").asc())
         task_state_df.coalesce(1).write.option("header", True).mode('overwrite').csv(f"{local_path}/{stname}/task_detail/STATEWISE_{solname}_{datetime.datetime.now().date()}")
@@ -77,7 +76,6 @@ class Creator:
         filter_task_state_df = state_proj_df.select("UUID", "User Type", "User sub type", "Declared State", "District", "Block", "Org Name", "Program Name", 
                                         "Project Title", "Project Objective", "Project Status", "Project completion date of the user", "Tasks", "Task Evidence", 
                                         "Task Remarks", "Project Evidence", "Project Remarks", "Task Sequence")
-        filter_task_state_df = filter_task_state_df.filter(filter_task_state_df["Project Status"] == "submitted")
         filter_task_state_df = filter_task_state_df.dropDuplicates()
         filter_task_state_df = filter_task_state_df.sort(col("District"), col("Block"), col("UUID"), col("Task Sequence"))
         filter_task_state_df = filter_task_state_df.drop("Task Sequence")
@@ -101,7 +99,6 @@ class Creator:
                                             "Org Name", "Program Name", "Program ID", "Project ID", "Project Title", "Project Objective", "Category", "Project start date of the user",
                                             "Project completion date of the user", "Project Duration", "Project Status", "Tasks", "Sub-Tasks", "Task Evidence", "Task Remarks", 
                                             "Project Evidence", "Project Remarks").where(state_proj_df['District'] == dist)
-        dist_task = dist_task.filter(dist_task["Project Status"] == "submitted")
         dist_task = dist_task.dropDuplicates()
         dist_task = dist_task.na.fill("null")
         dist_task = dist_task.sort(col("UUID").asc(), col("Program ID").asc(), col("Project ID").asc(), col("Tasks").asc())
@@ -112,7 +109,6 @@ class Creator:
         filter_dist_task = state_proj_df.select("UUID", "User Type", "User sub type", "Declared State", "District", "Block", "Org Name", "Program Name", 
                                     "Project Title", "Project Objective", "Project Status", "Project completion date of the user", "Tasks", "Task Evidence", 
                                     "Task Remarks", "Project Evidence", "Project Remarks").where(state_proj_df['District'] == dist)
-        filter_dist_task = filter_dist_task.filter(filter_dist_task["Project Status"] == "submitted")
         filter_dist_task = filter_dist_task.dropDuplicates()
         filter_dist_task = filter_dist_task.na.fill("null")
         filter_dist_task = filter_dist_task.sort(col("District").asc(), col("Block").asc(), col("UUID").asc(), col("Task Sequence").asc())
@@ -273,6 +269,11 @@ for values in dashdata:
                             "type": "selector",
                             "dimension": "project_deleted_flag",
                             "value": "false"
+                        },
+                        {
+                            "type": "selector",
+                            "dimension": "status_of_project",
+                            "values": "submitted"
                         }]
 
     response = requests.post(url, headers={"Content-Type": "application/json"}, data=json.dumps(druid_query))
@@ -376,7 +377,7 @@ for values in dashdata:
     state_proj_df.unpersist()
 
 # Zip files and remove
-    shutil.make_archive(f'{local_path}/' + f'{stname}_{datetime.datetime.now().date()}', 'zip', f'{local_path}/'+f'{stname}')
+    shutil.make_archive(f'{local_path}/' + f'{stname}_submitted_{datetime.datetime.now().date()}', 'zip', f'{local_path}/'+f'{stname}')
     successLogger.debug("Zipped data stored")
 
 # Upload in Azure    
