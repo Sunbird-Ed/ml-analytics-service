@@ -49,7 +49,7 @@ for intr in interval_arr:
          for event_data in druid_data["events"]:                      
             ## Replacing value of a column
             if event_data["evidences"]:              
-              url = re.sub(config.get("ML_SURVEY_SERVICE_URL","evidence_base_url"),config.get("COMMON","cname_url"),event_data["evidences"])
+              url = re.sub(config.get("ML_SURVEY_SERVICE_URL","evidence_base_url"),'',event_data["evidences"])
               event_data["evidences"] = url
          
             ## Writing the data into json file
