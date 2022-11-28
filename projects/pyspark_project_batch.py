@@ -410,13 +410,6 @@ projects_df = projects_df.withColumn(
 
 projects_df = projects_df.withColumn(
     "task_evidence",F.when(
-    (projects_df["exploded_taskarr"]["task_evidence"].isNotNull() == True) &
-    (projects_df["exploded_taskarr"]["taskEvi_type"] != "link"),
-        F.concat(
-            F.lit(config.get('ML_SURVEY_SERVICE_URL', 'evidence_base_url')),
-            projects_df["exploded_taskarr"]["task_evidence"]
-        )
-    ).when(
         (projects_df["exploded_taskarr"]["task_evidence"].isNotNull() == True) & 
         (projects_df["exploded_taskarr"]["task_evidence"]!="") &
         (projects_df["exploded_taskarr"]["taskEvi_type"] == "link"),
@@ -456,13 +449,6 @@ projects_df = projects_df.withColumn(
 
 projects_df = projects_df.withColumn(
     "project_evidence",F.when(
-    (projects_df["exploded_taskarr"]["prj_evidence"].isNotNull() == True) &
-    (projects_df["exploded_taskarr"]["prjEvi_type"] != "link"),
-        F.concat(
-            F.lit(config.get('ML_SURVEY_SERVICE_URL', 'evidence_base_url')),
-            projects_df["exploded_taskarr"]["prj_evidence"]
-        )
-    ).when(
         (projects_df["exploded_taskarr"]["prj_evidence"].isNotNull() == True) & 
         (projects_df["exploded_taskarr"]["prj_evidence"]!="") &
         (projects_df["exploded_taskarr"]["prjEvi_type"] == "link"),

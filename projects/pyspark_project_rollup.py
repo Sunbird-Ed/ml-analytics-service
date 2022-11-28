@@ -364,15 +364,8 @@ projects_df = projects_df.withColumn(
 )
 
 projects_df = projects_df.withColumn(
-    "project_evidence",F.when(
-    (projects_df["exploded_taskarr"]["prj_evidence"].isNotNull() == True) &
-    (projects_df["exploded_taskarr"]["prjEvi_type"] != "link"),
-        F.concat(
-            F.lit(config.get('ML_SURVEY_SERVICE_URL', 'evidence_base_url')),
-            projects_df["exploded_taskarr"]["prj_evidence"]
-        )
-    ).otherwise(projects_df["exploded_taskarr"]["prj_evidence"])
-)
+    "project_evidence",projects_df["exploded_taskarr"]["prj_evidence"])
+    
 
 projects_df = projects_df.withColumn("orgData",orgInfo_udf(F.col("userProfile.organisations")))
 projects_df = projects_df.withColumn("exploded_orgInfo",F.explode_outer(F.col("orgData")))
