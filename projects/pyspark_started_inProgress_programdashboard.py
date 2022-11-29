@@ -253,7 +253,10 @@ for values in dashdata:
     state_proj_df.unpersist()
 
 # Zip files and remove
+try:
     shutil.make_archive(f'{local_path}/' + f'{stname}_started_inProgress_{datetime.datetime.now().date()}', 'zip', f'{local_path}/'+f'{stname}')
+except FileNotFoundError:
+    pass
     successLogger.debug("Zipped data stored")
 
 # Upload in Azure    
