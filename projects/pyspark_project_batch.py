@@ -501,11 +501,10 @@ prj_df_expl_ul = projects_df.withColumn(
 )
 
 projects_df = projects_df.withColumn(
-    "project_title_editable", F.when((F.col("title").isNotNull()) & (F.col("title")!=""),F.concat(F.lit("'"),F.col("title"),F.lit("'"))).otherwise(F.col("title"))
+    "project_title_editable", F.when((F.col("title").isNotNull()) & (F.col("title")!=""),F.concat(F.lit("'"),regexp_replace(F.col("title"), "\n|\"", ""),F.lit("'"))).otherwise(F.col("title"))
 )
-
 projects_df = projects_df.withColumn(
-    "project_description", F.when((F.col("description").isNotNull()) & (F.col("description")!=""),F.concat(F.lit("'"),F.col("description"),F.lit("'"))).otherwise(F.col("description"))
+    "project_description", F.when((F.col("description").isNotNull()) & (F.col("description")!=""),F.concat(F.lit("'"),regexp_replace(F.col("description"), "\n|\"", ""),F.lit("'"))).otherwise(F.col("description"))
 )
 
 projects_df_cols = projects_df.select(
