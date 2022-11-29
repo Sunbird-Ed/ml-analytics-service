@@ -127,7 +127,7 @@ schema = StructType([
 # Gather the data for Druid based on Program, Solution and State
 for values in dashdata:
     pid, sid, stname = values['programId'], values['solutionId'], values['stateName']
-    solname = values["solutionName"]
+    solname, require = values["solutionName"], values["isNeeded"]
 
     druid_query = {
         "queryType": "scan", 
@@ -238,14 +238,16 @@ for values in dashdata:
 
     state_proj_df = state_proj_df.na.fill(value="Null")    
     creator = Creator()
-    creator.status_state()
+    if require == "status":
+        creator.status_state()
 
     successLogger.debug("State data stored in file")
 
-# District wise logic 
-    unique_district = state_proj_df.select(state_proj_df["District"]).distinct().rdd.flatMap(lambda x: x).collect()
-    for districts in unique_district:
-        creator.status_dist(districts)
+# District wise logic
+    if require == "status":
+        unique_district = state_proj_df.select(state_proj_df["District"]).distinct().rdd.flatMap(lambda x: x).collect()
+        for districts in unique_district:
+            creator.status_dist(districts)
 
     successLogger.debug("District data stored in file")
     state_proj_df.unpersist()
