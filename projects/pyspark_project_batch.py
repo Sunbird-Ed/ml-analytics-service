@@ -10,7 +10,7 @@ import json, sys, time
 from configparser import ConfigParser,ExtendedInterpolation
 from pymongo import MongoClient
 from bson.objectid import ObjectId
-import os
+import os, re, argparse
 import requests
 import pyspark.sql.utils as ut
 from pyspark.sql import SparkSession
@@ -19,11 +19,8 @@ import pyspark.sql.functions as F
 from pyspark.sql.types import *
 from pyspark.sql import Row
 from collections import OrderedDict, Counter
-from azure.storage.blob import BlockBlobService, PublicAccess
-from azure.storage.blob import ContentSettings
 import logging
-import logging.handlers
-from logging.handlers import TimedRotatingFileHandler
+from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
 import datetime
 from slackclient import SlackClient
 from datetime import date
@@ -36,14 +33,24 @@ config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
 bot = SlackClient(config.get("SLACK","token"))
+sys.path.append(config.get("COMMON", "cloud_module_path"))
 
+from cloud import MultiCloud
+
+cloud_init = MultiCloud()
 formatter = logging.Formatter('%(asctime)s - %(levelname)s')
+
+details = argparse.ArgumentParser(description='Pass the ProgramID')
+details.add_argument('--program_id',metavar='--program_id', type=str, help='Program IDs', required=True)
+args = details.parse_args()
+program_Id = args.program_id
+program_unique_id = ObjectId(re.split(r'"(.*?)"', program_Id)[1])
 
 successLogger = logging.getLogger('success log')
 successLogger.setLevel(logging.DEBUG)
 
 # Add the log message handler to the logger
-successHandler = logging.handlers.RotatingFileHandler(config.get('LOGS', 'project_success'))
+successHandler = RotatingFileHandler(config.get('LOGS', 'project_success'))
 successBackuphandler = TimedRotatingFileHandler(config.get('LOGS','project_success'), when="w0",backupCount=1)
 successHandler.setFormatter(formatter)
 successLogger.addHandler(successHandler)
@@ -51,7 +58,7 @@ successLogger.addHandler(successBackuphandler)
 
 errorLogger = logging.getLogger('error log')
 errorLogger.setLevel(logging.ERROR)
-errorHandler = logging.handlers.RotatingFileHandler(config.get('LOGS', 'project_error'))
+errorHandler = RotatingFileHandler(config.get('LOGS', 'project_error'))
 errorBackuphandler = TimedRotatingFileHandler(config.get('LOGS', 'project_error'),when="w0",backupCount=1)
 errorHandler.setFormatter(formatter)
 errorLogger.addHandler(errorHandler)
@@ -100,7 +107,7 @@ orgInfo_udf = udf(orgName,orgSchema)
 successLogger.debug(
         "Program started  " + str(datetime.datetime.now())
    )	   
-bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"*********** STARTED AT: {datetime.datetime.now()} ***********\n")
+bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"*** Start:{datetime.datetime.now()} ***\n")
 spark = SparkSession.builder.appName("projects").config(
     "spark.driver.memory", "50g"
 ).config(
@@ -118,6 +125,7 @@ successLogger.debug(
    )
 projects_cursorMongo = projectsCollec.aggregate(
     [{"$match": {"$and":[
+         {"programId": program_unique_id},
          {"isAPrivateProgram": False},
          {"isDeleted":False}]}},
     {
@@ -630,51 +638,51 @@ successLogger.debug(
         "sl-project Json file generation end time  " + str(datetime.datetime.now())
    )
 #projects submission distinct count
-# try:
-successLogger.debug(
-        "Logic for submission distinct count start time  " + str(datetime.datetime.now())
-   )
-final_projects_tasks_distinctCnt_df = final_projects_df.groupBy("program_name","program_id","project_title","solution_id","status_of_project","state_name","state_externalId",
-                                                                        "district_name","district_externalId","block_name","block_externalId","organisation_name","organisation_id","private_program","project_created_type",
-                                                                        "parent_channel").agg(countDistinct(when(F.col("certificate_status") == "active",True),F.col("project_id")).alias("no_of_certificate_issued"),countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("solution_id")).alias("unique_solution"),countDistinct(F.col("createdBy")).alias("unique_users"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status_of_project") == "submitted"),True),F.col("project_id")).alias("no_of_imp_with_evidence"))
-final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.withColumn("time_stamp", current_timestamp())
-final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.dropDuplicates()
-final_projects_tasks_distinctCnt_df.coalesce(1).write.format("json").mode("overwrite").save(
-   config.get("OUTPUT_DIR","projects_distinctCount") + "/"
-)
-successLogger.debug(
-        "Logic for submission distinct count end time  " + str(datetime.datetime.now())
-   )
-final_projects_tasks_distinctCnt_df.unpersist()
-# except ut.AnalysisException:
-#    pass
+try:
+    successLogger.debug(
+            "Logic for submission distinct count start time  " + str(datetime.datetime.now())
+    )
+    final_projects_tasks_distinctCnt_df = final_projects_df.groupBy("program_name","program_id","project_title","solution_id","status_of_project","state_name","state_externalId",
+                                                                            "district_name","district_externalId","block_name","block_externalId","organisation_name","organisation_id","private_program","project_created_type",
+                                                                            "parent_channel").agg(countDistinct(when(F.col("certificate_status") == "active",True),F.col("project_id")).alias("no_of_certificate_issued"),countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("solution_id")).alias("unique_solution"),countDistinct(F.col("createdBy")).alias("unique_users"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status_of_project") == "submitted"),True),F.col("project_id")).alias("no_of_imp_with_evidence"))
+    final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.withColumn("time_stamp", current_timestamp())
+    final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.dropDuplicates()
+    final_projects_tasks_distinctCnt_df.coalesce(1).write.format("json").mode("overwrite").save(
+    config.get("OUTPUT_DIR","projects_distinctCount") + "/"
+    )
+    successLogger.debug(
+            "Logic for submission distinct count end time  " + str(datetime.datetime.now())
+    )
+    final_projects_tasks_distinctCnt_df.unpersist()
+except ut.AnalysisException:
+   pass
 
 # projects submission distinct count by program level
-# try:
-successLogger.debug(
-        "Logic for submission distinct count by program level start time  " + str(datetime.datetime.now())
-   )
-final_projects_tasks_distinctCnt_prgmlevel = final_projects_df.groupBy("program_name", "program_id","status_of_project", "state_name","state_externalId","private_program","project_created_type","parent_channel").agg(countDistinct(when(F.col("certificate_status") == "active",True),F.col("project_id")).alias("no_of_certificate_issued"), countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("createdBy")).alias("unique_users"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status_of_project") == "submitted"),True),F.col("project_id")).alias("no_of_imp_with_evidence"))
-final_projects_tasks_distinctCnt_prgmlevel = final_projects_tasks_distinctCnt_prgmlevel.withColumn("time_stamp", current_timestamp())
-final_projects_tasks_distinctCnt_prgmlevel = final_projects_tasks_distinctCnt_prgmlevel.dropDuplicates()
-final_projects_tasks_distinctCnt_prgmlevel.coalesce(1).write.format("json").mode("overwrite").save(
-   config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/"
-)
-successLogger.debug(
-        "Logic for submission distinct count by program level end time  " + str(datetime.datetime.now())
-   )
-final_projects_df.unpersist()
-final_projects_tasks_distinctCnt_prgmlevel.unpersist()
-# except ut.AnalysisException:
-#    pass
-successLogger.debug(
-        "Renaming file start time  " + str(datetime.datetime.now())
-   )
+try:
+    successLogger.debug(
+            "Logic for submission distinct count by program level start time  " + str(datetime.datetime.now())
+    )
+    final_projects_tasks_distinctCnt_prgmlevel = final_projects_df.groupBy("program_name", "program_id","status_of_project", "state_name","state_externalId","private_program","project_created_type","parent_channel").agg(countDistinct(when(F.col("certificate_status") == "active",True),F.col("project_id")).alias("no_of_certificate_issued"), countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("createdBy")).alias("unique_users"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status_of_project") == "submitted"),True),F.col("project_id")).alias("no_of_imp_with_evidence"))
+    final_projects_tasks_distinctCnt_prgmlevel = final_projects_tasks_distinctCnt_prgmlevel.withColumn("time_stamp", current_timestamp())
+    final_projects_tasks_distinctCnt_prgmlevel = final_projects_tasks_distinctCnt_prgmlevel.dropDuplicates()
+    final_projects_tasks_distinctCnt_prgmlevel.coalesce(1).write.format("json").mode("overwrite").save(
+    config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/"
+    )
+    successLogger.debug(
+            "Logic for submission distinct count by program level end time  " + str(datetime.datetime.now())
+    )
+    final_projects_df.unpersist()
+    final_projects_tasks_distinctCnt_prgmlevel.unpersist()
+except ut.AnalysisException:
+   pass
+
+successLogger.debug("Renaming file start time  " + str(datetime.datetime.now()))
+
 for filename in os.listdir(config.get("OUTPUT_DIR", "project")+"/"):
     if filename.endswith(".json"):
        os.rename(
            config.get("OUTPUT_DIR", "project") + "/" + filename,
-           config.get("OUTPUT_DIR", "project") + "/sl_projects.json"
+           config.get("OUTPUT_DIR", "project") + "/sl_projects_{program_unique_id}.json"
         )
 
 #projects submission distinct count
@@ -682,7 +690,7 @@ for filename in os.listdir(config.get("OUTPUT_DIR", "projects_distinctCount")+"/
     if filename.endswith(".json"):
        os.rename(
            config.get("OUTPUT_DIR", "projects_distinctCount") + "/" + filename,
-           config.get("OUTPUT_DIR", "projects_distinctCount") + "/ml_projects_distinctCount.json"
+           config.get("OUTPUT_DIR", "projects_distinctCount") + "/ml_projects_distinctCount_{program_unique_id}.json"
         )
 
 #projects submission distinct count by program level
@@ -690,73 +698,54 @@ for filename in os.listdir(config.get("OUTPUT_DIR", "projects_distinctCount_prgm
     if filename.endswith(".json"):
        os.rename(
            config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/" + filename,
-           config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/ml_projects_distinctCount_prgmlevel.json"
+           config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/ml_projects_distinctCount_prgmlevel_{program_unique_id}.json"
         )
-successLogger.debug(
-        "Renaming file end time  " + str(datetime.datetime.now())
-   ) 
-  
-successLogger.debug(
-        "Uploading to Azure start time  " + str(datetime.datetime.now())
-   )
-blob_service_client = BlockBlobService(
-    account_name=config.get("AZURE", "account_name"), 
-    sas_token=config.get("AZURE", "sas_token")
-)
-container_name = config.get("AZURE", "container_name")
+
+successLogger.debug("Renaming file end time  " + str(datetime.datetime.now())) 
+successLogger.debug("Uploading to Azure start time  " + str(datetime.datetime.now()))
+
 local_path = config.get("OUTPUT_DIR", "project")
-blob_path = config.get("AZURE", "projects_blob_path")
+blob_path = config.get("COMMON", "projects_blob_path")
+
 #projects submission distinct count
 local_distinctCnt_path = config.get("OUTPUT_DIR", "projects_distinctCount")
-blob_distinctCnt_path = config.get("AZURE", "projects_distinctCnt_blob_path")
+blob_distinctCnt_path = config.get("COMMON", "projects_distinctCnt_blob_path")
 
 #projects submission distinct count program level
 local_distinctCnt_prgmlevel_path = config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel")
-blob_distinctCnt_prgmlevel_path = config.get("AZURE", "projects_distinctCnt_prgmlevel_blob_path")
+blob_distinctCnt_prgmlevel_path = config.get("COMMON", "projects_distinctCnt_prgmlevel_blob_path")
 
 for files in os.listdir(local_path):
     if "sl_projects.json" in files:
-        blob_service_client.create_blob_from_path(
-            container_name,
-            os.path.join(blob_path,files),
-            local_path + "/" + files
-        )
+        cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = files)
+
 #projects submission distinct count
 for files in os.listdir(local_distinctCnt_path):
     if "ml_projects_distinctCount.json" in files:
-        blob_service_client.create_blob_from_path(
-            container_name,
-            os.path.join(blob_distinctCnt_path,files),
-            local_distinctCnt_path + "/" + files
-        )
+        cloud_init.upload_to_cloud(blob_Path = blob_distinctCnt_path, local_Path = local_distinctCnt_path, file_Name = files)
+
 #projects submission distinct count program level
 for files in os.listdir(local_distinctCnt_prgmlevel_path):
     if "ml_projects_distinctCount_prgmlevel.json" in files:
-        blob_service_client.create_blob_from_path(
-            container_name,
-            os.path.join(blob_distinctCnt_prgmlevel_path,files),
-            local_distinctCnt_prgmlevel_path + "/" + files
-        )
-successLogger.debug(
-        "Uploading to azure end time  " + str(datetime.datetime.now())
-   )
-successLogger.debug(
-        "Removing file start time  " + str(datetime.datetime.now())
-   )  
-os.remove(config.get("OUTPUT_DIR", "project") + "/sl_projects.json")
+        cloud_init.upload_to_cloud(blob_Path = blob_distinctCnt_prgmlevel_path, local_Path = local_distinctCnt_prgmlevel_path, file_Name = files)
+
+successLogger.debug("Uploading to azure end time  " + str(datetime.datetime.now()))
+successLogger.debug("Removing file start time  " + str(datetime.datetime.now()))
+
+
+os.remove(config.get("OUTPUT_DIR", "project") + "/sl_projects_{program_unique_id}.json")
 #projects submission distinct count
-os.remove(config.get("OUTPUT_DIR", "projects_distinctCount") + "/ml_projects_distinctCount.json")
+os.remove(config.get("OUTPUT_DIR", "projects_distinctCount") + "/ml_projects_distinctCount_{program_unique_id}.json")
 #projects submission distinct count program level
-os.remove(config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/ml_projects_distinctCount_prgmlevel.json")
-successLogger.debug(
-        "Removing file end time  " + str(datetime.datetime.now())
-   )
+os.remove(config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/ml_projects_distinctCount_prgmlevel_{program_unique_id}.json")
+
+successLogger.debug("Removing file end time  " + str(datetime.datetime.now()))
+
 druid_batch_end_point = config.get("DRUID", "batch_url")
 headers = {'Content-Type': 'application/json'}
 
-successLogger.debug(
-        "Ingestion start time  " + str(datetime.datetime.now())
-   )
+successLogger.debug("Ingestion start time  " + str(datetime.datetime.now()))
+
 #projects submission distinct count
 ml_distinctCnt_projects_spec = json.loads(config.get("DRUID","ml_distinctCnt_projects_status_spec"))
 ml_distinctCnt_projects_datasource = ml_distinctCnt_projects_spec["spec"]["dataSchema"]["dataSource"]
@@ -922,4 +911,4 @@ successLogger.debug(
 successLogger.debug(
         "Program completed  " + str(datetime.datetime.now())
    )
-bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"*********** COMPLETED AT: {datetime.datetime.now()} ***********\n")
+bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Ingested for {program_unique_id}")

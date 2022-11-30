@@ -25,13 +25,16 @@ from pyspark.sql.functions import element_at, split, col
 import logging
 import logging.handlers
 from logging.handlers import TimedRotatingFileHandler
-import boto3
 import glob
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
+sys.path.append(config.get("COMMON", "cloud_module_path"))
 
+from cloud import MultiCloud
+
+cloud_init = MultiCloud()
 formatter = logging.Formatter('%(asctime)s - %(levelname)s')
 
 successLogger = logging.getLogger('success log')
@@ -276,13 +279,14 @@ district_final_df = projects_df_final.groupBy("state_name","district_name").agg(
 
 
 # DF To file
-OUTPUT_PATH = "/opt/sparkjobs/ml-analytics-service/urgent_data_metrics/output/"
-district_final_df.coalesce(1).write.format("csv").option("header",True).mode("overwrite").save(OUTPUT_PATH)
+local_path = "/opt/sparkjobs/ml-analytics-service/urgent_data_metrics/output/"
+blob_path = "Manage_Learn_Data/micro_improvement/"
+district_final_df.coalesce(1).write.format("csv").option("header",True).mode("overwrite").save(local_path)
 district_final_df.unpersist()
 
 
 # Renaming a file
-path = OUTPUT_PATH
+path = local_path
 extension = 'csv'
 os.chdir(path)
 result = glob.glob(f'*.{extension}')
@@ -290,18 +294,7 @@ os.rename(f'{path}' + f'{result[0]}', f'{path}' + 'data.csv')
 
 
 # Uploading file to AWS-s3
-s3 = boto3.client('s3')
-
-s3 = boto3.resource(
-    service_name = config.get('CLOUD_STORAGE', 'service_name'),
-    aws_access_key_id = config.get('CLOUD_STORAGE', 'access_key'),
-    aws_secret_access_key = config.get('CLOUD_STORAGE', 'secret_access_key'),
-    region_name = config.get('CLOUD_STORAGE', 'region_name'),
-)
-
-bucket_name = config.get('CLOUD_STORAGE', 'bucket_name')
-
-s3.Bucket(f'{bucket_name}').upload_file(Filename=f'{OUTPUT_PATH}' + 'data.csv', Key='Manage_Learn_Data/micro_improvement/data.csv')
+cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = 'data.csv')
 
 print("file got uploaded to AWS")
 print("DONE")
