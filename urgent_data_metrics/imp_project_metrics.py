@@ -119,13 +119,13 @@ entitiesCollec = db[config.get('MONGO', 'entities_collection')]
 
 
 projects_cursorMongo = projectsCollec.aggregate(
-      [{"$match":{"isAPrivateProgram":False,"isDeleted":False}},
+      [{"$match":{"isAPrivateProgram":False,"isDeleted":False,"programInformation.name":{"$regex": "^((?!(?i)(test)).)*$"}}},
 {
         "$project": {
             "_id": {"$toString": "$_id"},
             "status": 1,
             "attachments":1,
-            "tasks": 1,
+            "tasks": {"attachments":1,"_id": {"$toString": "$_id"}},
             "userRoleInformation": 1
         }
     }]
