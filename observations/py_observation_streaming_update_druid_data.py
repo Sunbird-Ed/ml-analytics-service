@@ -391,10 +391,10 @@ try:
                 fileCnt = 1
                 for filedetail in answer['fileName']:
                   if fileCnt == 1:
-                    multipleFiles = filedetail['sourcePath']
+                    multipleFiles = config.get('ML_SURVEY_SERVICE_URL', 'evidence_base_url') + filedetail['sourcePath']
                     fileCnt = fileCnt + 1
                   else:
-                    multipleFiles = multipleFiles + ' , ' + filedetail['sourcePath']
+                    multipleFiles = multipleFiles + ' , ' + config.get('ML_SURVEY_SERVICE_URL', 'evidence_base_url') + filedetail['sourcePath']
                 observationSubQuestionsObj['evidences'] = multipleFiles                                  
                 observationSubQuestionsObj['evidence_count'] = len(answer['fileName'])
               observationSubQuestionsObj['total_evidences'] = evidence_sub_count

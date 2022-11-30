@@ -480,6 +480,17 @@ for items in programs:
         )
 
         projects_df = projects_df.withColumn(
+            "task_evidence",F.when(
+            (projects_df["exploded_taskarr"]["task_evidence"].isNotNull() == True) &
+            (projects_df["exploded_taskarr"]["taskEvi_type"] != "link"),
+                F.concat(
+                    F.lit(config.get('ML_SURVEY_SERVICE_URL', 'evidence_base_url')),
+                    projects_df["exploded_taskarr"]["task_evidence"]
+                )
+            ).otherwise(projects_df["exploded_taskarr"]["task_evidence"])
+        )
+
+        projects_df = projects_df.withColumn(
             "task_deleted_flag",
             F.when(
                 (projects_df["exploded_taskarr"]["deleted_flag"].isNotNull() == True) &
@@ -505,6 +516,16 @@ for items in programs:
             ).otherwise("false")
         )
 
+        projects_df = projects_df.withColumn(
+            "project_evidence",F.when(
+            (projects_df["exploded_taskarr"]["prj_evidence"].isNotNull() == True) &
+            (projects_df["exploded_taskarr"]["prjEvi_type"] != "link"),
+                F.concat(
+                    F.lit(config.get('ML_SURVEY_SERVICE_URL', 'evidence_base_url')),
+                    projects_df["exploded_taskarr"]["prj_evidence"]
+                )
+            ).otherwise(projects_df["exploded_taskarr"]["prj_evidence"])
+        )
 
         projects_df = projects_df.withColumn("orgData",orgInfo_udf(F.col("userProfile.organisations")))
         projects_df = projects_df.withColumn("exploded_orgInfo",F.explode_outer(F.col("orgData")))
@@ -551,8 +572,7 @@ for items in programs:
             projects_df["status"].alias("status_of_project"),
             projects_df["userId"].alias("createdBy"),
             projects_df["description"].alias("project_description"),
-            projects_df["project_goal"],
-            projects_df["exploded_taskarr"]["prj_evidence"].alias("project_evidence"),
+            projects_df["project_goal"],projects_df["project_evidence"],
             projects_df["parent_channel"],
             projects_df["createdAt"].alias("project_created_date"),
             projects_df["exploded_taskarr"]["_id"].alias("task_id"),
@@ -561,7 +581,7 @@ for items in programs:
             projects_df["exploded_taskarr"]["startDate"].alias("task_start_date"),
             projects_df["exploded_taskarr"]["endDate"].alias("task_end_date"),
             projects_df["exploded_taskarr"]["syncedAt"].alias("tasks_date"),projects_df["exploded_taskarr"]["status"].alias("tasks_status"),
-            projects_df["exploded_taskarr"]["task_evidence"].alias("task_evidence"),
+            projects_df["task_evidence"],
             projects_df["exploded_taskarr"]["task_evidence_status"].alias("task_evidence_status"),
             projects_df["exploded_taskarr"]["sub_task_id"].alias("sub_task_id"),
             projects_df["exploded_taskarr"]["sub_task"].alias("sub_task"),
