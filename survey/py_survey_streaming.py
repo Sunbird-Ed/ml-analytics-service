@@ -269,12 +269,12 @@ try:
                             surveySubQuestionsObj['questionResponseType'] = answer['responseType']
 
                             if answer['responseType'] == 'number':
-                                if answer['payload']['labels']:
+                                if responseLabel:
                                     surveySubQuestionsObj['questionResponseLabel_number'] = responseLabel
                                 else:
-                                    surveySubQuestionsObj['questionResponseLabel_number'] = ''
+                                    surveySubQuestionsObj['questionResponseLabel_number'] = 0
                             try:
-                             if answer['payload']['labels']:
+                             if responseLabel:
                                 if answer['responseType'] == 'text':
                                  surveySubQuestionsObj['questionResponseLabel'] = "'"+ re.sub("\n|\"","",responseLabel) +"'"
                                 else:
@@ -284,7 +284,7 @@ try:
                             except KeyError :
                                 surveySubQuestionsObj['questionResponseLabel'] = ''
                             surveySubQuestionsObj['questionExternalId'] = quesexternalId
-                            surveySubQuestionsObj['questionName'] = answer['payload']['question'][0]
+                            surveySubQuestionsObj['questionName'] = answer['question'][0]
                             surveySubQuestionsObj['questionECM'] = answer['evidenceMethod']
                             surveySubQuestionsObj['criteriaId'] = str(answer['criteriaId'])
                             
@@ -323,14 +323,14 @@ try:
                             surveySubQuestionsObj['total_evidences'] = evidence_sub_count
                             # to fetch the parent question of matrix
                             if ans['responseType']=='matrix':
-                                surveySubQuestionsObj['instanceParentQuestion'] = ans['payload']['question'][0]
+                                surveySubQuestionsObj['instanceParentQuestion'] = ans['question'][0]
                                 surveySubQuestionsObj['instanceParentId'] = ans['qid']
                                 surveySubQuestionsObj['instanceParentResponsetype'] =ans['responseType']
                                 surveySubQuestionsObj['instanceParentCriteriaId'] =ans['criteriaId']
                                 surveySubQuestionsObj['instanceParentCriteriaExternalId'] = ans['criteriaId']
                                 surveySubQuestionsObj['instanceParentCriteriaName'] = None
                                 surveySubQuestionsObj['instanceId'] = instNumber
-                                surveySubQuestionsObj['instanceParentExternalId'] = ans['qid']
+                                surveySubQuestionsObj['instanceParentExternalId'] = quesexternalId
                                 surveySubQuestionsObj['instanceParentEcmSequence']= sequenceNumber(
                                     surveySubQuestionsObj['instanceParentExternalId'], answer
                                 )
@@ -349,11 +349,10 @@ try:
                         # fetching the question details from questions collection
                         def fetchingQuestiondetails(ansFn,instNumber):        
                                try:
-                                if len(ansFn['options']) == 0:
+                                if (len(ansFn['options']) == 0) or (('options' in ansFn.keys()) == False):
                                     try:
-                                        if len(ansFn['payload']['labels']) > 0:
                                             orgArr = orgCreator(obSub["userProfile"]["organisations"])
-                                            final_worker = FinalWorker(ansFn,ansFn['externalId'], ansFn['value'], instNumber, ansFn['payload']['labels'][0], orgArr, creatingObj)
+                                            final_worker = FinalWorker(ansFn,ansFn['externalId'], ansFn['value'], instNumber, ansFn['value'], orgArr, creatingObj)
                                             final_worker.run()
                                     except KeyError :
                                         pass 
@@ -364,7 +363,7 @@ try:
                                             if type(ansFn['value']) == str or type(ansFn['value']) == int:
                                                 if quesOpt['value'] == ansFn['value'] :
                                                     orgArr = orgCreator(obSub["userProfile"]["organisations"])
-                                                    final_worker = FinalWorker(ansFn,ansFn['externalId'], ansFn['value'], instNumber, ansFn['payload']['labels'][0], orgArr, creatingObj)
+                                                    final_worker = FinalWorker(ansFn,ansFn['externalId'], ansFn['value'], instNumber, quesOpt['label'], orgArr, creatingObj)
                                                     final_worker.run()
                                             elif type(ansFn['value']) == list:
                                                 for ansArr in ansFn['value']:
@@ -376,21 +375,6 @@ try:
                                             pass
                                except KeyError:
                                    pass
-                                # #to check the value is null ie is not answered
-                                # try:
-                                #     if type(ansFn['value']) == str and ansFn['value'] == '':
-                                #         finalObj = {}
-                                #         finalObj =  creatingObj(
-                                #             ansFn,ques['externalId'], ansFn['value'], instNumber, None
-                                #         )
-                                #         producer.send(
-                                #             (config.get("KAFKA", "survey_druid_topic")), 
-                                #             json.dumps(finalObj).encode('utf-8')
-                                #         )
-                                #         producer.flush()
-                                #         successLogger.debug("Send Obj to Kafka")
-                                # except KeyError:
-                                #     pass
 
                         if (
                             ans['responseType'] == 'text' or ans['responseType'] == 'radio' or 
