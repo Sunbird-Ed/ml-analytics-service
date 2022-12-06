@@ -515,6 +515,9 @@ projects_df = projects_df.withColumn(
     "project_description", F.when((F.col("description").isNotNull()) & (F.col("description")!=""),F.concat(F.lit("'"),regexp_replace(F.col("description"), "\n|\"", ""),F.lit("'"))).otherwise(F.col("description"))
 )
 
+pattern = r'(?:.*)YEAR=(\d+).+?MONTH=(\d+).+?DAY_OF_MONTH=(\d+).+?HOUR=(\d+).+?MINUTE=(\d+).+?SECOND=(\d+).+'
+projects_df = projects_df.withColumn('certificate_date', F.regexp_replace(F.col("certificate.issuedOn"), pattern, '$1-$2-$3 $4:$5:$6').cast('timestamp'))
+
 projects_df_cols = projects_df.select(
     projects_df["_id"].alias("project_id"),
     projects_df["project_created_type"],
@@ -560,7 +563,7 @@ projects_df_cols = projects_df.select(
     projects_df["exploded_orgInfo"]["orgName"].alias("organisation_name"),
     projects_df["certificate"]["osid"].alias("certificate_id"),	
     projects_df["certificate"]["status"].alias("certificate_status"),	
-    projects_df["certificate"]["issuedOn"].alias("certificate_date"),
+    projects_df["certificate_date"],
     concat_ws(",",F.col("userProfile.framework.board")).alias("board_name"),
     concat_ws(",",array_distinct(F.col("userProfile.profileUserTypes.type"))).alias("user_type"),
     projects_df["evidence_status"]    
