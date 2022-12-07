@@ -106,7 +106,7 @@ try:
                 surveySubQuestionsObj['questionId'] = str(answer['qid'])
                 try:
                     surveySubQuestionsObj['questionExternalId'] = str(answer['externalId'])
-                    surveySubQuestionsObj['questionName'] = answer['payload']['question'][0]
+                    surveySubQuestionsObj['questionName'] = answer['question'][0]
                 except KeyError:
                     surveySubQuestionsObj['questionExternalId'] = ''
                     surveySubQuestionsObj['questionName'] = ''

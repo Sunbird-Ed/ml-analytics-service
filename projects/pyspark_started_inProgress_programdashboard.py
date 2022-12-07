@@ -137,7 +137,7 @@ for values in dashdata:
                     "program_externalId","project_id","project_title_editable","project_description","area_of_improvement","project_created_date","project_completed_date","project_duration",
                     "status_of_project","tasks","sub_task","task_evidence","task_remarks","project_evidence","project_remarks", "program_id", "solution_id", "private_program", 
                     "sub_task_deleted_flag", "task_deleted_flag", "project_deleted_flag", "project_last_sync", "task_sequence",
-                    "task_count","task_evidence_count", "project_evidence_count",
+                    "task_count","task_evidence_count", "project_evidence_count"
                     ],
         "intervals": [interval],
         "batchSize": 100000,

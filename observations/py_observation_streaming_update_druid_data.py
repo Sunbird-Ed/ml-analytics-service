@@ -57,7 +57,6 @@ db = client[config.get('MONGO', 'database_name')]
 obsSubCollec = db[config.get('MONGO', 'observation_sub_collection')]
 solCollec = db[config.get('MONGO', 'solutions_collection')]
 obsCollec = db[config.get('MONGO', 'observations_collection')]
-questionsCollec = db[config.get('MONGO', 'questions_collection')]
 criteriaQuestionsCollec = db[config.get('MONGO', 'criteria_questions_collection')]
 criteriaCollec = db[config.get('MONGO', 'criteria_collection')]
 programsCollec = db[config.get('MONGO', 'programs_collection')]
@@ -361,12 +360,12 @@ try:
               observationSubQuestionsObj['questionAnswer'] = ans_val
               observationSubQuestionsObj['questionResponseType'] = answer['responseType']
               if answer['responseType'] == 'number':
-                if answer['payload']['labels']:
+                if responseLabel:
                   observationSubQuestionsObj['questionResponseLabel_number'] = responseLabel
                 else:
                   observationSubQuestionsObj['questionResponseLabel_number'] = 0
               try:
-               if answer['payload']['labels']:
+               if responseLabel:
                  if answer['responseType'] == 'text':
                   observationSubQuestionsObj['questionResponseLabel'] = "'"+ re.sub("\n|\"","",responseLabel) +"'"
                  else :
@@ -376,7 +375,7 @@ try:
               except KeyError :
                  observationSubQuestionsObj['questionResponseLabel'] = ''
               observationSubQuestionsObj['questionExternalId'] = quesexternalId
-              observationSubQuestionsObj['questionName'] = answer['payload']['question'][0]
+              observationSubQuestionsObj['questionName'] = answer['question'][0]
               observationSubQuestionsObj['questionECM'] = answer['evidenceMethod']
               observationSubQuestionsObj['criteriaId'] = str(answer['criteriaId'])
               observationSubQuestionsObj['completedDate'] = completedDate
@@ -401,7 +400,7 @@ try:
 
               # to fetch the parent question of matrix
               if ans['responseType']=='matrix':
-                observationSubQuestionsObj['instanceParentQuestion'] = ans['payload']['question'][0]
+                observationSubQuestionsObj['instanceParentQuestion'] = ans['question'][0]
                 observationSubQuestionsObj['instanceParentId'] = ans['qid']
                 observationSubQuestionsObj['instanceParentResponsetype'] =ans['responseType']
                 observationSubQuestionsObj['instanceParentCriteriaId'] =ans['criteriaId']
@@ -414,8 +413,7 @@ try:
                         if str(quesCQInst["_id"]) == str(ans["qid"]) :
                           observationSubQuestionsObj['instanceParentSection'] = secCQInst["code"]
                   observationSubQuestionsObj['instanceId'] = instNumber
-                  for ques in questionsCollec.find({'_id':ObjectId(ans['qid'])}):
-                    observationSubQuestionsObj['instanceParentExternalId'] = ques['externalId']
+                  observationSubQuestionsObj['instanceParentExternalId'] = quesexternalId
                   observationSubQuestionsObj['instanceParentEcmSequence']= sequenceNumber(
                     observationSubQuestionsObj['instanceParentExternalId'], answer,
                     observationSubQuestionsObj['instanceParentSection'], solutionObj
@@ -571,18 +569,15 @@ try:
               return observationSubQuestionsObj
 
             def fetchingQuestiondetails(ansFn, instNumber):        
-              for ques in questionsCollec.find({'_id':ObjectId(ansFn['qid'])}):
-                if len(ques['options']) == 0:
+                if (len(ansFn['options']) == 0) or (('options' in ansFn.keys()) == False):
                   try:
-                    if type(ansFn['payload']['labels']) == list:
-                     if len(ansFn['payload']['labels']) > 0:
                       if(len(userRolesArrUnique)) > 0:
                         for usrRol in userRolesArrUnique :
                           finalObj = {}
                           finalObj =  creatingObj(
-                            ansFn,ques['externalId'],
+                            ansFn,ansFn['externalId'],
                             ansFn['value'],instNumber,
-                            ansFn['payload']['labels'][0],
+                            ansFn['value'],
                             usrRol
                           )
                           if finalObj["completedDate"]:
@@ -592,42 +587,12 @@ try:
                       else :
                         finalObj = {}
                         finalObj =  creatingObj(
-                          ansFn,ques['externalId'],
+                          ansFn,ansFn['externalId'],
                           ansFn['value'],
                           instNumber,
-                          ansFn['payload']['labels'][0],
+                          ansFn['value'],
                           None
                         ) 
-                        if finalObj["completedDate"]:
-                          json.dump(finalObj, f)
-                          f.write("\n")
-                          successLogger.debug("Send Obj to Azure")
-                    else:
-                      if (len(userRolesArrUnique)) > 0:
-                        for usrRol in userRolesArrUnique:
-                          finalObj = {}
-                          finalObj = creatingObj(
-                            ansFn,
-                            ques['externalId'],
-                            ansFn['value'],
-                            instNumber,
-                            ansFn['payload']['labels'],
-                            usrRol
-                          )
-                          if finalObj["completedDate"]:
-                            json.dump(finalObj, f)
-                            f.write("\n")
-                            successLogger.debug("Send Obj to Azure")
-                      else:
-                        finalObj = {}
-                        finalObj = creatingObj(
-                          ansFn,
-                          ques['externalId'],
-                          ansFn['value'],
-                          instNumber,
-                          ansFn['payload']['labels'],
-                          None
-                        )
                         if finalObj["completedDate"]:
                           json.dump(finalObj, f)
                           f.write("\n")
@@ -636,7 +601,7 @@ try:
                     pass
                 else:
                   labelIndex = 0
-                  for quesOpt in ques['options']:
+                  for quesOpt in ansFn['options']:
                     try:
                       if type(ansFn['value']) == str or type(ansFn['value']) == int:
                         if quesOpt['value'] == ansFn['value'] :
@@ -645,10 +610,10 @@ try:
                               finalObj = {}
                               finalObj =  creatingObj(
                                 ansFn,
-                                ques['externalId'],
+                                ansFn['externalId'],
                                 ansFn['value'],
                                 instNumber,
-                                ansFn['payload']['labels'][0],
+                                quesOpt['label'],
                                 usrRol
                               )
                               if finalObj["completedDate"]:
@@ -658,10 +623,10 @@ try:
                           else :
                             finalObj = {}
                             finalObj =  creatingObj(
-                              ansFn,ques['externalId'],
+                              ansFn,ansFn['externalId'],
                               ansFn['value'],
                               instNumber,
-                              ansFn['payload']['labels'][0],
+                              quesOpt['label'],
                               None
                             )
                             if finalObj["completedDate"]:
@@ -677,7 +642,7 @@ try:
                                 finalObj = {}
                                 finalObj =  creatingObj(
                                   ansFn,
-                                  ques['externalId'],
+                                  ansFn['externalId'],
                                   ansArr,
                                   instNumber,
                                   quesOpt['label'],
@@ -691,7 +656,7 @@ try:
                               finalObj = {}
                               finalObj =  creatingObj(
                                 ansFn,
-                                ques['externalId'],
+                                ansFn['externalId'],
                                 ansArr,
                                 instNumber,
                                 quesOpt['label'],
