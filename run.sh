@@ -25,8 +25,9 @@ for programId in $queryRes
 do
     if [[ $programId =~ $regStr ]] 
     then 
-        echo "${programId/,}"
             . /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory 50g --executor-memory 50g /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_batch.py --program_id ${programId/,}
+    fi
+done
 echo "Daily Projects Batch Job Ingestion == Completed"
 echo "*************************************"
 

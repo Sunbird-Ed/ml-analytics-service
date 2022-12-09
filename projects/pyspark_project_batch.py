@@ -41,10 +41,12 @@ cloud_init = MultiCloud()
 formatter = logging.Formatter('%(asctime)s - %(levelname)s')
 
 details = argparse.ArgumentParser(description='Pass the ProgramID')
-details.add_argument('--program_id',metavar='--program_id', type=str, help='Program IDs', required=True)
+details.add_argument('--program_id',metavar='--program_id', type=str, help='Program IDs', required=False)
 args = details.parse_args()
-program_Id = args.program_id
-program_unique_id = ObjectId(re.split(r'"(.*?)"', program_Id)[1])
+program_unique_id = None
+if args.program_id :
+ program_Id = args.program_id
+ program_unique_id = ObjectId(re.split(r'"(.*?)"', program_Id)[1])
 
 successLogger = logging.getLogger('success log')
 successLogger.setLevel(logging.DEBUG)
@@ -123,11 +125,14 @@ sc = spark.sparkContext
 successLogger.debug(
         "Mongo Query start time  " + str(datetime.datetime.now())
    )
+
+if program_unique_id :
+   project_query = {"$match": {"$and":[{"programId": program_unique_id},{"isAPrivateProgram": False},{"isDeleted":False}]}}
+else :
+   project_query = {"$match": {"$and":[{"isAPrivateProgram": False},{"isDeleted":False}]}} 
+
 projects_cursorMongo = projectsCollec.aggregate(
-    [{"$match": {"$and":[
-         {"programId": program_unique_id},
-         {"isAPrivateProgram": False},
-         {"isDeleted":False}]}},
+    [project_query,
     {
         "$project": {
             "_id": {"$toString": "$_id"},
@@ -569,7 +574,7 @@ projects_df_cols = projects_df.select(
     projects_df["certificate"]["status"].alias("certificate_status"),
     projects_df["certificate_status_customised"],		
     projects_df["certificate_issued_on"],
-    projects_df["certificate"]["templateUrl"].alias("certificate_template_url")
+    projects_df["certificate"]["templateUrl"].alias("certificate_template_url"),
     concat_ws(",",F.col("userProfile.framework.board")).alias("board_name"),
     concat_ws(",",array_distinct(F.col("userProfile.profileUserTypes.type"))).alias("user_type"),
     projects_df["evidence_status"]    
@@ -689,25 +694,43 @@ successLogger.debug("Renaming file start time  " + str(datetime.datetime.now()))
 
 for filename in os.listdir(config.get("OUTPUT_DIR", "project")+"/"):
     if filename.endswith(".json"):
-       os.rename(
+       if program_unique_id :  
+        os.rename(
            config.get("OUTPUT_DIR", "project") + "/" + filename,
            config.get("OUTPUT_DIR", "project") + "/sl_projects_{program_unique_id}.json"
         )
+       else :
+        os.rename(
+           config.get("OUTPUT_DIR", "project") + "/" + filename,
+           config.get("OUTPUT_DIR", "project") + "/sl_projects.json"
+        ) 
 
 #projects submission distinct count
 for filename in os.listdir(config.get("OUTPUT_DIR", "projects_distinctCount")+"/"):
     if filename.endswith(".json"):
-       os.rename(
+       if program_unique_id : 
+        os.rename(
            config.get("OUTPUT_DIR", "projects_distinctCount") + "/" + filename,
            config.get("OUTPUT_DIR", "projects_distinctCount") + "/ml_projects_distinctCount_{program_unique_id}.json"
+        )
+       else :
+        os.rename(
+           config.get("OUTPUT_DIR", "projects_distinctCount") + "/" + filename,
+           config.get("OUTPUT_DIR", "projects_distinctCount") + "/ml_projects_distinctCount.json"
         )
 
 #projects submission distinct count by program level
 for filename in os.listdir(config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel")+"/"):
     if filename.endswith(".json"):
-       os.rename(
+       if program_unique_id : 
+        os.rename(
            config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/" + filename,
            config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/ml_projects_distinctCount_prgmlevel_{program_unique_id}.json"
+        )
+       else :
+        os.rename(
+           config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/" + filename,
+           config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/ml_projects_distinctCount_prgmlevel.json"
         )
 
 successLogger.debug("Renaming file end time  " + str(datetime.datetime.now())) 
@@ -725,28 +748,34 @@ local_distinctCnt_prgmlevel_path = config.get("OUTPUT_DIR", "projects_distinctCo
 blob_distinctCnt_prgmlevel_path = config.get("COMMON", "projects_distinctCnt_prgmlevel_blob_path")
 
 for files in os.listdir(local_path):
-    if "sl_projects.json" in files:
+    if "sl_projects.json" in files or "sl_projects_{program_unique_id}.json" in files:
         cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = files)
 
 #projects submission distinct count
 for files in os.listdir(local_distinctCnt_path):
-    if "ml_projects_distinctCount.json" in files:
+    if "ml_projects_distinctCount.json" in files or "ml_projects_distinctCount_{program_unique_id}.json" in files:
         cloud_init.upload_to_cloud(blob_Path = blob_distinctCnt_path, local_Path = local_distinctCnt_path, file_Name = files)
 
 #projects submission distinct count program level
 for files in os.listdir(local_distinctCnt_prgmlevel_path):
-    if "ml_projects_distinctCount_prgmlevel.json" in files:
+    if "ml_projects_distinctCount_prgmlevel.json" in files or "ml_projects_distinctCount_prgmlevel_{program_unique_id}.json" in files:
         cloud_init.upload_to_cloud(blob_Path = blob_distinctCnt_prgmlevel_path, local_Path = local_distinctCnt_prgmlevel_path, file_Name = files)
 
 successLogger.debug("Uploading to azure end time  " + str(datetime.datetime.now()))
 successLogger.debug("Removing file start time  " + str(datetime.datetime.now()))
 
-
-os.remove(config.get("OUTPUT_DIR", "project") + "/sl_projects_{program_unique_id}.json")
-#projects submission distinct count
-os.remove(config.get("OUTPUT_DIR", "projects_distinctCount") + "/ml_projects_distinctCount_{program_unique_id}.json")
-#projects submission distinct count program level
-os.remove(config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/ml_projects_distinctCount_prgmlevel_{program_unique_id}.json")
+if program_unique_id :
+ os.remove(config.get("OUTPUT_DIR", "project") + "/sl_projects_{program_unique_id}.json")
+ #projects submission distinct count
+ os.remove(config.get("OUTPUT_DIR", "projects_distinctCount") + "/ml_projects_distinctCount_{program_unique_id}.json")
+ #projects submission distinct count program level
+ os.remove(config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/ml_projects_distinctCount_prgmlevel_{program_unique_id}.json")
+else :
+ os.remove(config.get("OUTPUT_DIR", "project") + "/sl_projects.json")
+ #projects submission distinct count
+ os.remove(config.get("OUTPUT_DIR", "projects_distinctCount") + "/ml_projects_distinctCount.json")
+ #projects submission distinct count program level
+ os.remove(config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/ml_projects_distinctCount_prgmlevel.json")
 
 successLogger.debug("Removing file end time  " + str(datetime.datetime.now()))
 
@@ -857,7 +886,6 @@ for i, j in zip(datasources,ingestion_specs):
                 if enable_datasource.status_code == 200 or enable_datasource.status_code == 204:                
                     time.sleep(600)
                     successLogger.debug("successfully enabled the datasource " + i)   
-                    print(j)
 
                     start_supervisor = requests.post(
                         druid_batch_end_point, data=j, headers=headers
@@ -920,4 +948,8 @@ successLogger.debug(
 successLogger.debug(
         "Program completed  " + str(datetime.datetime.now())
    )
-bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Ingested for {program_unique_id}")
+
+if program_unique_id :
+ bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Ingested for {program_unique_id}")
+else :
+ bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Succesfully ingested all program's data")
