@@ -785,58 +785,34 @@ headers = {'Content-Type': 'application/json'}
 successLogger.debug("Ingestion start time  " + str(datetime.datetime.now()))
 
 #projects submission distinct count
+ml_distinctCnt_projects_spec = json.loads(config.get("DRUID","ml_distinctCnt_projects_status_spec"))
+ml_distinctCnt_projects_datasource = ml_distinctCnt_projects_spec["spec"]["dataSchema"]["dataSource"]
 if program_unique_id :
-    ml_distinctCnt_projects_spec = json.loads(config.get("DRUID","ml_distinctCnt_projects_status_spec"))
-    ml_distinctCnt_projects_datasource = ml_distinctCnt_projects_spec["spec"]["dataSchema"]["dataSource"]
     ml_distinctCnt_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"][0]  = f"azure://telemetry-data-store/projects/distinctCount/ml_projects_distinctCount_{program_unique_id}.json"
-    distinctCnt_projects_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_projects_spec), headers=headers)
-    if distinctCnt_projects_start_supervisor.status_code == 200:
-        bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Successfully Ingested for {ml_distinctCnt_projects_datasource}")
-        successLogger.debug("started the batch ingestion task sucessfully for the datasource " + ml_distinctCnt_projects_datasource)
-        time.sleep(50)
-    else:
-        errorLogger.error("failed to start batch ingestion task of ml-project-status " + str(distinctCnt_projects_start_supervisor.status_code))
-        errorLogger.error(distinctCnt_projects_start_supervisor.text)
+distinctCnt_projects_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_projects_spec), headers=headers)
+if distinctCnt_projects_start_supervisor.status_code == 200:
+    bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Successfully Ingested for {ml_distinctCnt_projects_datasource}")
+    successLogger.debug("started the batch ingestion task sucessfully for the datasource " + ml_distinctCnt_projects_datasource)
+    time.sleep(50)
 else:
-    ml_distinctCnt_projects_spec = json.loads(config.get("DRUID","ml_distinctCnt_projects_status_spec"))
-    ml_distinctCnt_projects_datasource = ml_distinctCnt_projects_spec["spec"]["dataSchema"]["dataSource"]
-    distinctCnt_projects_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_projects_spec), headers=headers)
-    if distinctCnt_projects_start_supervisor.status_code == 200:
-        bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Successfully Ingested for {ml_distinctCnt_projects_datasource}")
-        successLogger.debug("started the batch ingestion task sucessfully for the datasource " + ml_distinctCnt_projects_datasource)
-        time.sleep(50)
-    else:
-        errorLogger.error("failed to start batch ingestion task of ml-project-status " + str(distinctCnt_projects_start_supervisor.status_code))
-        errorLogger.error(distinctCnt_projects_start_supervisor.text)
+    errorLogger.error("failed to start batch ingestion task of ml-project-status " + str(distinctCnt_projects_start_supervisor.status_code))
+    errorLogger.error(distinctCnt_projects_start_supervisor.text)
 
 #projects submission distinct count program level
+ml_distinctCnt_prgmlevel_projects_spec = json.loads(config.get("DRUID","ml_distinctCnt_prglevel_projects_status_spec"))
+ml_distinctCnt_prgmlevel_projects_datasource = ml_distinctCnt_prgmlevel_projects_spec["spec"]["dataSchema"]["dataSource"]
 if program_unique_id:
-    ml_distinctCnt_prgmlevel_projects_spec = json.loads(config.get("DRUID","ml_distinctCnt_prglevel_projects_status_spec"))
-    ml_distinctCnt_prgmlevel_projects_datasource = ml_distinctCnt_prgmlevel_projects_spec["spec"]["dataSchema"]["dataSource"]
     ml_distinctCnt_prgmlevel_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"][0] = f"azure://telemetry-data-store/projects/distinctCountPrglevel/ml_projects_distinctCount_prgmlevel_{program_unique_id}.json"
-    distinctCnt_prgmlevel_projects_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_prgmlevel_projects_spec), headers=headers)
-    if distinctCnt_prgmlevel_projects_start_supervisor.status_code == 200:
-        bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Successfully Ingested for {ml_distinctCnt_prgmlevel_projects_datasource}")
-        successLogger.debug("started the batch ingestion task sucessfully for the datasource " + ml_distinctCnt_prgmlevel_projects_datasource)
-        time.sleep(50)
-    else:
-        errorLogger.error(
-                "failed to start batch ingestion task of ml-project-programLevel-status " + str(distinctCnt_prgmlevel_projects_start_supervisor.status_code)
-        )
-        errorLogger.error(distinctCnt_prgmlevel_projects_start_supervisor.text)
+distinctCnt_prgmlevel_projects_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_prgmlevel_projects_spec), headers=headers)
+if distinctCnt_prgmlevel_projects_start_supervisor.status_code == 200:
+    bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Successfully Ingested for {ml_distinctCnt_prgmlevel_projects_datasource}")
+    successLogger.debug("started the batch ingestion task sucessfully for the datasource " + ml_distinctCnt_prgmlevel_projects_datasource)
+    time.sleep(50)
 else:
-    ml_distinctCnt_prgmlevel_projects_spec = json.loads(config.get("DRUID","ml_distinctCnt_prglevel_projects_status_spec"))
-    ml_distinctCnt_prgmlevel_projects_datasource = ml_distinctCnt_prgmlevel_projects_spec["spec"]["dataSchema"]["dataSource"]
-    distinctCnt_prgmlevel_projects_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_prgmlevel_projects_spec), headers=headers)
-    if distinctCnt_prgmlevel_projects_start_supervisor.status_code == 200:
-        bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Successfully Ingested for {ml_distinctCnt_prgmlevel_projects_datasource}")
-        successLogger.debug("started the batch ingestion task sucessfully for the datasource " + ml_distinctCnt_prgmlevel_projects_datasource)
-        time.sleep(50)
-    else:
-        errorLogger.error(
-                "failed to start batch ingestion task of ml-project-programLevel-status " + str(distinctCnt_prgmlevel_projects_start_supervisor.status_code)
-        )
-        errorLogger.error(distinctCnt_prgmlevel_projects_start_supervisor.text)
+    errorLogger.error(
+            "failed to start batch ingestion task of ml-project-programLevel-status " + str(distinctCnt_prgmlevel_projects_start_supervisor.status_code)
+    )
+    errorLogger.error(distinctCnt_prgmlevel_projects_start_supervisor.text)
 
 
 dimensionsArr = []
@@ -866,8 +842,6 @@ payload = {}
 payload = json.loads(config.get("DRUID","project_injestion_spec"))
 if program_unique_id :
     payload["spec"]["ioConfig"]["inputSource"]["uris"][0] = f"azure://telemetry-data-store/projects/sl_projects_{program_unique_id}.json"  
-else:
-    pass
 payload["spec"]["dataSchema"]["dimensionsSpec"]["dimensions"] = dimensionsArr
 datasources = [payload["spec"]["dataSchema"]["dataSource"]]
 ingestion_specs = [json.dumps(payload)]
