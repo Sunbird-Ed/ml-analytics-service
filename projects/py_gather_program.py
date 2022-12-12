@@ -28,4 +28,8 @@ with open(config.get('OUTPUT_DIR', 'program_text_file'), mode='w') as file:
             file.write(f"{ids}\n")
 
 bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Gathered ProgramIDs: {datetime.date()}") 
- 
+
+
+
+
+
