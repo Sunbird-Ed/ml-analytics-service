@@ -64,7 +64,7 @@ domArr = []
 
 
 #db production
-client = MongoClient(config.get('MONGO', 'mongo_url'))
+client = MongoClient(config.get('MONGO', 'url'))
 db = client[config.get('MONGO', 'database_name')]
 obsSubCollec = db[config.get('MONGO', 'observation_sub_collection')]
 solCollec = db[config.get('MONGO', 'solutions_collection')]

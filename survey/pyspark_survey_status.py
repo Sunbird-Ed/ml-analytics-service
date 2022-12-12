@@ -66,7 +66,7 @@ except Exception as e:
    print(e)
 
 bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"*********** Survey Batch Ingestion STARTED AT: {datetime.datetime.now()} ***********\n")
-clientProd = MongoClient(config.get('MONGO', 'mongo_url'))
+clientProd = MongoClient(config.get('MONGO', 'url'))
 db = clientProd[config.get('MONGO', 'database_name')]
 surveySubCollec = db[config.get('MONGO', 'survey_submissions_collection')]
 solutionCollec = db[config.get('MONGO', 'solutions_collection')]

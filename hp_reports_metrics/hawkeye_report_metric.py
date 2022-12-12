@@ -36,7 +36,7 @@ try:
 except Exception as e:
    errorLogger.error(e, exc_info=True)
 
-clientProd = MongoClient(config.get('MONGO', 'mongo_url'))
+clientProd = MongoClient(config.get('MONGO', 'url'))
 db = clientProd[config.get('MONGO', 'database_name')]
 ObsSubCollec = db[config.get('MONGO', 'observation_sub_collection')]
 solutionCollec = db[config.get('MONGO', 'solutions_collection')]
