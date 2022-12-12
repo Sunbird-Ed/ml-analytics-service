@@ -46,7 +46,6 @@ args = details.parse_args()
 program_unique_id = None
 if args.program_id :
  program_Id = args.program_id
- program_unique_id = ObjectId(re.split(r'"(.*?)"', program_Id)[1])
 
 successLogger = logging.getLogger('success log')
 successLogger.setLevel(logging.DEBUG)
@@ -67,7 +66,7 @@ errorLogger.addHandler(errorHandler)
 errorLogger.addHandler(errorBackuphandler)
 
 
-clientProd = MongoClient(config.get('MONGO', 'mongo_url'))
+clientProd = MongoClient(config.get('MONGO', 'url'))
 db = clientProd[config.get('MONGO', 'database_name')]
 projectsCollec = db[config.get('MONGO', 'projects_collection')]
 

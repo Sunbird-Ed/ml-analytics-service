@@ -68,7 +68,7 @@ old_df = spark.read.json("obs_old.json")
 old_df.printSchema()
 
 # Gathering data from MongoDB
-clientProd = MongoClient(config.get('MONGO', 'mongo_url'))
+clientProd = MongoClient(config.get('MONGO', 'url'))
 db = clientProd[config.get('MONGO', 'database_name')]
 obsSubmissionsCollec = db[config.get('MONGO', 'observation_sub_collection')]
 

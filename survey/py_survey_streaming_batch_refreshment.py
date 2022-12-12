@@ -63,7 +63,7 @@ errorLogger.addHandler(errorBackuphandler)
 try:    
 
     #db production
-    client = MongoClient(config.get('MONGO', 'mongo_url'))
+    client = MongoClient(config.get('MONGO', 'url'))
     db = client[config.get('MONGO', 'database_name')]
     surveySubmissionsCollec = db[config.get('MONGO', 'survey_submissions_collection')]
     solutionsCollec = db[config.get('MONGO', 'solutions_collection')]

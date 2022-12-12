@@ -53,7 +53,7 @@ errorLogger.addHandler(errorBackuphandler)
 try:
   
   #db production
-  clientdev = MongoClient(config.get('MONGO','mongo_url'))
+  clientdev = MongoClient(config.get('MONGO','url'))
   db = clientdev[config.get('MONGO','database_name')]
   obsSubCollec = db[config.get('MONGO','observation_sub_collection')]
   quesCollec = db[config.get('MONGO','questions_collection')]

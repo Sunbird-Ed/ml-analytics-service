@@ -2,8 +2,17 @@
 source /etc/profile
 export PYSPARK_PYTHON=python3
 export TZ=Asia/Kolkata date
-source /opt/sparkjobs/ml-analytics-service/shell_script_config
+# source /opt/sparkjobs/ml-analytics-service/shell_script_config
 echo "RUNNING JOB"
+
+# PROJECT: Gather Program IDs
+echo ""
+echo "$(date)"
+echo "====================================="
+echo "Gather Program IDs == Started"
+. /opt/sparkjobs/spark_venv/bin/activate && python /opt/sparkjobs/ml-analytics-service/projects/py_gather_program.py
+echo "Gather == Completed"
+echo "*************************************"
 
 # PROJECT: Deletion
 echo ""
@@ -19,15 +28,12 @@ echo ""
 echo "$(date)"
 echo "====================================="
 echo "Daily Projects Batch Job Ingestion == Started"
-queryRes=$(mongo "$mongo_url/$mongo_db_name" --quiet --eval="db.projects.distinct('programId')");
-regStr="^ObjectId"
-for programId in $queryRes
-do
-    if [[ $programId =~ $regStr ]] 
-    then 
-            . /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory 50g --executor-memory 50g /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_batch.py --program_id ${programId/,}
-    fi
-done
+filename='/opt/sparkjobs/ml-analytics-service/projects/program_ids.txt'
+n=1
+while read line; do
+	. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory 50g --executor-memory 50g /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_batch.py --program_id ${line/,}
+n=$((n+1))
+done < $filename
 echo "Daily Projects Batch Job Ingestion == Completed"
 echo "*************************************"
 
