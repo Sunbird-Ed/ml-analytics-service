@@ -21,8 +21,6 @@ from pyspark.sql import Row
 from collections import OrderedDict, Counter
 from cassandra.cluster import Cluster
 from cassandra.query import SimpleStatement, ConsistencyLevel
-from azure.storage.blob import BlockBlobService, PublicAccess
-from azure.storage.blob import ContentSettings
 import logging
 from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
 from pyspark.sql import DataFrame

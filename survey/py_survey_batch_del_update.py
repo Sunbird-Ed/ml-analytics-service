@@ -1,10 +1,14 @@
 import requests,json,os,sys,csv
 from configparser import ConfigParser,ExtendedInterpolation
-from azure.storage.blob import BlockBlobService
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
+sys.path.append(config.get("COMMON", "cloud_module_path"))
+
+from cloud import MultiCloud
+
+cloud_init = MultiCloud()
 
 subId = []
 with open(config.get("OUTPUT_DIR","survey_sub_ids")) as csv_file:
@@ -57,22 +61,13 @@ else :
   print(responseQuery.json())
 
 
-## Upload to Azure
-blob_service_client = BlockBlobService(
-    account_name=config.get("AZURE", "account_name"), 
-    sas_token=config.get("AZURE", "sas_token")
-)
-container_name = config.get("AZURE", "container_name")
+## Upload to Cloud
 local_path = config.get("OUTPUT_DIR", "survey_druid_data")
-blob_path = config.get("AZURE", "survey_batch_ingestion_data_del")
+blob_path = config.get("COMMON", "survey_batch_ingestion_data_del")
 
 for files in os.listdir(local_path):
     if "druidData.json" in files:
-        blob_service_client.create_blob_from_path(
-            container_name,
-            os.path.join(blob_path,files),
-            local_path + "/" + files
-        )
+        cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = files)
     else:
         print("file not found "+local_path)
 

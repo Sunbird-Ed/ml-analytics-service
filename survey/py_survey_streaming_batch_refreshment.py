@@ -21,13 +21,15 @@ import logging.handlers
 import time
 from logging.handlers import TimedRotatingFileHandler
 import redis
-from azure.storage.blob import BlockBlobService
-
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
+sys.path.append(config.get("COMMON", "cloud_module_path"))
 
+from cloud import MultiCloud
+
+cloud_init = MultiCloud()
 formatter = logging.Formatter('%(asctime)s - %(levelname)s')
 
 successLogger = logging.getLogger('success log')
@@ -385,25 +387,13 @@ with open('sl_survey.json', 'w') as f:
     obj_creation(msg_data['_id'])
 
 
-container_name = config.get("AZURE", "container_name")
-storage_account = config.get("AZURE", "account_name")
-token = config.get("AZURE", "sas_token")
+
 local_path = config.get("OUTPUT_DIR", "survey")
-blob_path = config.get("AZURE", "survey_blob_path")
-
-blob_service_client = BlockBlobService(
-    account_name=config.get("AZURE", "account_name"),
-    sas_token=config.get("AZURE", "sas_token")
-)
-
+blob_path = config.get("COMMON", "survey_blob_path")
 
 for files in os.listdir(local_path):
     if "sl_survey.json" in files:
-        blob_service_client.create_blob_from_path(
-            container_name,
-            os.path.join(blob_path,files),
-            local_path + "/" + files
-        )
+        cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = files)
         
 payload = {}
 payload = json.loads(config.get("DRUID","survey_injestion_spec"))
