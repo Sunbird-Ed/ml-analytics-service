@@ -73,8 +73,8 @@ solutionCollec = db[config.get('MONGO', 'solutions_collection')]
 programCollec = db[config.get("MONGO", 'programs_collection')]
 
 survey_sub_cursorMongo = surveySubCollec.aggregate(
-        [{
-       "$project": {
+        [{"$match": {"$and":[{"isAPrivateProgram": False},{"deleted":False}]}} 
+        {"$project": {
          "_id": {"$toString": "$_id"},
          "surveyId": {"$toString": "$surveyId"},
          "status": 1,
