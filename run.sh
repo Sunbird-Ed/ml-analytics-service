@@ -2,7 +2,7 @@
 source /etc/profile
 export PYSPARK_PYTHON=python3
 export TZ=Asia/Kolkata date
-# source /opt/sparkjobs/ml-analytics-service/shell_script_config
+source /opt/sparkjobs/ml-analytics-service/shell_script_config
 echo "RUNNING JOB"
 
 # PROJECT: Gather Program IDs
@@ -28,7 +28,7 @@ echo ""
 echo "$(date)"
 echo "====================================="
 echo "Daily Projects Batch Job Ingestion == Started"
-filename='/opt/sparkjobs/ml-analytics-service/projects/program_ids.txt'
+filename=$projects_program_filename
 n=1
 while read line; do
 	. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory 50g --executor-memory 50g /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_batch.py --program_id ${line/,}
