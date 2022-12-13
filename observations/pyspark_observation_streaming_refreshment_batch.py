@@ -13,7 +13,6 @@ import pyspark.sql.functions as F
 from bson.objectid import ObjectId
 from pyspark.sql.functions import *
 from pyspark.sql import SparkSession
-from azure.storage.blob import BlockBlobService
 from pyspark.sql.functions import element_at, split, col
 from configparser import ConfigParser, ExtendedInterpolation
 from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
