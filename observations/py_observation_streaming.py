@@ -219,7 +219,7 @@ try:
                 if obSub["isRubricDriven"] == True and obSub["criteriaLevelReport"] == True:
                   observationSubQuestionsObj['solution_type'] = "observation_with_rubric"
                 elif obSub["isRubricDriven"] == True and obSub["criteriaLevelReport"] == False:
-                  observationSubQuestionsObj['solution_type'] = "observation_with_out_rubric"
+                  observationSubQuestionsObj['solution_type'] = "observation_with_rubric_no_criteria_level_report"
                 else:
                   observationSubQuestionsObj['solution_type'] = "observation_with_out_rubric"
               except KeyError:
@@ -558,7 +558,12 @@ try:
               try:
                 observationSubQuestionsObj["criteriaLevelReport"] = obSub["criteriaLevelReport"]
               except KeyError :
-                observationSubQuestionsObj["criteriaLevelReport"] = ''
+                observationSubQuestionsObj["criteriaLevelReport"] = False
+                
+              try:
+                observationSubQuestionsObj["isRubricDriven"] = obSub["isRubricDriven"]
+              except KeyError :
+                observationSubQuestionsObj["isRubricDriven"] = False
 
               return observationSubQuestionsObj
 
