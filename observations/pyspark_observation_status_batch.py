@@ -157,8 +157,8 @@ programCollec = db[config.get("MONGO", 'programs_collection')]
 
 #observation submission dataframe
 obs_sub_cursorMongo = obsSubmissionsCollec.aggregate(
-   [{
-      "$project": {
+   [{"$match": {"$and":[{"isAPrivateProgram": False},{"deleted":False}]}},
+    { "$project": {
          "_id": {"$toString": "$_id"},
          "entityId": {"$toString": "$entityId"},
          "status": 1,
@@ -355,7 +355,7 @@ obs_sub_df1 = obs_sub_df1.withColumn(
       (obs_sub_df1["isRubricDriven"].isNotNull() == True) &
       (obs_sub_df1["isRubricDriven"] == True) &
       (obs_sub_df1["criteriaLevelReport"] == False),
-      "observation_with_out_rubric"
+      "observation_with_rubric_no_criteria_level_report"
    ).when(
       (obs_sub_df1["isRubricDriven"].isNotNull() == True) & 
       (obs_sub_df1["isRubricDriven"] == False), 
@@ -412,7 +412,9 @@ obs_sub_df = obs_sub_df1.select(
    obs_sub_df1["observedData"]["observed_school_id"].alias("observed_school_id"),
    obs_sub_df1["observedData"]["observed_school_code"].alias("observed_school_code"),
    obs_sub_df1["themes"],obs_sub_df1["criteria"],
-   concat_ws(",",array_distinct(F.col("userProfile.profileUserTypes.type"))).alias("user_type")
+   concat_ws(",",array_distinct(F.col("userProfile.profileUserTypes.type"))).alias("user_type"),
+   obs_sub_df1["isRubricDriven"],
+   obs_sub_df1["criteriaLevelReport"]
 )
 obs_sub_rdd.unpersist()
 obs_sub_df1.unpersist()

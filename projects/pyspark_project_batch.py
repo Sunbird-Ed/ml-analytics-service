@@ -697,7 +697,7 @@ for filename in os.listdir(config.get("OUTPUT_DIR", "project")+"/"):
        if program_unique_id :  
         os.rename(
            config.get("OUTPUT_DIR", "project") + "/" + filename,
-           config.get("OUTPUT_DIR", "project") + "/sl_projects_{program_unique_id}.json"
+           config.get("OUTPUT_DIR", "project") + f"/sl_projects_{program_unique_id}.json"
         )
        else :
         os.rename(
@@ -711,7 +711,7 @@ for filename in os.listdir(config.get("OUTPUT_DIR", "projects_distinctCount")+"/
        if program_unique_id : 
         os.rename(
            config.get("OUTPUT_DIR", "projects_distinctCount") + "/" + filename,
-           config.get("OUTPUT_DIR", "projects_distinctCount") + "/ml_projects_distinctCount_{program_unique_id}.json"
+           config.get("OUTPUT_DIR", "projects_distinctCount") + f"/ml_projects_distinctCount_{program_unique_id}.json"
         )
        else :
         os.rename(
@@ -725,7 +725,7 @@ for filename in os.listdir(config.get("OUTPUT_DIR", "projects_distinctCount_prgm
        if program_unique_id : 
         os.rename(
            config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/" + filename,
-           config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/ml_projects_distinctCount_prgmlevel_{program_unique_id}.json"
+           config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + f"/ml_projects_distinctCount_prgmlevel_{program_unique_id}.json"
         )
        else :
         os.rename(
@@ -748,28 +748,28 @@ local_distinctCnt_prgmlevel_path = config.get("OUTPUT_DIR", "projects_distinctCo
 blob_distinctCnt_prgmlevel_path = config.get("COMMON", "projects_distinctCnt_prgmlevel_blob_path")
 
 for files in os.listdir(local_path):
-    if "sl_projects.json" in files or "sl_projects_{program_unique_id}.json" in files:
+    if "sl_projects.json" in files or f"sl_projects_{program_unique_id}.json" in files:
         cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = files)
 
 #projects submission distinct count
 for files in os.listdir(local_distinctCnt_path):
-    if "ml_projects_distinctCount.json" in files or "ml_projects_distinctCount_{program_unique_id}.json" in files:
+    if "ml_projects_distinctCount.json" in files or f"ml_projects_distinctCount_{program_unique_id}.json" in files:
         cloud_init.upload_to_cloud(blob_Path = blob_distinctCnt_path, local_Path = local_distinctCnt_path, file_Name = files)
 
 #projects submission distinct count program level
 for files in os.listdir(local_distinctCnt_prgmlevel_path):
-    if "ml_projects_distinctCount_prgmlevel.json" in files or "ml_projects_distinctCount_prgmlevel_{program_unique_id}.json" in files:
+    if "ml_projects_distinctCount_prgmlevel.json" in files or f"ml_projects_distinctCount_prgmlevel_{program_unique_id}.json" in files:
         cloud_init.upload_to_cloud(blob_Path = blob_distinctCnt_prgmlevel_path, local_Path = local_distinctCnt_prgmlevel_path, file_Name = files)
 
 successLogger.debug("Uploading to azure end time  " + str(datetime.datetime.now()))
 successLogger.debug("Removing file start time  " + str(datetime.datetime.now()))
 
 if program_unique_id :
- os.remove(config.get("OUTPUT_DIR", "project") + "/sl_projects_{program_unique_id}.json")
+ os.remove(config.get("OUTPUT_DIR", "project") + f"/sl_projects_{program_unique_id}.json")
  #projects submission distinct count
- os.remove(config.get("OUTPUT_DIR", "projects_distinctCount") + "/ml_projects_distinctCount_{program_unique_id}.json")
+ os.remove(config.get("OUTPUT_DIR", "projects_distinctCount") + f"/ml_projects_distinctCount_{program_unique_id}.json")
  #projects submission distinct count program level
- os.remove(config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/ml_projects_distinctCount_prgmlevel_{program_unique_id}.json")
+ os.remove(config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + f"/ml_projects_distinctCount_prgmlevel_{program_unique_id}.json")
 else :
  os.remove(config.get("OUTPUT_DIR", "project") + "/sl_projects.json")
  #projects submission distinct count
