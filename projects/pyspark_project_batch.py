@@ -792,6 +792,7 @@ if program_unique_id :
     uri = re.split("://+", ml_distinctCnt_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"][0])[1]
     edited_uri = re.split(".json", uri)[0]
     ml_distinctCnt_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"][0]  = f"{current_cloud}://{edited_uri}_{program_unique_id}.json"
+    ml_distinctCnt_projects_spec['spec']['ioConfig'].update({"appendToExisting":True})
 distinctCnt_projects_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_projects_spec), headers=headers)
 if distinctCnt_projects_start_supervisor.status_code == 200:
     bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Successfully Ingested for {ml_distinctCnt_projects_datasource}")
@@ -809,6 +810,7 @@ if program_unique_id:
     uri = re.split("://+", ml_distinctCnt_prgmlevel_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"][0])[1]
     edited_uri = re.split(".json", uri)[0]
     ml_distinctCnt_prgmlevel_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"][0] = f"{current_cloud}://{edited_uri}_{program_unique_id}.json"
+    ml_distinctCnt_prgmlevel_projects_spec["spec"]["ioConfig"].update({"appendToExisting":True})
 distinctCnt_prgmlevel_projects_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_prgmlevel_projects_spec), headers=headers)
 if distinctCnt_prgmlevel_projects_start_supervisor.status_code == 200:
     bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Successfully Ingested for {ml_distinctCnt_prgmlevel_projects_datasource}")
