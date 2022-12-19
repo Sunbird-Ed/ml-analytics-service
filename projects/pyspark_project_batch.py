@@ -46,7 +46,7 @@ args = details.parse_args()
 program_unique_id = None
 if args.program_id :
  program_Id = args.program_id
- program_unique_id  = program_Id
+ program_unique_id  = ObjectId(program_Id)
 
 successLogger = logging.getLogger('success log')
 successLogger.setLevel(logging.DEBUG)
