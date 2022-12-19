@@ -84,11 +84,10 @@ if get_timestamp.status_code == 200:
             successLogger.debug(f"sleep 300s")
 
             enable_datasource = requests.get(druid_end_point, headers=headers)
-            if enable_datasource.status_code == 204:
+            if enable_datasource.status_code == 200 or enable_datasource.status_code == 204:
                 successLogger.debug("successfully enabled the datasource " + datasources)
-                
-                time.sleep(300)
-                successLogger.debug(f"sleep 300s")
+                time.sleep(600)
+                successLogger.debug(f"sleep 600s")
             else:
                 errorLogger.error("failed to enable the datasource " + datasources)
                 errorLogger.error("failed to enable the datasource " + str(enable_datasource.status_code))
