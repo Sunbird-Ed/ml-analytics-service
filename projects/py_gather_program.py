@@ -9,7 +9,6 @@ from bson.objectid import ObjectId
 import requests
 import datetime
 from slackclient import SlackClient
-from datetime import date
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
@@ -27,7 +26,7 @@ with open(config.get('OUTPUT_DIR', 'program_text_file'), mode='w') as file:
         if ids != 'None':
             file.write(f"{ids}\n")
 
-bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Gathered ProgramIDs: {datetime.date()}") 
+bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Gathered ProgramIDs: {datetime.datetime.now()}") 
 
 
 

@@ -46,7 +46,7 @@ args = details.parse_args()
 program_unique_id = None
 if args.program_id :
  program_Id = args.program_id
- program_unique_id  = program_Id
+ program_unique_id  = ObjectId(program_Id)
 
 successLogger = logging.getLogger('success log')
 successLogger.setLevel(logging.DEBUG)
@@ -109,7 +109,7 @@ orgInfo_udf = udf(orgName,orgSchema)
 successLogger.debug(
         "Program started  " + str(datetime.datetime.now())
    )	   
-bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"*** Start:{datetime.datetime.now()} ***\n")
+bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"*** Start for {program_unique_id}: {datetime.datetime.now()} ***\n")
 spark = SparkSession.builder.appName("projects").config(
     "spark.driver.memory", "50g"
 ).config(
