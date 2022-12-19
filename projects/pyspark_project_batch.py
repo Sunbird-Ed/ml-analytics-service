@@ -109,7 +109,7 @@ orgInfo_udf = udf(orgName,orgSchema)
 successLogger.debug(
         "Program started  " + str(datetime.datetime.now())
    )	   
-bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"*** Start:{datetime.datetime.now()} ***\n")
+bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"*** Start for {program_unique_id}: {datetime.datetime.now()} ***\n")
 spark = SparkSession.builder.appName("projects").config(
     "spark.driver.memory", "50g"
 ).config(
