@@ -20,7 +20,7 @@ db = clientProd[config.get('MONGO', 'database_name')]
 projectsCollec = db[config.get('MONGO', 'projects_collection')]
 
 with open(config.get('OUTPUT_DIR', 'program_text_file'), mode='w') as file:
-    data = projectsCollec.distinct("programId")
+    data = projectsCollec.distinct("programId", {"isAPrivateProgram": False, "isDeleted":False})
     for ids in data:
         ids = str(ids)
         if ids != 'None':
