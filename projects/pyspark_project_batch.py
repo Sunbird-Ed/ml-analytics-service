@@ -641,6 +641,16 @@ successLogger.debug(
 entities_df_res.unpersist()
 projects_df_cols.unpersist()
 final_projects_df = projects_df_final.dropDuplicates()
+try:
+    null_projects = final_projects_df["project_id", "state_name"].where(col("state_name").isNull())
+    null_projects = null_projects.select(null_projects["project_id"]).rdd.flatMap(lambda x: x).collect()
+    errorLogger.error(f"For ProgramID: {program_unique_id}- \nProject IDs not uploaded: {list(set(null_projects))} \nThe above project_ids state_name/userProfile is null")
+    final_projects_df = final_projects_df.na.drop(subset=["state_name"])
+except ut.AnalysisException as e:
+    error_trim = (str(e).split('?'))[0]
+    errorLogger.error(f"For Program ID: {program_unique_id}: {error_trim}")
+    sys.exit()
+
 projects_df_final.unpersist()
 successLogger.debug(
         "sl-project Json file generation start time  " + str(datetime.datetime.now())
@@ -652,43 +662,37 @@ successLogger.debug(
         "sl-project Json file generation end time  " + str(datetime.datetime.now())
    )
 #projects submission distinct count
-try:
-    successLogger.debug(
-            "Logic for submission distinct count start time  " + str(datetime.datetime.now())
-    )
-    final_projects_tasks_distinctCnt_df = final_projects_df.groupBy("program_name","program_id","project_title","solution_id","status_of_project","state_name","state_externalId",
-                                                                            "district_name","district_externalId","block_name","block_externalId","organisation_name","organisation_id","private_program","project_created_type",
-                                                                            "parent_channel").agg(countDistinct(when(F.col("certificate_status_customised") == "Issued",True),F.col("project_id")).alias("no_of_certificate_issued"),countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("solution_id")).alias("unique_solution"),countDistinct(F.col("createdBy")).alias("unique_users"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status_of_project") == "submitted"),True),F.col("project_id")).alias("no_of_imp_with_evidence"))
-    final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.withColumn("time_stamp", current_timestamp())
-    final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.dropDuplicates()
-    final_projects_tasks_distinctCnt_df.coalesce(1).write.format("json").mode("overwrite").save(
-    config.get("OUTPUT_DIR","projects_distinctCount") + "/"
-    )
-    successLogger.debug(
-            "Logic for submission distinct count end time  " + str(datetime.datetime.now())
-    )
-    final_projects_tasks_distinctCnt_df.unpersist()
-except ut.AnalysisException:
-   pass
+successLogger.debug(
+        "Logic for submission distinct count start time  " + str(datetime.datetime.now())
+)
+final_projects_tasks_distinctCnt_df = final_projects_df.groupBy("program_name","program_id","project_title","solution_id","status_of_project","state_name","state_externalId",
+                                                                        "district_name","district_externalId","block_name","block_externalId","organisation_name","organisation_id","private_program","project_created_type",
+                                                                        "parent_channel").agg(countDistinct(when(F.col("certificate_status_customised") == "Issued",True),F.col("project_id")).alias("no_of_certificate_issued"),countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("solution_id")).alias("unique_solution"),countDistinct(F.col("createdBy")).alias("unique_users"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status_of_project") == "submitted"),True),F.col("project_id")).alias("no_of_imp_with_evidence"))
+final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.withColumn("time_stamp", current_timestamp())
+final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.dropDuplicates()
+final_projects_tasks_distinctCnt_df.coalesce(1).write.format("json").mode("overwrite").save(
+config.get("OUTPUT_DIR","projects_distinctCount") + "/"
+)
+successLogger.debug(
+        "Logic for submission distinct count end time  " + str(datetime.datetime.now())
+)
+final_projects_tasks_distinctCnt_df.unpersist()
 
 # projects submission distinct count by program level
-try:
-    successLogger.debug(
-            "Logic for submission distinct count by program level start time  " + str(datetime.datetime.now())
-    )
-    final_projects_tasks_distinctCnt_prgmlevel = final_projects_df.groupBy("program_name", "program_id","status_of_project", "state_name","state_externalId","private_program","project_created_type","parent_channel").agg(countDistinct(when(F.col("certificate_status_customised") == "Issued",True),F.col("project_id")).alias("no_of_certificate_issued"), countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("createdBy")).alias("unique_users"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status_of_project") == "submitted"),True),F.col("project_id")).alias("no_of_imp_with_evidence"))
-    final_projects_tasks_distinctCnt_prgmlevel = final_projects_tasks_distinctCnt_prgmlevel.withColumn("time_stamp", current_timestamp())
-    final_projects_tasks_distinctCnt_prgmlevel = final_projects_tasks_distinctCnt_prgmlevel.dropDuplicates()
-    final_projects_tasks_distinctCnt_prgmlevel.coalesce(1).write.format("json").mode("overwrite").save(
-    config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/"
-    )
-    successLogger.debug(
-            "Logic for submission distinct count by program level end time  " + str(datetime.datetime.now())
-    )
-    final_projects_df.unpersist()
-    final_projects_tasks_distinctCnt_prgmlevel.unpersist()
-except ut.AnalysisException:
-   pass
+successLogger.debug(
+        "Logic for submission distinct count by program level start time  " + str(datetime.datetime.now())
+)
+final_projects_tasks_distinctCnt_prgmlevel = final_projects_df.groupBy("program_name", "program_id","status_of_project", "state_name","state_externalId","private_program","project_created_type","parent_channel").agg(countDistinct(when(F.col("certificate_status_customised") == "Issued",True),F.col("project_id")).alias("no_of_certificate_issued"), countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("createdBy")).alias("unique_users"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status_of_project") == "submitted"),True),F.col("project_id")).alias("no_of_imp_with_evidence"))
+final_projects_tasks_distinctCnt_prgmlevel = final_projects_tasks_distinctCnt_prgmlevel.withColumn("time_stamp", current_timestamp())
+final_projects_tasks_distinctCnt_prgmlevel = final_projects_tasks_distinctCnt_prgmlevel.dropDuplicates()
+final_projects_tasks_distinctCnt_prgmlevel.coalesce(1).write.format("json").mode("overwrite").save(
+config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/"
+)
+successLogger.debug(
+        "Logic for submission distinct count by program level end time  " + str(datetime.datetime.now())
+)
+final_projects_df.unpersist()
+final_projects_tasks_distinctCnt_prgmlevel.unpersist()
 
 successLogger.debug("Renaming file start time  " + str(datetime.datetime.now()))
 
@@ -797,7 +801,6 @@ distinctCnt_projects_start_supervisor = requests.post(druid_batch_end_point, dat
 if distinctCnt_projects_start_supervisor.status_code == 200:
     bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Successfully Ingested for {ml_distinctCnt_projects_datasource}")
     successLogger.debug("started the batch ingestion task sucessfully for the datasource " + ml_distinctCnt_projects_datasource)
-    time.sleep(50)
 else:
     errorLogger.error("failed to start batch ingestion task of ml-project-status " + str(distinctCnt_projects_start_supervisor.status_code))
     errorLogger.error(distinctCnt_projects_start_supervisor.text)
@@ -815,7 +818,6 @@ distinctCnt_prgmlevel_projects_start_supervisor = requests.post(druid_batch_end_
 if distinctCnt_prgmlevel_projects_start_supervisor.status_code == 200:
     bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Successfully Ingested for {ml_distinctCnt_prgmlevel_projects_datasource}")
     successLogger.debug("started the batch ingestion task sucessfully for the datasource " + ml_distinctCnt_prgmlevel_projects_datasource)
-    time.sleep(50)
 else:
     errorLogger.error(
             "failed to start batch ingestion task of ml-project-programLevel-status " + str(distinctCnt_prgmlevel_projects_start_supervisor.status_code)
@@ -852,7 +854,8 @@ if program_unique_id :
     current_cloud = re.split("://+", payload["spec"]["ioConfig"]["inputSource"]["uris"][0])[0]
     uri = re.split("://+", payload["spec"]["ioConfig"]["inputSource"]["uris"][0])[1]
     edited_uri = re.split(".json", uri)[0]
-    payload["spec"]["ioConfig"]["inputSource"]["uris"][0] = f"{current_cloud}://{edited_uri}_{program_unique_id}.json"  
+    payload["spec"]["ioConfig"]["inputSource"]["uris"][0] = f"{current_cloud}://{edited_uri}_{program_unique_id}.json"
+    payload['spec']['ioConfig'].update({"appendToExisting":True})  
 payload["spec"]["dataSchema"]["dimensionsSpec"]["dimensions"] = dimensionsArr
 datasources = [payload["spec"]["dataSchema"]["dataSource"]]
 ingestion_specs = [json.dumps(payload)]
@@ -863,7 +866,6 @@ for i, j in zip(datasources,ingestion_specs):
     if start_supervisor.status_code == 200:
         bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Succesfully ingested the data in {i}")
         successLogger.debug("started the batch ingestion task sucessfully for the datasource " + i)
-        time.sleep(50)
     else:
         errorLogger.error("failed to start batch ingestion task" + i)
         errorLogger.error("failed to start batch ingestion task " + str(start_supervisor.status_code))
