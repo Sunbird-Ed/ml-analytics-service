@@ -641,6 +641,16 @@ successLogger.debug(
 entities_df_res.unpersist()
 projects_df_cols.unpersist()
 final_projects_df = projects_df_final.dropDuplicates()
+try:
+    null_projects = final_projects_df["project_id", "state_name"].where(col("state_name").isNull())
+    null_projects = null_projects.select(null_projects["project_id"]).rdd.flatMap(lambda x: x).collect()
+    errorLogger.error(f"For ProgramID: {program_unique_id}- \nProject IDs not uploaded: {list(set(null_projects))} \nThe above project_ids state_name/userProfile is null")
+    final_projects_df = final_projects_df.na.drop(subset=["state_name"])
+except ut.AnalysisException as e:
+    error_trim = (str(e).split('?'))[0]
+    errorLogger.error(f"For Program ID: {program_unique_id}: {error_trim}")
+    sys.exit()
+
 projects_df_final.unpersist()
 successLogger.debug(
         "sl-project Json file generation start time  " + str(datetime.datetime.now())
@@ -652,43 +662,37 @@ successLogger.debug(
         "sl-project Json file generation end time  " + str(datetime.datetime.now())
    )
 #projects submission distinct count
-try:
-    successLogger.debug(
-            "Logic for submission distinct count start time  " + str(datetime.datetime.now())
-    )
-    final_projects_tasks_distinctCnt_df = final_projects_df.groupBy("program_name","program_id","project_title","solution_id","status_of_project","state_name","state_externalId",
-                                                                            "district_name","district_externalId","block_name","block_externalId","organisation_name","organisation_id","private_program","project_created_type",
-                                                                            "parent_channel").agg(countDistinct(when(F.col("certificate_status_customised") == "Issued",True),F.col("project_id")).alias("no_of_certificate_issued"),countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("solution_id")).alias("unique_solution"),countDistinct(F.col("createdBy")).alias("unique_users"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status_of_project") == "submitted"),True),F.col("project_id")).alias("no_of_imp_with_evidence"))
-    final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.withColumn("time_stamp", current_timestamp())
-    final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.dropDuplicates()
-    final_projects_tasks_distinctCnt_df.coalesce(1).write.format("json").mode("overwrite").save(
-    config.get("OUTPUT_DIR","projects_distinctCount") + "/"
-    )
-    successLogger.debug(
-            "Logic for submission distinct count end time  " + str(datetime.datetime.now())
-    )
-    final_projects_tasks_distinctCnt_df.unpersist()
-except ut.AnalysisException:
-   pass
+successLogger.debug(
+        "Logic for submission distinct count start time  " + str(datetime.datetime.now())
+)
+final_projects_tasks_distinctCnt_df = final_projects_df.groupBy("program_name","program_id","project_title","solution_id","status_of_project","state_name","state_externalId",
+                                                                        "district_name","district_externalId","block_name","block_externalId","organisation_name","organisation_id","private_program","project_created_type",
+                                                                        "parent_channel").agg(countDistinct(when(F.col("certificate_status_customised") == "Issued",True),F.col("project_id")).alias("no_of_certificate_issued"),countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("solution_id")).alias("unique_solution"),countDistinct(F.col("createdBy")).alias("unique_users"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status_of_project") == "submitted"),True),F.col("project_id")).alias("no_of_imp_with_evidence"))
+final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.withColumn("time_stamp", current_timestamp())
+final_projects_tasks_distinctCnt_df = final_projects_tasks_distinctCnt_df.dropDuplicates()
+final_projects_tasks_distinctCnt_df.coalesce(1).write.format("json").mode("overwrite").save(
+config.get("OUTPUT_DIR","projects_distinctCount") + "/"
+)
+successLogger.debug(
+        "Logic for submission distinct count end time  " + str(datetime.datetime.now())
+)
+final_projects_tasks_distinctCnt_df.unpersist()
 
 # projects submission distinct count by program level
-try:
-    successLogger.debug(
-            "Logic for submission distinct count by program level start time  " + str(datetime.datetime.now())
-    )
-    final_projects_tasks_distinctCnt_prgmlevel = final_projects_df.groupBy("program_name", "program_id","status_of_project", "state_name","state_externalId","private_program","project_created_type","parent_channel").agg(countDistinct(when(F.col("certificate_status_customised") == "Issued",True),F.col("project_id")).alias("no_of_certificate_issued"), countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("createdBy")).alias("unique_users"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status_of_project") == "submitted"),True),F.col("project_id")).alias("no_of_imp_with_evidence"))
-    final_projects_tasks_distinctCnt_prgmlevel = final_projects_tasks_distinctCnt_prgmlevel.withColumn("time_stamp", current_timestamp())
-    final_projects_tasks_distinctCnt_prgmlevel = final_projects_tasks_distinctCnt_prgmlevel.dropDuplicates()
-    final_projects_tasks_distinctCnt_prgmlevel.coalesce(1).write.format("json").mode("overwrite").save(
-    config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/"
-    )
-    successLogger.debug(
-            "Logic for submission distinct count by program level end time  " + str(datetime.datetime.now())
-    )
-    final_projects_df.unpersist()
-    final_projects_tasks_distinctCnt_prgmlevel.unpersist()
-except ut.AnalysisException:
-   pass
+successLogger.debug(
+        "Logic for submission distinct count by program level start time  " + str(datetime.datetime.now())
+)
+final_projects_tasks_distinctCnt_prgmlevel = final_projects_df.groupBy("program_name", "program_id","status_of_project", "state_name","state_externalId","private_program","project_created_type","parent_channel").agg(countDistinct(when(F.col("certificate_status_customised") == "Issued",True),F.col("project_id")).alias("no_of_certificate_issued"), countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("createdBy")).alias("unique_users"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status_of_project") == "submitted"),True),F.col("project_id")).alias("no_of_imp_with_evidence"))
+final_projects_tasks_distinctCnt_prgmlevel = final_projects_tasks_distinctCnt_prgmlevel.withColumn("time_stamp", current_timestamp())
+final_projects_tasks_distinctCnt_prgmlevel = final_projects_tasks_distinctCnt_prgmlevel.dropDuplicates()
+final_projects_tasks_distinctCnt_prgmlevel.coalesce(1).write.format("json").mode("overwrite").save(
+config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/"
+)
+successLogger.debug(
+        "Logic for submission distinct count by program level end time  " + str(datetime.datetime.now())
+)
+final_projects_df.unpersist()
+final_projects_tasks_distinctCnt_prgmlevel.unpersist()
 
 successLogger.debug("Renaming file start time  " + str(datetime.datetime.now()))
 
@@ -792,11 +796,11 @@ if program_unique_id :
     uri = re.split("://+", ml_distinctCnt_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"][0])[1]
     edited_uri = re.split(".json", uri)[0]
     ml_distinctCnt_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"][0]  = f"{current_cloud}://{edited_uri}_{program_unique_id}.json"
+    ml_distinctCnt_projects_spec['spec']['ioConfig'].update({"appendToExisting":True})
 distinctCnt_projects_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_projects_spec), headers=headers)
 if distinctCnt_projects_start_supervisor.status_code == 200:
     bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Successfully Ingested for {ml_distinctCnt_projects_datasource}")
     successLogger.debug("started the batch ingestion task sucessfully for the datasource " + ml_distinctCnt_projects_datasource)
-    time.sleep(50)
 else:
     errorLogger.error("failed to start batch ingestion task of ml-project-status " + str(distinctCnt_projects_start_supervisor.status_code))
     errorLogger.error(distinctCnt_projects_start_supervisor.text)
@@ -809,11 +813,11 @@ if program_unique_id:
     uri = re.split("://+", ml_distinctCnt_prgmlevel_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"][0])[1]
     edited_uri = re.split(".json", uri)[0]
     ml_distinctCnt_prgmlevel_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"][0] = f"{current_cloud}://{edited_uri}_{program_unique_id}.json"
+    ml_distinctCnt_prgmlevel_projects_spec["spec"]["ioConfig"].update({"appendToExisting":True})
 distinctCnt_prgmlevel_projects_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_prgmlevel_projects_spec), headers=headers)
 if distinctCnt_prgmlevel_projects_start_supervisor.status_code == 200:
     bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Successfully Ingested for {ml_distinctCnt_prgmlevel_projects_datasource}")
     successLogger.debug("started the batch ingestion task sucessfully for the datasource " + ml_distinctCnt_prgmlevel_projects_datasource)
-    time.sleep(50)
 else:
     errorLogger.error(
             "failed to start batch ingestion task of ml-project-programLevel-status " + str(distinctCnt_prgmlevel_projects_start_supervisor.status_code)
@@ -850,113 +854,24 @@ if program_unique_id :
     current_cloud = re.split("://+", payload["spec"]["ioConfig"]["inputSource"]["uris"][0])[0]
     uri = re.split("://+", payload["spec"]["ioConfig"]["inputSource"]["uris"][0])[1]
     edited_uri = re.split(".json", uri)[0]
-    payload["spec"]["ioConfig"]["inputSource"]["uris"][0] = f"{current_cloud}://{edited_uri}_{program_unique_id}.json"  
+    payload["spec"]["ioConfig"]["inputSource"]["uris"][0] = f"{current_cloud}://{edited_uri}_{program_unique_id}.json"
+    payload['spec']['ioConfig'].update({"appendToExisting":True})  
 payload["spec"]["dataSchema"]["dimensionsSpec"]["dimensions"] = dimensionsArr
 datasources = [payload["spec"]["dataSchema"]["dataSource"]]
 ingestion_specs = [json.dumps(payload)]
 
 for i, j in zip(datasources,ingestion_specs):
-    druid_end_point = config.get("DRUID", "metadata_url") + i
-    get_timestamp = requests.get(druid_end_point, headers=headers)
-    if get_timestamp.status_code == 200:
-        bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Fetched Timestamp of {i} | Waiting for 50s")
-        successLogger.debug("Successfully fetched time stamp of the datasource " + i )
-        timestamp = get_timestamp.json()
-        #calculating interval from druid get api
-        minTime = timestamp["segments"]["minTime"]
-        maxTime = timestamp["segments"]["maxTime"]
-        min1 = datetime.datetime.strptime(minTime, "%Y-%m-%dT%H:%M:%S.%fZ")
-        max1 = datetime.datetime.strptime(maxTime, "%Y-%m-%dT%H:%M:%S.%fZ")
-        new_format = "%Y-%m-%d"
-        min1.strftime(new_format)
-        max1.strftime(new_format)
-        minmonth = "{:02d}".format(min1.month)
-        maxmonth = "{:02d}".format(max1.month)
-        min2 = str(min1.year) + "-" + minmonth + "-" + str(min1.day)
-        max2 = str(max1.year) + "-" + maxmonth  + "-" + str(max1.day)
-        interval = min2 + "_" + max2
-        time.sleep(50)
-
-        disable_datasource = requests.delete(druid_end_point, headers=headers)
-
-        if disable_datasource.status_code == 200:
-            successLogger.debug("successfully disabled the datasource " + i)
-            time.sleep(300)
-
-            delete_segments = requests.delete(
-                druid_end_point + "/intervals/" + interval, headers=headers
-            )
-            if delete_segments.status_code == 200:
-                successLogger.debug("successfully deleted the segments " + i)
-                bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Deletion check successfull for {i}")
-                time.sleep(300)
-
-                enable_datasource = requests.get(druid_end_point, headers=headers)
-                if enable_datasource.status_code == 200 or enable_datasource.status_code == 204:                
-                    time.sleep(600)
-                    successLogger.debug("successfully enabled the datasource " + i)   
-
-                    start_supervisor = requests.post(
-                        druid_batch_end_point, data=j, headers=headers
-                    )
-                    successLogger.debug("--- INGEST DATA ---")
-                    if start_supervisor.status_code == 200:
-                        bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Succesfully ingested the data in {i}")
-                        successLogger.debug(
-                            "started the batch ingestion task sucessfully for the datasource " + i
-                        )
-                        time.sleep(50)
-                    else:
-                        errorLogger.error("failed to start batch ingestion task" + i)
-                        errorLogger.error(
-                         "failed to start batch ingestion task " + str(start_supervisor.status_code)
-                        )
-                        errorLogger.error(start_supervisor.text)
-                        bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Failed to ingested the data in {i}")
-                else:
-                    errorLogger.error("failed to enable the datasource " + i)
-                    errorLogger.error(
-                    "failed to enable the datasource " + str(enable_datasource.status_code)
-                    )
-                    errorLogger.error(enable_datasource.text)
-                    bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Failed to enable {i} | Error: {enable_datasource.status_code}")
-            else:
-                errorLogger.error("failed to delete the segments of the datasource " + i)
-                errorLogger.error(
-                "failed to delete the segments of the datasource " + str(delete_segments.status_code)
-                )
-                errorLogger.error(delete_segments.text)
-                bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"failed to delete the {i}")
-        else:
-            errorLogger.error("failed to disable the datasource " + i)
-            errorLogger.error(
-                "failed to disable the datasource " + str(disable_datasource.status_code)
-            )
-            bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"failed to disable the {i}")
-            errorLogger.error(disable_datasource.text)
-
-    elif get_timestamp.status_code == 204:
-        start_supervisor = requests.post(
-            druid_batch_end_point, data=j, headers=headers)
-        if start_supervisor.status_code == 200:
-            successLogger.debug("started the batch ingestion task sucessfully for the datasource " + i)
-            time.sleep(50)
-            bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Succesfully started the ingestion in {i}")
-        else:
-            errorLogger.error("failed to start batch ingestion task" + i)
-            errorLogger.error("failed to start batch ingestion task" + str(start_supervisor.status_code))
-            errorLogger.error(start_supervisor.text)
-            bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Failed to start batch ingestion task in {i}")
+    start_supervisor = requests.post(druid_batch_end_point, data=j, headers=headers)
+    successLogger.debug("--- INGEST DATA ---")
+    if start_supervisor.status_code == 200:
+        bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Succesfully ingested the data in {i}")
+        successLogger.debug("started the batch ingestion task sucessfully for the datasource " + i)
     else:
-      errorLogger.error("failed to get the timestamp of the datasource " + i)
-      errorLogger.error("failed to get the timestamp of the datasource " + str(get_timestamp.status_code))
-      errorLogger.error(get_timestamp.text)
-successLogger.debug(
-        "Ingestion end time  " + str(datetime.datetime.now())
-   )
-successLogger.debug(
-        "Program completed  " + str(datetime.datetime.now())
-   )
+        errorLogger.error("failed to start batch ingestion task" + i)
+        errorLogger.error("failed to start batch ingestion task " + str(start_supervisor.status_code))
+        errorLogger.error(start_supervisor.text)
+        bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Failed to ingested the data in {i}")
+
 
 if program_unique_id :
  bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Ingested for {program_unique_id}")
