@@ -235,8 +235,8 @@ district_final_df = projects_df_final.groupBy("state_name","district_name").agg(
 
 
 # DF To file
-local_path = "/opt/sparkjobs/ml-analytics-service/urgent_data_metrics/output/"
-blob_path = "Manage_Learn_Data/micro_improvement/"
+local_path = config.get("COMMON", "nvsk_imp_projects_data_local_path")
+blob_path = config.get("COMMON", "nvsk_imp_projects_data_blob_path")
 district_final_df.coalesce(1).write.format("csv").option("header",True).mode("overwrite").save(local_path)
 district_final_df.unpersist()
 
@@ -249,7 +249,7 @@ result = glob.glob(f'*.{extension}')
 os.rename(f'{path}' + f'{result[0]}', f'{path}' + 'data.csv')
 
 
-# Uploading file to AWS-s3
+# Uploading file to Cloud
 cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = 'data.csv')
 
 print("file got uploaded to AWS")
