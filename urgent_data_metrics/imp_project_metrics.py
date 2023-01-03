@@ -112,18 +112,16 @@ sc = spark.sparkContext
 clientProd = MongoClient(config.get('MONGO', 'mongo_url'))
 db = clientProd[config.get('MONGO', 'database_name')]
 projectsCollec = db[config.get('MONGO', 'projects_collection')]
-entitiesCollec = db[config.get('MONGO', 'entities_collection')]
-
 
 projects_cursorMongo = projectsCollec.aggregate(
-      [{"$match":{"isAPrivateProgram":False,"isDeleted":False}},
+      [{"$match":{"isAPrivateProgram":False,"isDeleted":False,"programInformation.name":{"$regex": "^((?!(?i)(test)).)*$"}}},
 {
         "$project": {
             "_id": {"$toString": "$_id"},
             "status": 1,
             "attachments":1,
-            "tasks": 1,
-            "userRoleInformation": 1
+            "tasks": {"attachments":1,"_id": {"$toString": "$_id"}},
+            "userProfile": 1
         }
     }]
 )
@@ -148,15 +146,18 @@ projects_schema = StructType([
         ), True
     ),
     StructField(
-          'userRoleInformation',
+          'userProfile',
           StructType([
-              StructField('state', StringType(), True),
-              StructField('block', StringType(), True),
-              StructField('district', StringType(), True),
-              StructField('cluster', StringType(), True),
-              StructField('school', StringType(), True),
-              StructField('role', StringType(), True)
-         ])
+          StructField(
+              'userLocations', ArrayType(
+                  StructType([
+                     StructField('name', StringType(), True),
+                     StructField('type', StringType(), True),
+                     StructField('id', StringType(), True),
+                     StructField('code', StringType(), True)
+                  ]),True)
+          )
+          ])
     )
 ])
 
@@ -182,97 +183,53 @@ projects_df = projects_df.withColumn(
                       (projects_df["project_evidence_status"]== False) & (projects_df["task_evidence_status"]==False),False
                  ).otherwise(True)
               )
+              
+projects_df = projects_df.withColumn(
+   "exploded_userLocations",F.explode_outer(projects_df["userProfile"]["userLocations"])
+)
+entities_df = melt(projects_df,
+        id_vars=["_id","exploded_userLocations.name","exploded_userLocations.type","exploded_userLocations.id"],
+        value_vars=["exploded_userLocations.code"]
+    ).select("_id","name","value","type","id").dropDuplicates()
+entities_df = entities_df.withColumn("variable",F.concat(F.col("type"),F.lit("_externalId")))
+entities_df = entities_df.withColumn("variable1",F.concat(F.col("type"),F.lit("_name")))
+entities_df = entities_df.withColumn("variable2",F.concat(F.col("type"),F.lit("_code")))
+
+entities_df_id=entities_df.groupBy("_id").pivot("variable").agg(first("id"))
+
+entities_df_name=entities_df.groupBy("_id").pivot("variable1").agg(first("name"))
+
+entities_df_value=entities_df.groupBy("_id").pivot("variable2").agg(first("value"))
+
+entities_df_med=entities_df_id.join(entities_df_name,["_id"],how='outer')
+entities_df_res=entities_df_med.join(entities_df_value,["_id"],how='outer')
+entities_df_res=entities_df_res.drop('null')
+
+projects_df = projects_df.join(entities_df_res,projects_df["_id"]==entities_df_res["_id"],how='left')\
+        .drop(entities_df_res["_id"])
+projects_df = projects_df.filter(F.col("status") != "null")
+entities_df.unpersist()              
+
 projects_final_df = projects_df.select(
               projects_df["_id"].alias("project_id"),
               projects_df["status"],
               projects_df["evidence_status"],
-              projects_df["userRoleInformation"]["state"].alias("state_externalId"),
-              projects_df["userRoleInformation"]["block"].alias("block_externalId"),
-              projects_df["userRoleInformation"]["district"].alias("district_externalId"),
-              projects_df["userRoleInformation"]["cluster"].alias("cluster_externalId"),
-              projects_df["userRoleInformation"]["school"].alias("school_externalId"),
+              projects_df["school_name"],
+              projects_df["school_externalId"],
+              projects_df["school_code"],
+              projects_df["block_name"],
+              projects_df["block_externalId"],
+              projects_df["block_code"],
+              projects_df["state_name"],
+              projects_df["state_externalId"],
+              projects_df["state_code"],
+              projects_df["district_name"],
+              projects_df["district_externalId"],
+              projects_df["district_code"]
            )
 projects_final_df = projects_final_df.dropDuplicates()
-projects_final_df = projects_final_df.filter(F.col("status") != "null")
 
-projects_entities_id_df = projects_final_df.select("state_externalId","block_externalId","district_externalId","cluster_externalId","school_externalId")
-entitiesId_projects_df_before = []
-entitiesId_arr = []
-uniqueEntitiesId_arr = []
-entitiesId_projects_df_before = projects_entities_id_df.toJSON().map(lambda j: json.loads(j)).collect()
-projects_entities_id_df.unpersist()
-for eid in entitiesId_projects_df_before:
-   try:
-    entitiesId_arr.append(eid["state_externalId"])
-   except KeyError :
-    pass
-   try:
-    entitiesId_arr.append(eid["block_externalId"])
-   except KeyError :
-    pass
-   try:
-    entitiesId_arr.append(eid["district_externalId"])
-   except KeyError :
-    pass
-   try:
-    entitiesId_arr.append(eid["cluster_externalId"])
-   except KeyError :
-    pass
-   try:
-    entitiesId_arr.append(eid["school_externalId"])
-   except KeyError :
-    pass
-
-uniqueEntitiesId_arr = list(removeduplicate(entitiesId_arr))
-ent_cursorMongo = entitiesCollec.aggregate(
-   [{"$match": {"$or":[{"registryDetails.locationId":{"$in":uniqueEntitiesId_arr}},{"registryDetails.code":{"$in":uniqueEntitiesId_arr}}]}},
-    {
-      "$project": {
-         "_id": {"$toString": "$_id"},
-         "entityType": 1,
-         "metaInformation": {"name": 1},
-         "registryDetails": 1
-      }
-    }
-   ])
-ent_schema = StructType(
-        [
-            StructField("_id", StringType(), True),
-            StructField("entityType", StringType(), True),
-            StructField("metaInformation",
-                StructType([StructField('name', StringType(), True)])
-            ),
-            StructField("registryDetails",
-                StructType([StructField('locationId', StringType(), True),
-                            StructField('code',StringType(), True)
-                        ])
-            )
-        ]
-    )
-entities_rdd = spark.sparkContext.parallelize(list(ent_cursorMongo))
-entities_df = spark.createDataFrame(entities_rdd,ent_schema)
-entities_rdd.unpersist()
-entities_df = melt(entities_df,
-        id_vars=["_id","entityType","metaInformation.name"],
-        value_vars=["registryDetails.locationId", "registryDetails.code"]
-    ).select("_id","entityType","name","value"
-            ).dropDuplicates()
-entities_df = entities_df.withColumn("variable",F.concat(F.col("entityType"),F.lit("_externalId")))
-projects_df_melt = melt(projects_final_df,
-        id_vars=["project_id","status","evidence_status"],
-        value_vars=["state_externalId", "block_externalId", "district_externalId", "cluster_externalId", "school_externalId"]
-        )
-projects_ent_df_melt = projects_df_melt\
-                 .join(entities_df,["variable","value"],how="left")\
-                 .select(projects_df_melt["*"],entities_df["name"],entities_df["_id"].alias("entity_ids"))
-entities_df.unpersist()
-projects_df_melt.unpersist()
-projects_ent_df_melt = projects_ent_df_melt.withColumn("flag",F.regexp_replace(F.col("variable"),"_externalId","_name"))
-projects_ent_df_melt = projects_ent_df_melt.groupBy(["project_id"])\
-                               .pivot("flag").agg(first(F.col("name")))
-projects_df_final = projects_final_df.join(projects_ent_df_melt,["project_id"],how="left")
-
-district_final_df = projects_df_final.groupBy("state_name","district_name").agg(countDistinct(F.col("project_id")).alias("Total_Micro_Improvement_Projects"),countDistinct(when(F.col("status") == "started",True),F.col("project_id")).alias("Total_Micro_Improvement_Started"),countDistinct(when(F.col("status") == "inProgress",True),F.col("project_id")).alias("Total_Micro_Improvement_InProgress"),countDistinct(when(F.col("status") == "submitted",True),F.col("project_id")).alias("Total_Micro_Improvement_Submitted"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status") == "submitted"),True),F.col("project_id")).alias("Total_Micro_Improvement_Submitted_With_Evidence")).sort("state_name","district_name")
+district_final_df = projects_final_df.groupBy("state_name","district_name").agg(countDistinct(F.col("project_id")).alias("Total_Micro_Improvement_Projects"),countDistinct(when(F.col("status") == "started",True),F.col("project_id")).alias("Total_Micro_Improvement_Started"),countDistinct(when(F.col("status") == "inProgress",True),F.col("project_id")).alias("Total_Micro_Improvement_InProgress"),countDistinct(when(F.col("status") == "submitted",True),F.col("project_id")).alias("Total_Micro_Improvement_Submitted"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status") == "submitted"),True),F.col("project_id")).alias("Total_Micro_Improvement_Submitted_With_Evidence")).sort("state_name","district_name")
 
 
 # DF To file
