@@ -641,15 +641,15 @@ successLogger.debug(
 entities_df_res.unpersist()
 projects_df_cols.unpersist()
 final_projects_df = projects_df_final.dropDuplicates()
-try:
-    null_projects = final_projects_df["project_id", "state_name"].where(col("state_name").isNull())
-    null_projects = null_projects.select(null_projects["project_id"]).rdd.flatMap(lambda x: x).collect()
-    errorLogger.error(f"For ProgramID: {program_unique_id}- \nProject IDs not uploaded: {list(set(null_projects))} \nThe above project_ids state_name/userProfile is null")
-    final_projects_df = final_projects_df.na.drop(subset=["state_name"])
-except ut.AnalysisException as e:
-    error_trim = (str(e).split('?'))[0]
-    errorLogger.error(f"For Program ID: {program_unique_id}: {error_trim}")
-    sys.exit()
+
+necessary_columns = ["state_name","state_externalId","district_name","district_externalId","block_name",
+                    "block_externalId","organisation_name","organisation_id"]
+final_df_columns = final_projects_df.columns
+for miss_cols in necessary_columns:
+    if miss_cols not in final_df_columns:
+        bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"MISSED: {miss_cols}")
+        final_projects_df = final_projects_df.withColumn(miss_cols, lit(None).cast(StringType()))
+        bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"UPDATED: {final_projects_df.columns}")
 
 projects_df_final.unpersist()
 successLogger.debug(
