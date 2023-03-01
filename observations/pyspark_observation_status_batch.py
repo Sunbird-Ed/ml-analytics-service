@@ -6,7 +6,7 @@
 #  entity information
 # -----------------------------------------------------------------
 
-import requests
+import requests, dateutil
 import json, csv, sys, os, time
 import datetime
 from datetime import date
@@ -22,6 +22,7 @@ from collections import OrderedDict, Counter
 from cassandra.cluster import Cluster
 from cassandra.query import SimpleStatement, ConsistencyLevel
 import logging
+from slackclient import SlackClient
 from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
 from pyspark.sql import DataFrame
 from typing import Iterable
@@ -30,6 +31,7 @@ from pyspark.sql.functions import element_at, split, col
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
+bot = SlackClient(config.get("SLACK","token"))
 sys.path.append(config.get("COMMON", "cloud_module_path"))
 
 from cloud import MultiCloud
@@ -54,6 +56,24 @@ errorBackuphandler = TimedRotatingFileHandler(config.get('LOGS','observation_sta
 errorHandler.setFormatter(formatter)
 errorLogger.addHandler(errorHandler)
 errorLogger.addHandler(errorBackuphandler)
+
+# Rejecting duplicate runs for Admin dashboard datasource
+headers = {'Content-Type': 'application/json'}
+payload = json.loads(config.get("DRUID","ml_distinctCnt_obs_domain_criteria_spec"))
+druid_end_point = config.get("DRUID", "batch_url") + 's'
+get_timestamp = requests.get(druid_end_point, headers=headers, params={'state': 'complete', 
+                                'datasource': payload["spec"]["dataSchema"]["dataSource"]})
+
+last_ingestion = json.loads(get_timestamp.__dict__['_content'].decode('utf8').replace("'", '"'))
+last_timestamp = None
+for tasks in last_ingestion:
+    if tasks['type'] == 'index':
+        last_timestamp = dateutil.parser.parse((tasks['createdTime'])).date()
+
+cur_timestamp = datetime.datetime.now().date()
+if cur_timestamp == last_timestamp:
+    bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"ALERT: Duplicate Run. (DISALLOWED)")
+    sys.exit()
 
 try:
    def removeduplicate(it):
