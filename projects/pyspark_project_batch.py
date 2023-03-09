@@ -6,7 +6,7 @@
 #  entity information
 # -----------------------------------------------------------------
 
-import json, sys, time, dateutil
+import json, sys, time
 from configparser import ConfigParser,ExtendedInterpolation
 from pymongo import MongoClient
 from bson.objectid import ObjectId
@@ -71,23 +71,6 @@ clientProd = MongoClient(config.get('MONGO', 'url'))
 db = clientProd[config.get('MONGO', 'database_name')]
 projectsCollec = db[config.get('MONGO', 'projects_collection')]
 
-# Rejecting duplicate runs for Admin dashboard datasource
-headers = {'Content-Type': 'application/json'}
-payload = json.loads(config.get("DRUID","project_injestion_spec"))
-druid_end_point = config.get("DRUID", "batch_url") + 's'
-get_timestamp = requests.get(druid_end_point, headers=headers, params={'state': 'complete', 
-                                'datasource': payload["spec"]["dataSchema"]["dataSource"]})
-
-last_ingestion = json.loads(get_timestamp.__dict__['_content'].decode('utf8').replace("'", '"'))
-last_timestamp = None
-for tasks in last_ingestion:
-    if tasks['type'] == 'index':
-        last_timestamp = dateutil.parser.parse((tasks['createdTime'])).date()
-
-cur_timestamp = (datetime.datetime.now() - datetime.timedelta(1)).date()
-if cur_timestamp == last_timestamp:
-    bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"ALERT: Duplicate Run. (DISALLOWED)")
-    sys.exit()
 
 try:
  def melt(df: DataFrame,id_vars: Iterable[str], value_vars: Iterable[str],
@@ -865,6 +848,8 @@ submissionReportColumnNamesArr = [
 
 dimensionsArr.extend(submissionReportColumnNamesArr)
 
+payload = {}
+payload = json.loads(config.get("DRUID","project_injestion_spec"))
 if program_unique_id :
     current_cloud = re.split("://+", payload["spec"]["ioConfig"]["inputSource"]["uris"][0])[0]
     uri = re.split("://+", payload["spec"]["ioConfig"]["inputSource"]["uris"][0])[1]
