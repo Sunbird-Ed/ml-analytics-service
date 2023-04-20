@@ -233,6 +233,8 @@ projects_df_final = projects_df_final.dropDuplicates()
 
 district_final_df = projects_df_final.groupBy("state_name","district_name").agg(countDistinct(F.col("project_id")).alias("Total_Micro_Improvement_Projects"),countDistinct(when(F.col("status") == "started",True),F.col("project_id")).alias("Total_Micro_Improvement_Started"),countDistinct(when(F.col("status") == "inProgress",True),F.col("project_id")).alias("Total_Micro_Improvement_InProgress"),countDistinct(when(F.col("status") == "submitted",True),F.col("project_id")).alias("Total_Micro_Improvement_Submitted"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status") == "submitted"),True),F.col("project_id")).alias("Total_Micro_Improvement_Submitted_With_Evidence")).sort("state_name","district_name")
 
+state_final_df = projects_df_final.groupBy("state_name").agg(countDistinct(F.col("project_id")).alias("Total_Micro_Improvement_Projects")).sort("state_name")
+
 
 # DF To file
 local_path = config.get("COMMON", "nvsk_imp_projects_data_local_path")
@@ -251,6 +253,24 @@ os.rename(f'{path}' + f'{result[0]}', f'{path}' + 'data.csv')
 
 # Uploading file to Cloud
 cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = 'data.csv')
+
+# DF To file - State
+state_local_path = config.get("COMMON", "nvsk_imp_projects_state_data_local_path")
+state_blob_path = config.get("COMMON", "nvsk_imp_projects_state_data_blob_path")
+state_final_df.coalesce(1).write.format("csv").option("header",True).mode("overwrite").save(state_local_path)
+state_final_df.unpersist()
+
+
+# Renaming a file - State
+state_path = state_local_path
+extension = 'csv'
+os.chdir(state_path)
+state_result = glob.glob(f'*.{extension}')
+os.rename(f'{state_path}' + f'{state_result[0]}', f'{state_path}' + 'state_data.csv')
+
+
+# Uploading file to Cloud - State
+cloud_init.upload_to_cloud(blob_Path = state_blob_path, local_Path = state_local_path, file_Name = 'state_data.csv')
 
 print("file got uploaded to AWS")
 print("DONE")
