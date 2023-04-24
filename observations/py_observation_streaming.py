@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------
 # Name : sl_py_observation_streaming.py
-# Author : Ashwini.E , Shakthieshwari.A, Snehangsu De
+# Author : Ashwini.E , Shakthieshwari.A, Snehangsu De, Sachin
 # Description : Program to read data from one kafka topic and 
 # produce it to another kafka topic 
 # -----------------------------------------------------------------
@@ -260,34 +260,38 @@ try:
                 observationSubQuestionsObj['programId'] = ''
 
               try:
-                for pgm in programsCollec.find({"_id":ObjectId(obSub['programId'])}):
-                  observationSubQuestionsObj['programName'] = pgm['name']
-                  observationSubQuestionsObj['programDescription'] = pgm['description']
-              except KeyError :
+                if 'programInfo' in obSub:
+                  observationSubQuestionsObj['programName'] = obSub['programInfo']['name']
+                  observationSubQuestionsObj['programDescription'] = obSub['programInfo']['description']
+              except KeyError:
                 observationSubQuestionsObj['programName'] = ''
                 observationSubQuestionsObj['programDescription'] = ''
 
               observationSubQuestionsObj['solutionExternalId'] = obSub['solutionExternalId']
               observationSubQuestionsObj['solutionId'] = str(obSub['solutionId'])
               observationSubQuestionsObj['observationId'] = str(obSub['observationId'])
-              for critQues in criteriaQuestionsCollec.find({'_id':ObjectId(answer["criteriaId"])}):
-                observationSubQuestionsObj['criteriaExternalId'] = critQues['externalId']
-                observationSubQuestionsObj['criteriaName'] = critQues['name']
-                observationSubQuestionsObj['criteriaDescription'] = critQues['description']
-                for eviCQ in critQues["evidences"] :
-                  for secCQ in eviCQ["sections"] :
-                    for quesCQ in secCQ["questions"] :
-                      if str(quesCQ["_id"]) == str(answer["qid"]) :
-                        observationSubQuestionsObj['section'] = secCQ["code"]
-              solutionObj = {}
-              for solu in solCollec.find({'_id':ObjectId(obSub['solutionId'])}):
-                solutionObj = solu
 
-              if solutionObj:
-               observationSubQuestionsObj['solutionName'] = solutionObj['name']
-               observationSubQuestionsObj['scoringSystem'] = solutionObj['scoringSystem']
-               observationSubQuestionsObj['solutionDescription'] = solutionObj['description']
-               observationSubQuestionsObj['questionSequenceByEcm'] = sequenceNumber(quesexternalId,answer,observationSubQuestionsObj['section'],solutionObj)
+              if "criteria" in obSub:
+                for critQue in obSub["criteria"]:
+                  if critQue["_id"] == answer["criteriaId"]:                    
+                    observationSubQuestionsObj['criteriaExternalId'] = critQue['externalId']
+                    observationSubQuestionsObj['criteriaName'] = critQue['name']
+                    observationSubQuestionsObj['criteriaDescription'] = critQue['description']
+
+
+              if 'solutionInfo' in obSub:
+                qse = obSub['solutionInfo']['questionSequenceByEcm']
+                for obs_key, obs_val in qse.items():
+                  for key, val in obs_val.items():
+                    for ids in val:
+                      if ids == answer["externalId"]:                        
+                        observationSubQuestionsObj['section'] = key
+                
+              solutionObj = obSub['solutionInfo']
+              observationSubQuestionsObj['solutionName'] = obSub['solutionInfo']['name']                
+              observationSubQuestionsObj['scoringSystem'] = obSub['solutionInfo']['scoringSystem']
+              observationSubQuestionsObj['solutionDescription'] = obSub['solutionInfo']['description']
+              observationSubQuestionsObj['questionSequenceByEcm'] = sequenceNumber(quesexternalId,answer,observationSubQuestionsObj['section'],solutionObj)
 
               try:
                 if solutionObj['scoringSystem'] == 'pointsBasedScoring':
@@ -337,18 +341,8 @@ try:
               if 'observationInformation' in obSub :
                if 'name' in obSub['observationInformation']:
                  observationSubQuestionsObj['observationName'] = obSub['observationInformation']['name']
-               else :
-                 try:
-                  for ob in obsCollec.find({'_id':obSub['observationId']},{'name':1}):
-                   observationSubQuestionsObj['observationName'] = ob['name']
-                 except KeyError :
-                  observationSubQuestionsObj['observationName'] = ''
-              else :
-               try:
-                for ob in obsCollec.find({'_id':obSub['observationId']},{'name':1}):
-                 observationSubQuestionsObj['observationName'] = ob['name']
-               except KeyError :
-                observationSubQuestionsObj['observationName'] = '' 
+               else:
+                  observationSubQuestionsObj['observationName'] = '' 
 
               observationSubQuestionsObj['questionId'] = str(answer['qid'])
               observationSubQuestionsObj['questionAnswer'] = ans_val
@@ -398,20 +392,24 @@ try:
                 observationSubQuestionsObj['instanceParentId'] = ans['qid']
                 observationSubQuestionsObj['instanceParentResponsetype'] =ans['responseType']
                 observationSubQuestionsObj['instanceParentCriteriaId'] =ans['criteriaId']
-                for critQuesInst in criteriaQuestionsCollec.find({'_id':ObjectId(ans["criteriaId"])}):
-                  observationSubQuestionsObj['instanceParentCriteriaExternalId'] = critQuesInst['externalId']
-                  observationSubQuestionsObj['instanceParentCriteriaExternalId'] = critQuesInst['name']
-                  for eviCQInst in critQuesInst["evidences"] :
-                    for secCQInst in eviCQInst["sections"] :
-                      for quesCQInst in secCQInst["questions"] :
-                        if str(quesCQInst["_id"]) == str(ans["qid"]) :
-                          observationSubQuestionsObj['instanceParentSection'] = secCQInst["code"]
-                  observationSubQuestionsObj['instanceId'] = instNumber
-                  observationSubQuestionsObj['instanceParentExternalId'] = quesexternalId
-                  observationSubQuestionsObj['instanceParentEcmSequence']= sequenceNumber(
-                    observationSubQuestionsObj['instanceParentExternalId'], answer,
-                    observationSubQuestionsObj['instanceParentSection'], solutionObj
-                  )
+
+                for critQuesInst in obSub["criteria"]:
+                  if critQuesInst["_id"] == ans["criteriaId"]:
+                    observationSubQuestionsObj['instanceParentCriteriaExternalId'] = critQuesInst['externalId']
+                    observationSubQuestionsObj['instanceParentCriteriaExternalId'] = critQuesInst['name']
+
+                if 'solutionInfo' in obSub:
+                  qse = obSub['solutionInfo']['questionSequenceByEcm']
+                  for obs_key, obs_val in qse.items():
+                    for key, val in obs_val.items():
+                      for ids in val:
+                        if ids == ans["externalId"]:                          
+                          observationSubQuestionsObj['instanceParentSection'] = key
+                observationSubQuestionsObj['instanceId'] = instNumber
+                observationSubQuestionsObj['instanceParentExternalId'] = quesexternalId
+                observationSubQuestionsObj['instanceParentEcmSequence']= sequenceNumber(observationSubQuestionsObj['instanceParentExternalId'], 
+                answer,observationSubQuestionsObj['instanceParentSection'], solutionObj)
+
               else:
                 observationSubQuestionsObj['instanceParentQuestion'] = ''
                 observationSubQuestionsObj['instanceParentId'] = ''
@@ -424,132 +422,145 @@ try:
 
               ### Assessment Domain Logic - Start ###
               domainArr = []
-              for domain in solutionObj['themes']:
-                parent = None
-                builder = None
-                parent = domain['name']
-                builder = implementation()
-                domObj = {}
-                domObj['name'] = domain['name']
-                domObj['type'] = domain['type']
-                domObj['externalId']=str(domain['externalId'])
-                
-                try:
-                  if domain['criteria']:
-                    domObj['theme']=builder.buildnode(domain, parent, str(answer['criteriaId']))
-                except KeyError:
-                  domObj['theme'] = builder.buildnode(domain, parent, str(answer['criteriaId']))
+              if len(obSub['themes']) >= 1:
+                for domain in obSub['themes']:
+                  parent = None
+                  builder = None
+                  parent = domain['name']
+                  builder = implementation()
+                  domObj = {}
+                  domObj['name'] = domain['name']
+                  domObj['type'] = domain['type']
+                  domObj['externalId']=str(domain['externalId'])
+                  
+                  try:
+                    if domain['criteria']:
+                      domObj['theme']=builder.buildnode(domain, parent, str(answer['criteriaId']))
+                  except KeyError:
+                    domObj['theme'] = builder.buildnode(domain, parent, str(answer['criteriaId']))
 
-                domainArr.append(domObj)
-                domArr.clear()
+                  domainArr.append(domObj)
+                  domArr.clear()
 
-              for dom in domainArr:
-                if dom['theme']:
-                  for obj in dom['theme']:
-                    try:
-                      if obj['type'] == 'criteria':
-                        if (str(obj['externalId']) == str(answer['criteriaId'])):
-                          for criteria in obSub['criteria'] :
-                            if str(criteria["_id"]) == str(answer['criteriaId']) :
-                              obj['name'] = criteria['name']
-                              obj['score'] = criteria['score']
-                              try:
-                                obj['score_achieved'] = criteria['scoreAchieved']
-                              except KeyError :
-                                obj['score_achieved'] = ''
-                              obj['description'] = criteria['description']
-                              try:
-                                levelArray = []
-                                levelArray = criteria['rubric']['levels'].values()
-                                for labelValue in levelArray:
-                                  if (str((criteria['score'])) == labelValue['level']):
-                                    obj['label'] = labelValue['label']
-                              except Exception:
-                                obj['label'] = ''
-
-                              try:
-                                prj_id = []
-                                title = []
-                                goal = []
-                                externalId =[]
-                                for prj in criteria['improvement-projects']:
-                                  prj_id.append(str(prj['_id']))
-                                  title.append(prj['title'])
-                                  goal.append(prj['goal'])
-                                  externalId.append(prj['externalId'])
-                                obj['imp_project_id'] = prj_id
-                                obj['imp_project_title'] = title
-                                obj['imp_project_goal'] = goal
-                                obj['imp_project_externalId'] = externalId
-                              except KeyError:
-                                obj['imp_project_id'] = []
-                                obj['imp_project_title'] = []
-                                obj['imp_project_goal'] = []
-                                obj['imp_project_externalId'] = []
-                          if type(obj['externalId']) != str:
-                            for cri in criteriaCollec.find({'_id':ObjectId(str(obj['externalId']))}):
-                              obj['externalId'] = cri['externalId']
-                              obj['name']=cri['name']
-                              obj['score']=cri['score']
-                              obj['score_achieved'] = criteria['scoreAchieved']
-                              obj['description'] = cri['description']
-                              try:
-                                levelArray = []
-                                levelArray = cri['rubric']['levels'].values()
-                                for labelValue in levelArray:
-                                  if (str((cri['score'])) == labelValue['level']):
-                                    obj['label'] = labelValue['label']
-                              except Exception:
-                                obj['label'] = ''
-                    except KeyError:
-                      pass 
-
-              for themes in domainArr:
-                for st in themes["theme"]:
-                  if (st["type"] == "criteria") and (observationSubQuestionsObj['criteriaId'] == str(st["externalId"])):
-                    observationSubQuestionsObj['domainName'] = themes['name']
-                    observationSubQuestionsObj['domainExternalId'] = themes['externalId']
-                    try :
-                      for submTheme in obSub["themes"]: 
-                        if submTheme["externalId"] == themes['externalId'] :
-                          observationSubQuestionsObj['domainLevel'] = submTheme["pointsBasedLevel"]
-                          observationSubQuestionsObj['domainScore'] = submTheme["scoreAchieved"]
-                    except KeyError :
-                      observationSubQuestionsObj['domainLevel'] = ''
-                      observationSubQuestionsObj['domainScore'] = ''       
-                    for theme in themes['theme']:
-                      observationSubQuestionsObj['childName'] = theme['name']
-                      observationSubQuestionsObj['ancestorName'] = theme['parent']
-                      observationSubQuestionsObj['childType'] = theme['type']
-                      observationSubQuestionsObj['childExternalid'] = theme['externalId']
-
+                for dom in domainArr:
+                  if dom['theme']:
+                    for obj in dom['theme']:
                       try:
-                        observationSubQuestionsObj['level'] = theme['score']
-                      except KeyError:
-                        observationSubQuestionsObj['level'] = ''
+                        if obj['type'] == 'criteria':
+                          if (str(obj['externalId']) == str(answer['criteriaId'])):
+                            for criteria in obSub['criteria'] :
+                              if str(criteria["_id"]) == str(answer['criteriaId']) :
+                                obj['name'] = criteria['name']
+                                obj['score'] = criteria['score']
+                                try:
+                                  obj['score_achieved'] = criteria['scoreAchieved']
+                                except KeyError :
+                                  obj['score_achieved'] = ''
+                                obj['description'] = criteria['description']
+                                try:
+                                  levelArray = []
+                                  levelArray = criteria['rubric']['levels'].values()
+                                  for labelValue in levelArray:
+                                    if (str((criteria['score'])) == labelValue['level']):
+                                      obj['label'] = labelValue['label']
+                                except Exception:
+                                  obj['label'] = ''
 
-                      try:
-                        observationSubQuestionsObj['criteriaScore'] = theme['score_achieved']
+                                try:
+                                  prj_id = []
+                                  title = []
+                                  goal = []
+                                  externalId =[]
+                                  for prj in criteria['improvement-projects']:
+                                    prj_id.append(str(prj['_id']))
+                                    title.append(prj['title'])
+                                    goal.append(prj['goal'])
+                                    externalId.append(prj['externalId'])
+                                  obj['imp_project_id'] = prj_id
+                                  obj['imp_project_title'] = title
+                                  obj['imp_project_goal'] = goal
+                                  obj['imp_project_externalId'] = externalId
+                                except KeyError:
+                                  obj['imp_project_id'] = []
+                                  obj['imp_project_title'] = []
+                                  obj['imp_project_goal'] = []
+                                  obj['imp_project_externalId'] = []
+                            if type(obj['externalId']) != str:
+                              for critQueDom in obSub["criteria"]:
+                                if critQueDom["_id"] == answer["criteriaId"]:
+                                  obj['externalId'] = critQueDom['externalId']
+                                  obj['name']=critQueDom['name']
+                                  obj['score']=critQueDom['score']
+                                  obj['score_achieved'] = critQueDom['scoreAchieved']
+                                  obj['description'] = critQueDom['description']
+                                  try:
+                                    levelArray = []
+                                    levelArray = critQueDom['rubric']['levels'].values()
+                                    for labelValue in levelArray:
+                                      if (str((critQueDom['score'])) == labelValue['level']):
+                                        obj['label'] = labelValue['label']
+                                  except Exception:
+                                    obj['label'] = ''
                       except KeyError:
-                        observationSubQuestionsObj['criteriaScore'] = ''
+                        pass 
 
-                      try:
-                        observationSubQuestionsObj['label'] = theme['label']
-                      except KeyError:
-                        observationSubQuestionsObj['label'] = ''
+                for themes in domainArr:
+                  for st in themes["theme"]:
+                    if (st["type"] == "criteria") and (observationSubQuestionsObj['criteriaId'] == str(st["externalId"])):
+                      observationSubQuestionsObj['domainName'] = themes['name']
+                      observationSubQuestionsObj['domainExternalId'] = themes['externalId']
+                      try :
+                        for submTheme in obSub["themes"]: 
+                          if submTheme["externalId"] == themes['externalId'] :
+                            observationSubQuestionsObj['domainLevel'] = submTheme["pointsBasedLevel"]
+                            observationSubQuestionsObj['domainScore'] = submTheme["scoreAchieved"]
+                      except KeyError :
+                        observationSubQuestionsObj['domainLevel'] = ''
+                        observationSubQuestionsObj['domainScore'] = ''       
+                      for theme in themes['theme']:
+                        observationSubQuestionsObj['childName'] = theme['name']
+                        observationSubQuestionsObj['ancestorName'] = theme['parent']
+                        observationSubQuestionsObj['childType'] = theme['type']
+                        observationSubQuestionsObj['childExternalid'] = theme['externalId']
 
-                      try:
-                        if (len(theme['imp_project_id']) >=0):
-                          for i in range(len(theme['imp_project_id'])):
-                            observationSubQuestionsObj['imp_project_id'] = theme['imp_project_id'][i]
-                            observationSubQuestionsObj['imp_project_title'] = theme['imp_project_title'][i]
-                            observationSubQuestionsObj['imp_project_goal'] = theme['imp_project_goal'][i]
-                            observationSubQuestionsObj['imp_project_externalId'] = theme['imp_project_externalId'][i]
-                      except KeyError:
-                        observationSubQuestionsObj['imp_project_id'] = ""
-                        observationSubQuestionsObj['imp_project_title'] = ""
-                        observationSubQuestionsObj['imp_project_goal'] = ""
-                        observationSubQuestionsObj['imp_project_externalId'] = ""
+                        try:
+                          observationSubQuestionsObj['level'] = theme['score']
+                        except KeyError:
+                          observationSubQuestionsObj['level'] = ''
+
+                        try:
+                          observationSubQuestionsObj['criteriaScore'] = theme['score_achieved']
+                        except KeyError:
+                          observationSubQuestionsObj['criteriaScore'] = ''
+
+                        try:
+                          observationSubQuestionsObj['label'] = theme['label']
+                        except KeyError:
+                          observationSubQuestionsObj['label'] = ''
+
+                        try:
+                          if (len(theme['imp_project_id']) >=0):
+                            for i in range(len(theme['imp_project_id'])):
+                              observationSubQuestionsObj['imp_project_id'] = theme['imp_project_id'][i]
+                              observationSubQuestionsObj['imp_project_title'] = theme['imp_project_title'][i]
+                              observationSubQuestionsObj['imp_project_goal'] = theme['imp_project_goal'][i]
+                              observationSubQuestionsObj['imp_project_externalId'] = theme['imp_project_externalId'][i]
+                        except KeyError:
+                          observationSubQuestionsObj['imp_project_id'] = ""
+                          observationSubQuestionsObj['imp_project_title'] = ""
+                          observationSubQuestionsObj['imp_project_goal'] = ""
+                          observationSubQuestionsObj['imp_project_externalId'] = ""
+
+              else:
+                observationSubQuestionsObj['domainName'] = ''
+                observationSubQuestionsObj['domainExternalId'] = ''
+                observationSubQuestionsObj['childName'] = ''
+                observationSubQuestionsObj['ancestorName'] = ''
+                observationSubQuestionsObj['childType'] = ''
+                observationSubQuestionsObj['childExternalid'] = ''
+                observationSubQuestionsObj['level'] = ''
+                observationSubQuestionsObj['criteriaScore'] = ''
+                observationSubQuestionsObj['label'] = ''
 
               if usrRolFn :
                 observationSubQuestionsObj = {**usrRolFn, **observationSubQuestionsObj} 
