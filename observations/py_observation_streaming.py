@@ -54,14 +54,15 @@ app = faust.App(
 )
 rawTopicName = app.topic(config.get("KAFKA", "observation_raw_topic"))
 producer = KafkaProducer(bootstrap_servers=[kafka_url])
-#db production
-client = MongoClient(config.get('MONGO', 'url'))
-db = client[config.get('MONGO', 'database_name')]
-solCollec = db[config.get('MONGO', 'solutions_collection')]
-obsCollec = db[config.get('MONGO', 'observations_collection')]
-criteriaQuestionsCollec = db[config.get('MONGO', 'criteria_questions_collection')]
-criteriaCollec = db[config.get('MONGO', 'criteria_collection')]
-programsCollec = db[config.get('MONGO', 'programs_collection')]
+
+# #db production
+# client = MongoClient(config.get('MONGO', 'url'))
+# db = client[config.get('MONGO', 'database_name')]
+# solCollec = db[config.get('MONGO', 'solutions_collection')]
+# obsCollec = db[config.get('MONGO', 'observations_collection')]
+# criteriaQuestionsCollec = db[config.get('MONGO', 'criteria_questions_collection')]
+# criteriaCollec = db[config.get('MONGO', 'criteria_collection')]
+# programsCollec = db[config.get('MONGO', 'programs_collection')]
 
 def orgName(val):
   orgarr = []
