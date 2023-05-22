@@ -248,36 +248,40 @@ program_dashboard_data = {{ ml_program_dashboard_data }}
 
 cloud_module_path = {{ ml_analytics_cloud_package_path }}
 
-observation_blob_path = {{ ml_analytics_observation_cloud_blob_path }}
+observation_blob_path = {{ ml_analytics_observation_azure_blob_path }}
 
-projects_blob_path = {{ ml_analytics_project_cloud_blob_path }}
+projects_blob_path = {{ ml_analytics_project_azure_blob_path }}
 
-observation_distinctCount_blob_path = {{ ml_analytics_obs_distinctCnt_cloud_blob_path }}
+observation_distinctCount_blob_path = {{ ml_analytics_obs_distinctCnt_azure_blob_path }}
 
-observation_distinctCount_domain_blob_path = {{ ml_analytics_obs_distinctCnt_domain_cloud_blob_path }}
+observation_distinctCount_domain_blob_path = {{ ml_analytics_obs_distinctCnt_domain_azure_blob_path }}
 
-observation_distinctCount_domain_criteria_blob_path = {{ ml_analytics_obs_distinctCnt_domain_criteria_cloud_blob_path }}
+observation_distinctCount_domain_criteria_blob_path = {{ ml_analytics_obs_distinctCnt_domain_criteria_azure_blob_path }}
 
-projects_distinctCnt_blob_path = {{ ml_analytics_projects_distinctCnt_cloud_blob_path }}
+projects_distinctCnt_blob_path = {{ ml_analytics_projects_distinctCnt_azure_blob_path }}
 
-projects_distinctCnt_prgmlevel_blob_path = {{ ml_analytics_projects_distinctCnt_prglevel_cloud_blob_path }}
+projects_distinctCnt_prgmlevel_blob_path = {{ ml_analytics_projects_distinctCnt_prglevel_azure_blob_path }}
 
-projects_rollup_blob_path = {{ ml_analytics_project_rollup_cloud_blob_path }}
+projects_rollup_blob_path = {{ ml_analytics_project_rollup_azure_blob_path }}
 
-observation_rollup_blob_path = {{ ml_analytics_observation_rollup_cloud_blob_path }}
+observation_rollup_blob_path = {{ ml_analytics_observation_rollup_azure_blob_path }}
 
-survey_rollup_blob_path = {{ ml_analytics_survey_rollup_cloud_blob_path }}
+survey_rollup_blob_path = {{ ml_analytics_survey_rollup_azure_blob_path }}
 
-survey_blob_path = {{ ml_analytics_survey_cloud_blob_path }}
+survey_blob_path = {{ ml_analytics_survey_azure_blob_path }}
 
-projects_program_csv = {{ ml_analytics_program_dashboard_cloud_blob_path }}
+projects_program_csv = {{ ml_analytics_program_dashboard_azure_blob_path }}
 
-observation_batch_ingestion_data_del = {{ ml_analytics_observation_batchupdate_cloud_blob_path }}
+observation_batch_ingestion_data_del = {{ ml_analytics_observation_batchupdate_azure_blob_path }}
 
-survey_batch_ingestion_data_del = {{ml_analytics_survey_batchupdate_cloud_blob_path}}
+survey_batch_ingestion_data_del = {{ml_analytics_survey_batchupdate_azure_blob_path}}
 
 cname_url = {{ ml_analytics_cname_url }}
 
 nvsk_imp_projects_data_local_path = {{ ml_analytics_nvsk_imp_projects_data_local_path }}
 
 nvsk_imp_projects_data_blob_path = {{ ml_analytics_nvsk_imp_projects_data_blob_path }}
+
+nvsk_imp_projects_state_data_local_path = {{ ml_analytics_nvsk_imp_projects_state_data_local_path }}
+
+nvsk_imp_projects_state_data_blob_path = {{ ml_analytics_nvsk_imp_projects_state_data_blob_path }}
