@@ -1,0 +1,85 @@
+{
+  "request": {
+    "report": {
+      "title": "Ml test automation",
+      "description": "This report will track the no. of observation consumption on the platform",
+      "authorizedroles": [
+        "REPORT_ADMIN",
+        "ORG_ADMIN",
+        "REPORT_VIEWER"
+      ],
+      "status": "draft",
+      "type": "public",
+      "createdby": "$createdBy",
+      "reportconfig": {
+        "label": "Ml test automation",
+        "title": "Ml test automation",
+        "charts": [
+          {
+            "id": "Big_Number",
+            "bigNumbers": [
+              {
+                "footer": " ",
+                "header": "No. of observations in started status currently",
+                "dataExpr": "No of observations in started status currently"
+              }
+            ],
+            "dataSource": {
+              "ids": [
+                "ml_test_automation"
+              ],
+              "commonDimension": "Date"
+            }
+          }
+        ],
+        "filters": [
+          {
+            "reference": "State Name",
+            "controlType": "multi-select",
+            "displayName": "State"
+          },
+          {
+            "reference": "Program Name",
+            "controlType": "multi-select",
+            "displayName": "Program"
+          },
+          {
+            "reference": "District Name",
+            "controlType": "multi-select",
+            "displayName": "District"
+          },
+          {
+            "reference": "Block name",
+            "dependency": {
+              "reference": "District Name",
+              "displayName": "District"
+            },
+            "controlType": "multi-select",
+            "displayName": "Block"
+          }
+        ],
+        "dataSource": [
+          {
+            "id": "ml_test_automation",
+            "path": "/reports/fetch/hawk-eye/ml_test_automation.json"
+          }
+        ],
+        "description": "This report will track the no. of observation consumption on the platform"
+      },
+      "slug": "hawk-eye",
+      "reportgenerateddate": "2023-05-05T00:00:00.000Z",
+      "reportduration": {
+        "enddate": "31-12-2025",
+        "startdate": "20-05-2023"
+      },
+      "tags": [
+        "Ml_test_automation"
+      ],
+      "updatefrequency": "DAILY",
+      "parameters": [
+        "$slug"
+      ],
+      "report_type": "report"
+    }
+  }
+}
