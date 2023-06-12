@@ -1,0 +1,95 @@
+{
+    "request": {
+        "report": {
+            "title": "Observation consumption Report",
+            "description": "This report will track the no. of observation consumption on the platform",
+            "authorizedroles": [
+                "REPORT_ADMIN",
+                "REPORT_VIEWER"
+            ],
+            "status": "draft",
+            "type": "public",
+            "createdby": "$createdby",
+            "reportconfig": {
+                "label": "Observation consumption Report",
+                "title": "Observation consumption Report",
+                "charts": [
+                    {
+                        "id": "Big_Number",
+                        "bigNumbers": [
+                            {
+                                "footer": " ",
+                                "header": "No. of observations in started status currently",
+                                "dataExpr": "No of observations in started status currently"
+                            },
+                            {
+                                "footer": " ",
+                                "header": "No. of observations submitted till date",
+                                "dataExpr": "No of observations submitted till date"
+                            }
+                        ],
+                        "dataSource": {
+                            "ids": [
+                                "ml_no_of_observations_in_started_status_currently_sl",
+                                "ml_no_of_observations_submitted_till_date_sl"
+                            ],
+                            "commonDimension": "Date"
+                        }
+                    }
+                ],
+                "filters": [
+                    {
+                        "reference": "State Name",
+                        "controlType": "multi-select",
+                        "displayName": "State"
+                    },
+                    {
+                        "reference": "Program Name",
+                        "controlType": "multi-select",
+                        "displayName": "Program"
+                    },
+                    {
+                        "reference": "District Name",
+                        "controlType": "multi-select",
+                        "displayName": "District"
+                    },
+                    {
+                        "reference": "Block name",
+                        "dependency": {
+                            "reference": "District Name",
+                            "displayName": "district"
+                        },
+                        "controlType": "multi-select",
+                        "displayName": "Block"
+                    }
+                ],
+                "dataSource": [
+                    {
+                        "id": "ml_no_of_observations_in_started_status_currently_sl",
+                        "path": "/reports/fetch/hawk-eye/ml_no_of_observations_in_started_status_currently_sl.json"
+                    },
+                    {
+                        "id": "ml_no_of_observations_submitted_till_date_sl",
+                        "path": "/reports/fetch/hawk-eye/ml_no_of_observations_submitted_till_date_sl.json"
+                    }
+                ],
+                "description": "This report will track the no. of observation consumption on the platform",
+                "downloadUrl": ""
+            },
+            "slug": "hawk-eye",
+            "reportgenerateddate": "2023-05-05T00:00:00.000Z",
+            "reportduration": {
+                "enddate": "12-02-2020",
+                "startdate": "12-02-2020"
+            },
+            "tags": [
+                "1Bn"
+            ],
+            "updatefrequency": "DAILY",
+            "parameters": [
+                "$slug"
+            ],
+            "report_type": "report"
+        }
+    }
+}
