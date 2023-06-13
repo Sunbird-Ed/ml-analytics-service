@@ -44,7 +44,6 @@ def get_refresh_token():
             "status": "failed"
         }
         insert_doc(doc)
-        print(doc)
 
 
 
@@ -67,26 +66,11 @@ def get_access_token():
 
             access_json = access_get.json()
             access_json["status_code"] = access_get.status_code
-            print(access_json)
             return access_json
 
          else:
             print("Refresh API Failed")
-            print(response_api)
             return response_api
     except Exception as exception:
          doc = {"operation":"Access_token","errmsg": "Exception message {}".format(exception) + " " +format(type(exception).__name__), "status":"failed"}
          insert_doc(doc)
-
-# get_access_token()
-
-
-
-
-
-
-
-
-
-
-
