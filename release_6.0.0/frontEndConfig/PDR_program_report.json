@@ -1,0 +1,75 @@
+{
+    "request": {
+        "report": {
+            "title": "PDR program report",
+            "description": "The reports provides the big no. for user who joined program",
+            "authorizedroles": [
+                "PROGRAM_DESIGNER",
+                "PROGRAM_MANAGER"
+            ],
+            "status": "draft",
+            "type": "protected",
+            "createdby": "$createdby",
+            "reportconfig": {
+                "files": [],
+                "label": "PDR program report",
+                "table": [
+                    {
+                        "name": "District wise Status"
+                    },
+                    {
+                        "name": "Block wise Status"
+                    }
+                ],
+                "title": "PDR program report",
+                "charts": [
+                    {
+                        "id": "Big_Number",
+                        "bigNumbers": [
+                            {
+                                "footer": " ",
+                                "header": "No. of users who joined program",
+                                "dataExpr": "No of users joining program"
+                            }
+                        ],
+                        "dataSource": {
+                            "ids": [
+                                "ml_no_of_users_joining_program_sl_pdr"
+                            ],
+                            "commonDimension": "Date"
+                        }
+                    }
+                ],
+                "dataSource": [
+                    {
+                        "id": "ml_no_of_users_joining_program_sl_pdr",
+                        "path": "/reports/fetch/hawk-eye/ml_no_of_users_joining_program_sl_pdr.json"
+                    }
+                ],
+                "description": "The reports provides the big no. for user who joined program",
+                "downloadUrl": "",
+                "report_type": "program_dashboard",
+                "report_status": "active",
+                "solution_type": "user_detail_report"
+            },
+            "slug": "hawk-eye",
+            "reportgenerateddate": "2023-05-17T00:00:00.000Z",
+            "reportduration": {
+                "enddate": "12-02-2020",
+                "startdate": "12-02-2020"
+            },
+            "tags": [
+                "1Bn"
+            ],
+            "updatefrequency": "DAILY",
+            "parameters": [],
+            "report_type": "report",
+            "accesspath": {
+                "role": [
+                    "PROGRAM_DESIGNER",
+                    "PROGRAM_MANAGER"
+                ]
+            }
+        }
+    }
+}

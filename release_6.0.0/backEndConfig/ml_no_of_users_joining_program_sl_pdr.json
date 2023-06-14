@@ -1,0 +1,153 @@
+{
+    "request": {
+        "reportId": "ml_no_of_users_joining_program_sl_pdr",
+        "config": {
+            "streamQuery": true,
+            "reportConfig": {
+                "id": "ml_no_of_users_joining_program_sl_pdr",
+                "mergeConfig": {
+                    "postContainer": "$postContainer",
+                    "container": "$container",
+                    "basePath": "/mount/data/analytics/tmp",
+                    "reportPath": "ml_no_of_users_joining_program_sl_pdr.csv",
+                    "rollup": 0
+                },
+                "labels": {
+                    "block_name": "Block name",
+                    "SUM(count_user)": "total_content_plays_on_portal",
+                    "program_id": "program_id",
+                    "legend": "No of users joining program",
+                    "district_id": "district_id",
+                    "total_content_plays_on_portal": "No of users joining program",
+                    "organisation_name": "Organisation name",
+                    "organisation_id": "organisation_id",
+                    "district_name": "District name",
+                    "block_id": "block_id",
+                    "program_name": "Program name",
+                    "state_name": "State name",
+                    "state_id": "state_id"
+                },
+                "dateRange": {
+                    "interval": {
+                        "startDate": "2023-05-01",
+                        "endDate": "2025-05-30"
+                    },
+                    "granularity": "all",
+                    "intervalSlider": 0
+                },
+                "metrics": [
+                    {
+                        "metric": "total_content_plays_on_portal",
+                        "label": "total_content_plays_on_portal",
+                        "druidQuery": {
+                            "dataSource": "ml-user-program",
+                            "limitSpec": {
+                                "type": "default",
+                                "limit": 10000,
+                                "columns": [
+                                    {
+                                        "dimension": "SUM(count_user)",
+                                        "direction": "descending"
+                                    }
+                                ]
+                            },
+                            "filters": [
+                                {
+                                    "dimension": "state_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "district_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "block_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "organisation_name",
+                                    "type": "isnotnull"
+                                }
+                            ],
+                            "granularity": "all",
+                            "dimensions": [
+                                {
+                                    "fieldName": "program_name",
+                                    "aliasName": "Program name"
+                                },
+                                {
+                                    "fieldName": "program_id",
+                                    "aliasName": "program_id"
+                                },
+                                {
+                                    "fieldName": "state_name",
+                                    "aliasName": "State name"
+                                },
+                                {
+                                    "fieldName": "state_id",
+                                    "aliasName": "state_id"
+                                },
+                                {
+                                    "fieldName": "district_name",
+                                    "aliasName": "District name"
+                                },
+                                {
+                                    "fieldName": "district_id",
+                                    "aliasName": "district_id"
+                                },
+                                {
+                                    "fieldName": "block_name",
+                                    "aliasName": "Block name"
+                                },
+                                {
+                                    "fieldName": "block_id",
+                                    "aliasName": "block_id"
+                                },
+                                {
+                                    "fieldName": "organisation_name",
+                                    "aliasName": "Organisation name"
+                                },
+                                {
+                                    "fieldName": "organisation_id",
+                                    "aliasName": "organisation_id"
+                                }
+                            ],
+                            "aggregations": [
+                                {
+                                    "fieldName": "count_user",
+                                    "type": "longSum",
+                                    "name": "total_content_plays_on_portal"
+                                }
+                            ],
+                            "postAggregations": [],
+                            "queryType": "groupBy"
+                        }
+                    }
+                ],
+                "output": [
+                    {
+                        "type": "csv",
+                        "metrics": [
+                            "total_content_plays_on_portal"
+                        ],
+                        "dims": [
+                            "date",
+                            "program_id"
+                        ],
+                        "fileParameters": [
+                            "id",
+                            "dims"
+                        ]
+                    }
+                ],
+                "queryType": "groupBy"
+            },
+            "container": "$container",
+            "store": "$store",
+            "key": "hawk-eye/"
+        },
+        "createdBy": "$createdBy",
+        "description": "No of users who joined program",
+        "reportSchedule": "DAILY"
+    }
+}

@@ -1,7 +1,7 @@
 {
     "request": {
         "report": {
-            "title": "Observation consumption Report",
+            "title": "Observation Consumption Report",
             "description": "This report will track the no. of observation consumption on the platform",
             "authorizedroles": [
                 "REPORT_ADMIN",
@@ -11,8 +11,8 @@
             "type": "public",
             "createdby": "$createdby",
             "reportconfig": {
-                "label": "Observation consumption Report",
-                "title": "Observation consumption Report",
+                "label": "Observation Consumption Report",
+                "title": "Observation Consumption Report",
                 "charts": [
                     {
                         "id": "Big_Number",
