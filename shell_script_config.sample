@@ -1,2 +1,4 @@
 mongo_url={{ ml_analytics_mongodb_url }}
 mongo_db_name={{ ml_analytics_mongo_db_name }}
+driver_memory_var={{ml_analytics_driver_memory_var}}
+executor_memory_var={{ml_analytics_executor_memory_var}}

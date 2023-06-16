@@ -142,6 +142,8 @@ project_success = {{ ml_analytics_project_log_folder_path }}/success.log
 
 project_error = {{ ml_analytics_project_log_folder_path }}/error.log
 
+project_success_error = {{ ml_analytics_project_log_folder_path }}/
+
 survey_evidence_streaming_success = {{ ml_analytics_survey_log_folder_path }}/evidence/success.log
 
 survey_evidence_streaming_error = {{ ml_analytics_survey_log_folder_path }}/evidence/error.log
