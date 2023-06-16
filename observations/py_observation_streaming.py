@@ -477,15 +477,24 @@ try:
                                   title.append(prj['title'])
                                   goal.append(prj['goal'])
                                   externalId.append(prj['externalId'])
-                                obj['imp_project_id'] = prj_id
-                                obj['imp_project_title'] = title
-                                obj['imp_project_goal'] = goal
-                                obj['imp_project_externalId'] = externalId
+                                try:
+                                  obj['imp_project_id'] = prj_id
+                                except KeyError:
+                                  obj['imp_project_id'] = []
+                                try:
+                                  obj['imp_project_title'] = title
+                                except KeyError:
+                                  obj['imp_project_title'] = []
+                                try :
+                                  obj['imp_project_goal'] = goal
+                                except KeyError:
+                                  obj['imp_project_goal'] = []
+                                try:
+                                  obj['imp_project_externalId'] = externalId
+                                except KeyError:
+                                  obj['imp_project_externalId'] = []
                               except KeyError:
-                                obj['imp_project_id'] = []
-                                obj['imp_project_title'] = []
-                                obj['imp_project_goal'] = []
-                                obj['imp_project_externalId'] = []
+                                pass
                           if type(obj['externalId']) != str:
                             for cri in criteriaCollec.find({'_id':ObjectId(str(obj['externalId']))}):
                               obj['externalId'] = cri['externalId']
