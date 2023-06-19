@@ -38,15 +38,18 @@ file_path_for_output_and_debug_log = config.get('LOGS', 'project_success_error')
 file_name_for_output_log = f"{file_path_for_output_and_debug_log}{formatted_current_date}-output.log"
 file_name_for_debug_log = f"{file_path_for_output_and_debug_log}{formatted_current_date}-debug.log"
 
-#add the Info loger
 formatter = logging.Formatter('%(asctime)s - %(levelname)s')
+
+# handler for debug Log
+debug_logHandler = RotatingFileHandler(f"{file_name_for_debug_log}")
+debug_logHandler.setFormatter(formatter)
+
+#add the Infologer
 infoLogger = logging.getLogger('info log')
 infoLogger.setLevel(logging.INFO)
-infoHandler = RotatingFileHandler(f"{file_name_for_debug_log}")
-infoBackuphandler = TimedRotatingFileHandler(f"{file_name_for_debug_log}",when="w0",backupCount=1)
-infoHandler.setFormatter(formatter)
-infoLogger.addHandler(infoHandler)
-infoLogger.addHandler(infoBackuphandler)
+debug_logBackuphandler = TimedRotatingFileHandler(f"{file_name_for_debug_log}",when="w0",backupCount=1)
+infoLogger.addHandler(debug_logHandler)
+infoLogger.addHandler(debug_logBackuphandler)
 
 
 clientProd = MongoClient(config.get('MONGO', 'url'))
