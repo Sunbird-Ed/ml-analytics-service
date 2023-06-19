@@ -2,12 +2,15 @@ import requests
 import os, json, sys
 from configparser import ConfigParser,ExtendedInterpolation
 
-sys.path.insert(0, '/opt/sparkjobs/ml-analytics-service/reports_automation/')
-from mongo_logging import insert_doc
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
-config.read(config_path[0] + "/report_config.ini")
+config.read("/opt/sparkjobs/ml-analytics-service/migrations/releases/report_config.ini")
+
+script_path = config.get("REPORTS_FILEPATH","script_path")
+sys.path.insert(0, script_path)
+
+from mongo_log import insert_doc
 
 base_url = config.get("API_ENDPOINTS","base_url")
 
@@ -52,7 +55,6 @@ def get_access_token():
          url_access = base_url + config.get("API_ENDPOINTS", "access_token")
          response_api = get_refresh_token()
          if response_api["status_code"] == 200:
-            print("Refresh API Success")
             headers_api["Authorization"] = config.get("API_HEADERS","authorization_access_token")
             access_payload = {
                   'refresh_token' : response_api["refresh_token"]
@@ -69,7 +71,6 @@ def get_access_token():
             return access_json
 
          else:
-            print("Refresh API Failed")
             return response_api
     except Exception as exception:
          doc = {"operation":"Access_token","errmsg": "Exception message {}".format(exception) + " " +format(type(exception).__name__), "status":"failed"}

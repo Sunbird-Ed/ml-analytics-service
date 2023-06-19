@@ -8,14 +8,13 @@ from datetime import datetime
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
-config.read(config_path[0] + "/report_config.ini")
+config.read("/opt/sparkjobs/ml-analytics-service/migrations/releases/report_config.ini")
 
 client = MongoClient(config.get('MONGO', 'url'))
 db = client[config.get('MONGO', 'database_name')]
 log_collec = db[config.get('MONGO', 'reports_log_collec')]
 
 curr_datetime = datetime.now()
-file_path = config.get("REPORTS_FILEPATH","base_path") + config.get("REPORTS_FILEPATH","folder_name") + "/"
 
 def insert_doc(doc,type):
     doc["createdAt"] = curr_datetime
