@@ -48,13 +48,6 @@ file_name_for_output_log = f"{file_path_for_output_and_debug_log}{formatted_curr
 file_name_for_debug_log = f"{file_path_for_output_and_debug_log}{formatted_current_date}-debug.log"
 
 # Remove old log entries 
-old_file_path_success = config.get('LOGS', 'observation_status_success')
-old_file_path_error = config.get('LOGS', 'observation_status_error')
-if os.path.isfile(old_file_path_success):
-    os.remove(old_file_path_success)
-if os.path.isfile(old_file_path_error):
-    os.remove(old_file_path_error)
-
 for file_name in os.listdir(file_path_for_output_and_debug_log):
     file_path = os.path.join(file_path_for_output_and_debug_log, file_name)
     if os.path.isfile(file_path):
@@ -64,32 +57,33 @@ for file_name in os.listdir(file_path_for_output_and_debug_log):
             os.remove(file_path)
 
 formatter = logging.Formatter('%(asctime)s - %(levelname)s')
+# handler for output log
+output_logHandler = RotatingFileHandler(f"{file_name_for_output_log}")
+output_logBackuphandler = TimedRotatingFileHandler(f"{file_name_for_output_log}", when="w0",backupCount=1)
+output_logHandler.setFormatter(formatter)
+
+#handler for debug log
+debug_logHandler = RotatingFileHandler(f"{file_name_for_debug_log}")
+debug_logBackuphandler = TimedRotatingFileHandler(f"{file_name_for_debug_log}",when="w0",backupCount=1)
+debug_logHandler.setFormatter(formatter)
+
 # Add the successLoger
 successLogger = logging.getLogger('success log')
 successLogger.setLevel(logging.DEBUG)
-successHandler = RotatingFileHandler(f"{file_name_for_output_log}")
-successBackuphandler = TimedRotatingFileHandler(f"{file_name_for_output_log}",when="w0",backupCount=1)
-successHandler.setFormatter(formatter)
-successLogger.addHandler(successHandler)
-successLogger.addHandler(successBackuphandler)
+successLogger.addHandler(output_logHandler)
+successLogger.addHandler(output_logBackuphandler)
 
 #add the Errorloger
 errorLogger = logging.getLogger('error log')
 errorLogger.setLevel(logging.ERROR)
-errorHandler = RotatingFileHandler(f"{file_name_for_output_log}")
-errorBackuphandler = TimedRotatingFileHandler(f"{file_name_for_output_log}",when="w0",backupCount=1)
-errorHandler.setFormatter(formatter)
-errorLogger.addHandler(errorHandler)
-errorLogger.addHandler(errorBackuphandler)
+errorLogger.addHandler(output_logHandler)
+successLogger.addHandler(output_logBackuphandler)
 
 #add the Infologer
 infoLogger = logging.getLogger('info log')
 infoLogger.setLevel(logging.INFO)
-infoHandler = RotatingFileHandler(f"{file_name_for_debug_log}")
-infoBackuphandler = TimedRotatingFileHandler(f"{file_name_for_debug_log}",when="w0",backupCount=1)
-infoHandler.setFormatter(formatter)
-infoLogger.addHandler(infoHandler)
-infoLogger.addHandler(infoBackuphandler)
+infoLogger.addHandler(debug_logHandler)
+infoLogger.addHandler(debug_logHandler)
 
 try:
    def removeduplicate(it):
