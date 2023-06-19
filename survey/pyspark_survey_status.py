@@ -20,16 +20,68 @@ from pyspark.sql.types import *
 from pyspark.sql import Row
 from collections import OrderedDict, Counter
 from typing import Iterable
-from slackclient import SlackClient
+# from slackclient import SlackClient
+import logging
+from datetime import date,time
+from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
-bot = SlackClient(config.get("SLACK","token"))
+# bot = SlackClient(config.get("SLACK","token"))
 
 sys.path.append(config.get("COMMON","cloud_module_path"))
 from cloud import MultiCloud
 cloud_init = MultiCloud()
+
+
+# date formating
+current_date = datetime.date.today()
+formatted_current_date = current_date.strftime("%d-%B-%Y")
+number_of_days_logs_kept = current_date - datetime.timedelta(days=7)
+number_of_days_logs_kept = number_of_days_logs_kept.strftime("%d-%B-%Y")
+
+# file path for log
+file_path_for_output_and_debug_log = config.get('LOGS', 'survey_status_success_error')
+file_name_for_output_log = f"{file_path_for_output_and_debug_log}{formatted_current_date}-output.log"
+file_name_for_debug_log = f"{file_path_for_output_and_debug_log}{formatted_current_date}-debug.log"
+
+for file_name in os.listdir(file_path_for_output_and_debug_log):
+    file_path = os.path.join(file_path_for_output_and_debug_log, file_name)
+    if os.path.isfile(file_path):
+        file_date = file_name.split('.')[0]
+        date = file_date.split('-')[0] + '-' + file_date.split('-')[1] + '-' + file_date.split('-')[2]
+        if date < number_of_days_logs_kept:
+            os.remove(file_path)
+
+formatter = logging.Formatter('%(asctime)s - %(levelname)s')
+# Handles logs for success
+successLogger = logging.getLogger('success log')
+successLogger.setLevel(logging.DEBUG)
+successHandler = RotatingFileHandler(f"{file_name_for_output_log}")
+successBackuphandler = TimedRotatingFileHandler(f"{file_name_for_output_log}",when="w0",backupCount=1)
+successHandler.setFormatter(formatter)
+successLogger.addHandler(successHandler)
+successLogger.addHandler(successBackuphandler)
+
+# Handles logs for errors
+errorLogger = logging.getLogger('error log')
+errorLogger.setLevel(logging.ERROR)
+errorHandler = logging.handlers.RotatingFileHandler(f"{file_name_for_output_log}")
+errorBackuphandler = TimedRotatingFileHandler(f"{file_name_for_output_log}",when="w0",backupCount=1)
+errorHandler.setFormatter(formatter)
+errorLogger.addHandler(errorHandler)
+errorLogger.addHandler(errorBackuphandler)
+
+#add the Infologer
+infoLogger = logging.getLogger('info log')
+infoLogger.setLevel(logging.INFO)
+infoHandler = RotatingFileHandler(f"{file_name_for_debug_log}")
+infoBackuphandler = TimedRotatingFileHandler(f"{file_name_for_debug_log}",when="w0",backupCount=1)
+infoHandler.setFormatter(formatter)
+infoLogger.addHandler(infoHandler)
+infoLogger.addHandler(infoBackuphandler)
+
 
 orgSchema = ArrayType(StructType([
     StructField("orgId", StringType(), False),
@@ -65,7 +117,9 @@ try:
 except Exception as e:
    print(e)
 
-bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"*********** Survey Batch Ingestion STARTED AT: {datetime.datetime.now()} ***********\n")
+# bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"*********** Survey Batch Ingestion STARTED AT: {datetime.datetime.now()} ***********\n")
+infoLogger.info(f"*********** Survey Batch Ingestion STARTED AT: {datetime.datetime.now()} ***********\n")
+
 clientProd = MongoClient(config.get('MONGO', 'url'))
 db = clientProd[config.get('MONGO', 'database_name')]
 surveySubCollec = db[config.get('MONGO', 'survey_submissions_collection')]
@@ -361,7 +415,9 @@ for i,j in zip(datasources,ingestion_specs):
    druid_end_point = config.get("DRUID", "metadata_url") + i
    get_timestamp = requests.get(druid_end_point, headers=headers)
    if get_timestamp.status_code == 200 :
-      bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Fetched Timestamp of {i} | Waiting for 50s")
+      # bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Fetched Timestamp of {i} | Waiting for 50s")
+      infoLogger.info(f"Fetched Timestamp of {i} | Waiting for 50s")
+
       timestamp = get_timestamp.json()
       #calculating interval from druid get api 
       minTime = timestamp["segments"]["minTime"]
@@ -380,38 +436,48 @@ for i,j in zip(datasources,ingestion_specs):
 
       disable_datasource = requests.delete(druid_end_point, headers=headers)
       if disable_datasource.status_code == 200:
-         bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Disabled the datasource of {i} | Waiting for 50s")
+         # bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Disabled the datasource of {i} | Waiting for 50s")
+         infoLogger.info(f"Disabled the datasource of {i} | Waiting for 50s")
          time.sleep(300)
 
          delete_segments = requests.delete(
             druid_end_point + "/intervals/" + interval, headers=headers
          )
          if delete_segments.status_code == 200:
-            bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Deleted the segments for {i}")
+            # bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Deleted the segments for {i}")
+            infoLogger.info(f"Deleted the segments for {i}")
             time.sleep(300)
 
             enable_datasource = requests.get(druid_end_point, headers=headers)
             if enable_datasource.status_code == 204 or enable_datasource.status_code == 200:
-               bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Enabled the datasource for {i}")
+               # bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Enabled the datasource for {i}")
+               infoLogger.info(f"Enabled the datasource for {i}")
                time.sleep(600)
 
                start_supervisor = requests.post(druid_batch_end_point, data=j, headers=headers)
                if start_supervisor.status_code == 200:
-                  bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Succesfully ingested the data in {i}")
+                  # bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Succesfully ingested the data in {i}")
+                  infoLogger.info(f"Succesfully ingested the data in {i}")
                   time.sleep(50)
                else:
-                  bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Failed to ingested the data in {i}")
+                  infoLogger.info(f"Failed to ingested the data in {i}")
+                  # bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Failed to ingested the data in {i}")
             else:
-                bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Failed to enable {i} | Error: {enable_datasource.status_code}")
+                infoLogger.info(f"Failed to enable {i} | Error: {enable_datasource.status_code}")
+               #  bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Failed to enable {i} | Error: {enable_datasource.status_code}")
          else:
-             bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"failed to delete the {i}")
+             infoLogger.info(f"failed to delete the {i}")
+            #  bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"failed to delete the {i}")
       else:
-            bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"failed to disable the {i}")
+            infoLogger.info(f"failed to disable the {i}")
+            # bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"failed to disable the {i}")
 
    elif get_timestamp.status_code == 204:
       start_supervisor = requests.post(druid_batch_end_point, data=j, headers=headers)
       if start_supervisor.status_code == 200:
          time.sleep(50)
       else:
-         bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Failed to start batch ingestion task in {i}")
-bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"*********** Survey Batch Ingestion COMPLETED AT: {datetime.datetime.now()} ***********\n")	
+         infoLogger.info(f"Failed to start batch ingestion task in {i}")
+         # bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Failed to start batch ingestion task in {i}")
+# bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"*********** Survey Batch Ingestion COMPLETED AT: {datetime.datetime.now()} ***********\n")	
+infoLogger.info(f"*********** Survey Batch Ingestion COMPLETED AT: {datetime.datetime.now()} ***********\n")

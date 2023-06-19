@@ -21,25 +21,61 @@ config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
 
+# date formating
+current_date = datetime.date.today()
+formatted_current_date = current_date.strftime("%d-%B-%Y")
+number_of_days_logs_kept = current_date - datetime.timedelta(days=7)
+number_of_days_logs_kept = number_of_days_logs_kept.strftime("%d-%B-%Y")
+
+# file path for log
+file_path_for_output_and_debug_log = config.get('LOGS', 'observation_streaming_success_error')
+file_name_for_output_log = f"{file_path_for_output_and_debug_log}{formatted_current_date}-output.log"
+file_name_for_debug_log = f"{file_path_for_output_and_debug_log}{formatted_current_date}-debug.log"
+
+# Remove old log entries 
+old_file_path_success = config.get('LOGS', 'observation_streaming_success')
+old_file_path_error = config.get('LOGS', 'observation_streaming_error')
+if os.path.isfile(old_file_path_success):
+    os.remove(old_file_path_success)
+if os.path.isfile(old_file_path_error):
+    os.remove(old_file_path_error)
+
+for file_name in os.listdir(file_path_for_output_and_debug_log):
+    file_path = os.path.join(file_path_for_output_and_debug_log, file_name)
+    if os.path.isfile(file_path):
+        file_date = file_name.split('.')[0]
+        date = file_date.split('-')[0] + '-' + file_date.split('-')[1] + '-' + file_date.split('-')[2]
+        if date < number_of_days_logs_kept:
+            os.remove(file_path)
+
 formatter = logging.Formatter('%(asctime)s - %(levelname)s')
 
+# Add the successLoger
 successLogger = logging.getLogger('success log')
 successLogger.setLevel(logging.DEBUG)
-
-# Add the log message handler to the logger
-successHandler = logging.handlers.RotatingFileHandler(config.get('LOGS', 'observation_streaming_success'))
-successBackuphandler = TimedRotatingFileHandler(config.get('LOGS', 'observation_streaming_success'),when="w0",backupCount=1)
+successHandler = logging.handlers.RotatingFileHandler(f"{file_name_for_output_log}")
+successBackuphandler = TimedRotatingFileHandler(f"{file_name_for_output_log}",when="w0",backupCount=1)
 successHandler.setFormatter(formatter)
 successLogger.addHandler(successHandler)
 successLogger.addHandler(successBackuphandler)
 
+#add the Errorloger
 errorLogger = logging.getLogger('error log')
 errorLogger.setLevel(logging.ERROR)
-errorHandler = logging.handlers.RotatingFileHandler(config.get('LOGS', 'observation_streaming_error'))
-errorBackuphandler = TimedRotatingFileHandler(config.get('LOGS', 'observation_streaming_error'),when="w0",backupCount=1)
+errorHandler = logging.handlers.RotatingFileHandler(f"{file_name_for_output_log}")
+errorBackuphandler = TimedRotatingFileHandler(f"{file_name_for_output_log}",when="w0",backupCount=1)
 errorHandler.setFormatter(formatter)
 errorLogger.addHandler(errorHandler)
 errorLogger.addHandler(errorBackuphandler)
+
+#add the Infologer
+infoLogger = logging.getLogger('info log')
+infoLogger.setLevel(logging.INFO)
+infoHandler = RotatingFileHandler(f"{file_name_for_debug_log}")
+infoBackuphandler = TimedRotatingFileHandler(f"{file_name_for_debug_log}",when="w0",backupCount=1)
+infoHandler.setFormatter(formatter)
+infoLogger.addHandler(infoHandler)
+infoLogger.addHandler(infoBackuphandler)
 
 domArr = []
 
