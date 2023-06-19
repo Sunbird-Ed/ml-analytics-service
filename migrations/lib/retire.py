@@ -80,7 +80,7 @@ def frontend_retire(access_token,tag):
     insert_doc(doc,typeErr)
 
 
-# hit the api to retire the backend reports 
+# hit the api to retire the backend reports
 def backend_retire(reportId):
     doc = {
                 "reportId" : reportId,

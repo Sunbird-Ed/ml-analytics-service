@@ -2,15 +2,15 @@ import requests
 import os, json, sys
 from configparser import ConfigParser,ExtendedInterpolation
 
-
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
-config.read("/opt/sparkjobs/ml-analytics-service/migrations/releases/report_config.ini")
+config.read("/opt/sparkjobs/ml-analytics-service/config.ini")
 
 script_path = config.get("REPORTS_FILEPATH","script_path")
 sys.path.insert(0, script_path)
 
 from mongo_log import insert_doc
+import constants
 
 base_url = config.get("API_ENDPOINTS","base_url")
 
@@ -54,7 +54,7 @@ def get_access_token():
     try :
          url_access = base_url + config.get("API_ENDPOINTS", "access_token")
          response_api = get_refresh_token()
-         if response_api["status_code"] == 200:
+         if response_api["status_code"] == constants.success_code:
             headers_api["Authorization"] = config.get("API_HEADERS","authorization_access_token")
             access_payload = {
                   'refresh_token' : response_api["refresh_token"]

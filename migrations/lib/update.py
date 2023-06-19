@@ -153,4 +153,3 @@ def frontend_update(access_token,file_name):
 
     insert_doc(doc,typeErr)
     
-

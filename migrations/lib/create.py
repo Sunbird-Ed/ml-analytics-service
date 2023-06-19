@@ -5,12 +5,13 @@ from configparser import ConfigParser,ExtendedInterpolation
 # Read the Config
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
-config.read("/opt/sparkjobs/ml-analytics-service/migrations/releases/report_config.ini")
+config.read("/opt/sparkjobs/ml-analytics-service/config.ini")
 
 script_path = config.get("REPORTS_FILEPATH","script_path")
 sys.path.insert(0, script_path)
 
 from mongo_log import *
+import constants
 
 # Required field gathering for API
 base_url = config.get("API_ENDPOINTS","base_url")
@@ -20,11 +21,9 @@ headers_api = {
     }
 
 
-
 # Creation of chart using Json config making an API call
 def backend_create(file_name):
      doc = {
-            "config_file_name" : file_name,
              "operation": "backend_create"
             }
      try :
@@ -39,11 +38,12 @@ def backend_create(file_name):
             json_config["request"]["config"]["reportConfig"]["mergeConfig"]["postContainer"] = config.get("JSON_VARIABLE","container")
             json_config["request"]["config"]["reportConfig"]["mergeConfig"]["container"] = config.get("JSON_VARIABLE","container")
 
+        doc["config_file_name"] = file_path
         doc["config"] = json.dumps(json_config)
         doc["report_id"] = json_config["request"]["reportId"]
         doc["report_title"] = json_config["request"]["config"]["reportConfig"]["id"]
 
-        value_check = query_mongo(file_name,json_config,"backendConfig")
+        value_check = query_mongo(file_path,json_config)
         if value_check == "create":
           #Api call
           response_api = requests.post(
@@ -53,7 +53,7 @@ def backend_create(file_name):
             )
 
           # Based on status concluding logging the output
-          if response_api.status_code == 200:
+          if response_api.status_code == constants.success_code:
                 doc["api_response"] = response_api.json()
                 response_type = "crud"
 
@@ -77,7 +77,6 @@ def backend_create(file_name):
 # Creation of report using Json config making an API call
 def frontend_create(access_token,file_name):
      doc = {
-            "configFileName" : file_name,
             "operation": "frontend_create"
             }
      try :
@@ -88,11 +87,11 @@ def frontend_create(access_token,file_name):
                  json_config = json.load(data_file)
                  json_config["request"]["report"]["createdby"] = config.get("JSON_VARIABLE","createdBy")
 
-
+        doc["config_file_name"] = file_path
         doc["config"] = json.dumps(json_config)
         doc["report_title"] = json_config["request"]["report"]["title"]
 
-        value_check = query_mongo(file_name,json_config,"frontendConfig")
+        value_check = query_mongo(file_path,json_config)
         if value_check == "create":
 
           #Api call
@@ -104,7 +103,7 @@ def frontend_create(access_token,file_name):
 
 
           # Based on status concluding the logging output
-          if response_api.status_code == 200 or response_api.status_code == 201:
+          if response_api.status_code == constants.success_code or response_api.status_code == constants.success_code1:
               response_data = response_api.json()
               doc["report_id"] = response_data["result"]["reportId"]
               response_type = "crud"
@@ -125,5 +124,4 @@ def frontend_create(access_token,file_name):
             response_type = "exception"
 
      insert_doc(doc,response_type)
-
 
