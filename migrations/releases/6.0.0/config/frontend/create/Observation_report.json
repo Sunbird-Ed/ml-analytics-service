@@ -1,7 +1,7 @@
 {
     "request": {
         "report": {
-            "title": "Observation reports",
+            "title": "Observation report",
             "description": "The report provides the operation charts for Observation without rubric form",
             "authorizedroles": [
                 "REPORT_ADMIN",
@@ -12,7 +12,7 @@
             "createdby": "$createdby",
             "reportconfig": {
                 "files": [],
-                "label": "Observation reports",
+                "label": "Observation report",
                 "table": [
                     {
                         "id": "ml_district_wise_observation_status_and_entities_observed_sl",
@@ -206,7 +206,7 @@
                         "downloadUrl": "/reports/fetch/$slug/ml_block_wise_observation_status_and_entities_observed_sl.csv"
                     }
                 ],
-                "title": "Observation reports",
+                "title": "Observation report",
                 "charts": [
                     {
                         "id": "Big_Number",
@@ -661,7 +661,7 @@
                 "startdate": "12-02-2020"
             },
             "tags": [
-                "1Bn"
+                "Observation_report"
             ],
             "updatefrequency": "DAILY",
             "parameters": [
