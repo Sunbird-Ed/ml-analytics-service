@@ -13,23 +13,22 @@ from get_token import *
 from create import *
 import constants
 
-
 access_token = None
 response_api = get_access_token()
 if response_api["status_code"] == constants.success_code:
    access_token = response_api["result"]["access_token"]
 
-backend_create_files = os.listdir(config.get("REPORTS_FILEPATH","folder_config") + "backend/create/")
+base_path = os.getcwd()
+backend_create_files = os.listdir( base_path + "/config/backend/create/")
 
-frontend_create_files = os.listdir(config.get("REPORTS_FILEPATH","folder_config") + "frontend/create")
-
+frontend_create_files = os.listdir(base_path + "/config/frontend/create")
 
 #calling create function for chart creation
 for file in backend_create_files:
-  backend_create(file)
+  backend_create(file,base_path)
 
 #calling create function for report creation
 if (access_token!= None):
     for file in frontend_create_files:
-      frontend_create(access_token,file)
+      frontend_create(access_token,file,base_path)
 

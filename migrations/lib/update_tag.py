@@ -20,7 +20,7 @@ if response_api["status_code"] == constants.success_code:
 # Required field gathering for API
 base_url = config.get("API_ENDPOINTS","base_url")
 headers_api = {
-        'Content-Type': config.get("API_HEADERS", "content_type"),
+        'Content-Type': constants.content_type,
         'Authorization' : config.get("API_HEADERS","authorization_access_token"),
         'x-authenticated-user-token' : access_token
     }
@@ -32,7 +32,7 @@ def get_report(report_ids):
            }
    try :
          for id in report_ids:
-            url_frontend_get = base_url + config.get("API_ENDPOINTS","frontend_get") + id
+            url_frontend_get = base_url + constants.frontend_get + id
             response_api = requests.get(
                              url_frontend_get,
                              headers=headers_api
@@ -69,7 +69,7 @@ def update_report(json_config,id):
        del json_config[key]
     try :
         headers_api["x-authenticated-user-token"] = access_token
-        url_frontend_update = base_url + config.get("API_ENDPOINTS","frontend_update") + id
+        url_frontend_update = base_url + constants.frontend_update + id
         doc["config"] : json.dumps(json_config)
         update_config["request"]["report"] =  json_config
         update_config["request"]["report"]["tags"] =  [tag]

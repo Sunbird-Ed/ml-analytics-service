@@ -15,14 +15,14 @@ import constants
 base_url = config.get("API_ENDPOINTS","base_url")
 
 headers_api = {
-        'Content-Type': config.get("API_HEADERS", "content_type_url")
+        'Content-Type': constants.content_type_url
     }
 
 
 def get_refresh_token():
     try:
         response_json = {}
-        url_refresh = base_url + config.get("API_ENDPOINTS", "refresh_token")
+        url_refresh = base_url + constants.refresh_token
 
         refresh_payload = {
             'client_id': config.get("API_CREDENTIALS", "client_id"),
@@ -52,7 +52,7 @@ def get_refresh_token():
 
 def get_access_token():
     try :
-         url_access = base_url + config.get("API_ENDPOINTS", "access_token")
+         url_access = base_url + constants.access_token
          response_api = get_refresh_token()
          if response_api["status_code"] == constants.success_code:
             headers_api["Authorization"] = config.get("API_HEADERS","authorization_access_token")

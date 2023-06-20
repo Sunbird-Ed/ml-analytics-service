@@ -3,7 +3,6 @@ from bson.objectid import ObjectId
 import os, json, sys
 from configparser import ConfigParser,ExtendedInterpolation
 from datetime import datetime
-import constants
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
@@ -18,7 +17,6 @@ curr_datetime = datetime.now()
 def insert_doc(doc,type):
     doc["createdAt"] = curr_datetime
     doc["updatedAt"] = curr_datetime
-    doc["release"] = config.get("REPORTS_FILEPATH","folder_name")
 
     if type == "crud":
        doc["status"] = "Success"

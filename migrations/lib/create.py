@@ -16,19 +16,19 @@ import constants
 # Required field gathering for API
 base_url = config.get("API_ENDPOINTS","base_url")
 headers_api = {
-        'Content-Type': config.get("API_HEADERS", "content_type"),
+        'Content-Type': constants.content_type,
         'Authorization' : config.get("API_HEADERS","authorization_access_token")
     }
 
 
 # Creation of chart using Json config making an API call
-def backend_create(file_name):
+def backend_create(file_name,base_path):
      doc = {
              "operation": "backend_create"
             }
      try :
-        url_backend_create = base_url + config.get("API_ENDPOINTS","backend_create")
-        file_path = config.get("REPORTS_FILEPATH","folder_config") + "backend/create/" + file_name
+        url_backend_create = base_url + constants.backend_create
+        file_path = base_path + "/config/backend/create/" + file_name
         with open(file_path) as data_file:
             json_config = json.load(data_file)
             json_config["request"]["createdBy"] = config.get("JSON_VARIABLE","createdBy")
@@ -40,6 +40,7 @@ def backend_create(file_name):
 
         doc["config_file_name"] = file_path
         doc["config"] = json.dumps(json_config)
+        doc["release"] = base_path
         doc["report_id"] = json_config["request"]["reportId"]
         doc["report_title"] = json_config["request"]["config"]["reportConfig"]["id"]
 
@@ -75,20 +76,21 @@ def backend_create(file_name):
      insert_doc(doc,response_type)
 
 # Creation of report using Json config making an API call
-def frontend_create(access_token,file_name):
+def frontend_create(access_token,file_name,base_path):
      doc = {
             "operation": "frontend_create"
             }
      try :
         headers_api["x-authenticated-user-token"] = access_token
-        url_frontend_create = base_url + config.get("API_ENDPOINTS","frontend_create")
-        file_path = config.get("REPORTS_FILEPATH","folder_config") + "frontend/create/" + file_name
+        url_frontend_create = base_url + constants.frontend_create
+        file_path = base_path + "/config/frontend/create/" + file_name
         with open(file_path) as data_file:
                  json_config = json.load(data_file)
                  json_config["request"]["report"]["createdby"] = config.get("JSON_VARIABLE","createdBy")
 
         doc["config_file_name"] = file_path
         doc["config"] = json.dumps(json_config)
+        doc["release"] = base_path
         doc["report_title"] = json_config["request"]["report"]["title"]
 
         value_check = query_mongo(file_path,json_config)
