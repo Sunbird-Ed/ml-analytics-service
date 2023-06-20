@@ -20,13 +20,19 @@ response_api = get_access_token()
 if response_api["status_code"] == constants.success_code:
    access_token = response_api["result"]["access_token"]
 
+
 base_path = os.getcwd()
+
 backend_create_files = os.listdir( base_path + "/config/backend/create/")
 frontend_create_files = os.listdir(base_path + "/config/frontend/create")
 
+backend_update_files = os.listdir( base_path + "/config/backend/update/")
+frontend_update_files = os.listdir(base_path + "/config/frontend/update/")
+
+
 # json file for retire 
-backend_retire_reports = os.listdir(base_path + "/config/backend/retire/reports.json")
-frontend_retire_reports = os.listdir(base_path + "/config/frontend/retire/reports.json")
+backend_retire_reports = os.path.join(base_path , "config/backend/retire/reports.json")
+frontend_retire_reports = os.path.join(base_path , "config/frontend/retire/reports.json")
 
 
 # load data from json file 

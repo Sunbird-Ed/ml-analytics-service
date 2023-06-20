@@ -2,6 +2,7 @@ import requests
 import os, json,sys,csv,json
 from configparser import ConfigParser,ExtendedInterpolation
 from update import fetchAllReports
+import constants
 
 # Read the Config
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
@@ -16,7 +17,7 @@ from mongo_log import *
 # Required field gathering for API
 base_url = config.get("API_ENDPOINTS","base_url")
 headers_api = {
-        'Content-Type': config.get("API_HEADERS", "content_type"),
+        'Content-Type': constants.content_type,
         'Authorization' : config.get("API_HEADERS","authorization_access_token")
     }
 
@@ -35,7 +36,7 @@ def frontend_retire(access_token,tag):
     headers_api["x-authenticated-user-token"] = access_token
 
     try:
-        url_frontend_retire = base_url + config.get("API_ENDPOINTS","frontend_retire") + str(reportsLookUp[tag])
+        url_frontend_retire = base_url + constants.frontend_retire + str(reportsLookUp[tag])
         response_api = requests.delete(
                    url_frontend_retire,
                    headers=headers_api
@@ -43,7 +44,7 @@ def frontend_retire(access_token,tag):
     
         doc["reportId"] = str(reportsLookUp[tag])
 
-        if response_api.status_code == 200:
+        if response_api.status_code == constants.success_code:
             typeErr = "crud"
         else:
             doc["errmsg"] = str(response_api.status_code)  + response_api.text
@@ -64,13 +65,13 @@ def backend_retire(reportId):
             }
     
     try:
-        url_backend_retire = base_url + config.get("API_ENDPOINTS","backend_retire") + str(reportId)
+        url_backend_retire = base_url + constants.backend_retire + str(reportId)
         response_api = requests.patch(
                    url_backend_retire,
                    headers=headers_api
                 )
     
-        if response_api.status_code == 200:
+        if response_api.status_code == constants.success_code:
             typeErr = "crud"
         else:
             doc["errmsg"] = str(response_api.status_code)  + response_api.text
