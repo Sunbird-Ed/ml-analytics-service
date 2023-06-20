@@ -50,8 +50,7 @@ def fetchAllReports():
            response_data = response_api.json()
            response_data = response_data['result']['reports']
            for eachReports in range(len(response_data)):
-               returnValue[response_data[eachReports]['title'].replace(" ","_")] = response_data[eachReports]['reportid']
-            #    returnValue[response_data[eachReports]['tags'][0]] = response_data[eachReports]['reportid']
+               returnValue[response_data[eachReports]['tags'][0]] = response_data[eachReports]['reportid']
         else:
             doc["errmsg"] = "Status Code : " + str(response_api.status_code) + " , Error Message : " + str(response_api.text)
             typeErr = "error"    
