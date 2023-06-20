@@ -170,3 +170,26 @@ def frontend_update(access_token,file_name,base_path,reportJson=False,reportId=F
     insert_doc(docUpdate,typeErr)
 
     
+
+
+def frontend_update_with_reportId(access_token,reportJson,reportId):
+    headers_api["x-authenticated-user-token"] = access_token
+    
+    url_frontend_update = base_url + constants.frontend_update + str(reportId)
+    doc = {
+                  "reportId" : reportId,
+                  "config" : json.dumps(reportJson),
+                  "operation": "frontend_status_update"
+            }
+    response_api = requests.patch(
+                   url_frontend_update,
+                   data= json.dumps(reportJson),
+                   headers=headers_api
+                )
+    if response_api.status_code == constants.success_code:
+        typeErr = "crud"
+    else:
+        doc["errmsg"] = str(response_api.status_code)  + response_api.text
+        typeErr = "error"
+        
+    insert_doc(doc,typeErr)

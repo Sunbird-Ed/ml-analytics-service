@@ -9,6 +9,9 @@ config.read(root_path + "config.ini")
 
 sys.path.insert(0, root_path + "migrations/lib")
 
+script_path = config.get("REPORTS_FILEPATH","script_path")
+sys.path.insert(0, script_path)
+
 from mongo_log import *
 import constants
 from update import backend_update,frontend_update
