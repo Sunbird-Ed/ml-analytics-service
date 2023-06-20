@@ -4,9 +4,9 @@ import os, json, sys
 from configparser import ConfigParser,ExtendedInterpolation
 from datetime import datetime
 
-config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
+root_path = "/opt/sparkjobs/ml-analytics-service/"
 config = ConfigParser(interpolation=ExtendedInterpolation())
-config.read("/opt/sparkjobs/ml-analytics-service/config.ini")
+config.read(root_path + "config.ini")
 
 client = MongoClient(config.get('MONGO', 'url'))
 db = client[config.get('MONGO', 'database_name')]

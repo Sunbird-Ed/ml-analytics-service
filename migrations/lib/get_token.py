@@ -2,12 +2,11 @@ import requests
 import os, json, sys
 from configparser import ConfigParser,ExtendedInterpolation
 
-config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
+root_path = "/opt/sparkjobs/ml-analytics-service/"
 config = ConfigParser(interpolation=ExtendedInterpolation())
-config.read("/opt/sparkjobs/ml-analytics-service/config.ini")
+config.read(root_path + "config.ini")
 
-script_path = config.get("REPORTS_FILEPATH","script_path")
-sys.path.insert(0, script_path)
+sys.path.insert(0, root_path + "migrations/lib")
 
 from mongo_log import insert_doc
 import constants
@@ -27,7 +26,7 @@ def get_refresh_token():
         refresh_payload = {
             'client_id': config.get("API_CREDENTIALS", "client_id"),
             'client_secret': config.get("API_CREDENTIALS", "client_secret"),
-            'grant_type': config.get("API_CREDENTIALS", "grant_type"),
+            'grant_type': "password",
             'username': config.get("API_CREDENTIALS", "username"),
             'password': config.get("API_CREDENTIALS", "password")
         }

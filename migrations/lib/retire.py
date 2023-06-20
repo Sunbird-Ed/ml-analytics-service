@@ -5,12 +5,12 @@ from update import fetchAllReports
 import constants
 
 # Read the Config
-config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
+root_path = "/opt/sparkjobs/ml-analytics-service/"
 config = ConfigParser(interpolation=ExtendedInterpolation())
-config.read("/opt/sparkjobs/ml-analytics-service/migrations/releases/report_config.ini")
+config.read(root_path + "config.ini")
 
-script_path = config.get("REPORTS_FILEPATH","script_path")
-sys.path.insert(0, script_path)
+sys.path.insert(0, root_path + "migrations/lib")
+
 from mongo_log import *
 
 # Required field gathering for API
