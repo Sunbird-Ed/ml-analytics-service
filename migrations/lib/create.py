@@ -130,4 +130,3 @@ def frontend_create(access_token,file_name,base_path):
             response_type = "exception"
 
      insert_doc(doc,response_type)
-

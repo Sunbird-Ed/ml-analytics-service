@@ -9,7 +9,6 @@ config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read("/opt/sparkjobs/ml-analytics-service/migrations/releases/report_config.ini")
 
-
 script_path = config.get("REPORTS_FILEPATH","script_path")
 sys.path.insert(0, script_path)
 from mongo_log import *

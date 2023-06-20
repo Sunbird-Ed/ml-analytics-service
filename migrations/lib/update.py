@@ -155,8 +155,7 @@ def frontend_update(access_token,file_name):
         doc["errmsg"] = "Exception message {}: {}".format(type(exception).__name__, exception)
         typeErr = "exception"
 
-    insert_doc(doc,typeErr)
-    
+    insert_doc(doc,typeErr)   
 
 
 def frontend_update_with_reportId(access_token,reportJson,reportId):
