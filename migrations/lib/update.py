@@ -20,7 +20,6 @@ headers_api = {
         'Authorization' : config.get("API_HEADERS","authorization_access_token")
     }
 
-folder_path = config.get("REPORTS_FILEPATH","folder_config")
 
 reportsLookUp = {}
 
@@ -63,7 +62,7 @@ def fetchAllReports():
 
 
 # Update chart using Json config making an API call
-def backend_update(file_name):
+def backend_update(file_name,base_path):
     doc = {}
     try :
 
@@ -71,8 +70,9 @@ def backend_update(file_name):
         fileName_without_extension = file_name.split(".json")[0]
 
         url_backend_update = base_url + constants.backend_update + str(fileName_without_extension)
-        file_path = folder_path + "backend/update/" + file_name
-        
+        file_path = base_path + "/config/backend/update/" + file_name
+
+    
         with open(file_path) as data_file:
             json_config = json.load(data_file)
             json_config["request"]["createdBy"] = config.get("JSON_VARIABLE","createdBy")
@@ -106,7 +106,7 @@ def backend_update(file_name):
     
 
 # Creation of report using Json config making an API call
-def frontend_update(access_token,file_name):
+def frontend_update(access_token,file_name,base_path):
     doc = {}
     try :
         reportsLookUp = fetchAllReports()
@@ -117,7 +117,7 @@ def frontend_update(access_token,file_name):
         headers_api["x-authenticated-user-token"] = access_token
         
         url_frontend_update = base_url + constants.frontend_update + str(reportsLookUp[fileName_without_extension])
-        file_path = folder_path + "frontend/update/" + file_name
+        file_path = base_path + "/config/frontend/update/" + file_name
         
         with open(file_path) as data_file:
                  json_config = json.load(data_file)

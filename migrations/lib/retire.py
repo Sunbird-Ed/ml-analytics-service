@@ -20,8 +20,6 @@ headers_api = {
         'Authorization' : config.get("API_HEADERS","authorization_access_token")
     }
 
-folder_path = config.get("REPORTS_FILEPATH","folder_config")
-
 
 # hit the api to retire the frontend reports 
 def frontend_retire(access_token,tag):
