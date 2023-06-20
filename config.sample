@@ -224,13 +224,6 @@ survey_druid_data = {{ml_analytics_survey_batchupdate_output_dir}}
 program_text_file = {{ml_analytics_project_program}}
 
 
-[SLACK]
-
-token = {{ml_slack_token}}
-
-channel = {{ml_slack_channel}}
-
-
 [VAM]
 
 druid_query_url = {{ ml_druid_query_data }}

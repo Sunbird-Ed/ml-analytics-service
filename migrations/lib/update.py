@@ -3,9 +3,6 @@ import os, json,sys
 from configparser import ConfigParser,ExtendedInterpolation
 
 
-typeErr = ""
-doc = {}
-
 # Read the Config
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
@@ -28,7 +25,6 @@ reportsLookUp = {}
 
 # Fetch all reports list and return tag and id 
 def fetchAllReports():
-    global reportsLookUp
     doc = {
             "operation": "fetch_all_reports"
         }
@@ -49,16 +45,21 @@ def fetchAllReports():
         
         # Based on status concluding logging the output
         if response_api.status_code == 200:
+           typeErr = "crud"
            response_data = response_api.json()
            response_data = response_data['result']['reports']
            for eachReports in range(len(response_data)):
-               returnValue[response_data[eachReports]['tags'][0]] = response_data[eachReports]['reportid']
+               returnValue[response_data[eachReports]['title'].replace(" ","_")] = response_data[eachReports]['reportid']
+            #    returnValue[response_data[eachReports]['tags'][0]] = response_data[eachReports]['reportid']
+        else:
+            doc["errmsg"] = "Status Code : " + str(response_api.status_code) + " , Error Message : " + str(response_api.text)
+            typeErr = "error"    
             
-        return returnValue
-               
-       
+        return returnValue    
     except Exception as exception :
         doc["errmsg"] = "Exception message {}: {}".format(type(exception).__name__, exception)
+        typeErr = "exception"
+    insert_doc(doc,typeErr)
 
 
 # Update chart using Json config making an API call
@@ -111,33 +112,36 @@ def frontend_update(access_token,file_name):
     try :
         reportsLookUp = fetchAllReports()
 
-        print(file_name)
-        print(reportsLookUp)
         # remove .json from filename
-        fileName_without_extension = file_name.split(".json")[0].lower()
+        fileName_without_extension = file_name.split(".json")[0]
         
-
         headers_api["x-authenticated-user-token"] = access_token
+    
         url_frontend_update = base_url + config.get("API_ENDPOINTS","frontend_update") + str(reportsLookUp[fileName_without_extension])
-
         file_path = folder_path + "frontend/update/" + file_name
+        
         with open(file_path) as data_file:
                  json_config = json.load(data_file)
-                 json_config["request"]["report"]["createdby"] = config.get("JSON_VARIABLE","createdBy")
-
+                 json_config.update({
+                     "request" : {
+                         "report" : {
+                             "createdby" : config.get("JSON_VARIABLE","createdBy")
+                         }
+                     }
+                 })
+                #  json_config["request"]["report"]["createdby"] = config.get("JSON_VARIABLE","createdBy")
         doc = {
                   "configFileName" : file_name,
                   "config" : json.dumps(json_config),
                   "operation": "frontEnd_update"
                }
 
-
         response_api = requests.patch(
                    url_frontend_update,
                    data= json.dumps(json_config),
                    headers=headers_api
                 )
-
+        
         if response_api.status_code == 200:
             typeErr = "crud"
         else:
