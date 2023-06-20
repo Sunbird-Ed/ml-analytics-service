@@ -23,30 +23,6 @@ headers_api = {
 folder_path = config.get("REPORTS_FILEPATH","folder_config")
 
 
-# open the csv from the folder and return report details
-def returnReports(filePath,reportType):
-    returnResult = []
-    doc = {}
-    if reportType == "frontend":
-        key = "reports_tag"
-    elif reportType == "backend":
-        key = "reports_id"
-    try:
-        csvFileReader = csv.DictReader(open(filePath,'rt'))
-        for read in csvFileReader:
-            data = json.dumps(read)
-            data = json.loads(data)
-            reportId = data[key].lstrip().rstrip()
-            returnResult.append(reportId)
-            return returnResult
-    except Exception as exception :
-        doc["operation"] = "fetch_retire_reports"
-        doc["errmsg"] = "Exception message {}: {}".format(type(exception).__name__, exception)
-        typeErr = "exception"
-        insert_doc(doc,typeErr)
-        return False
-
-
 # hit the api to retire the frontend reports 
 def frontend_retire(access_token,tag):
     reportsLookUp = fetchAllReports()
@@ -80,7 +56,7 @@ def frontend_retire(access_token,tag):
     insert_doc(doc,typeErr)
 
 
-# hit the api to retire the backend reports
+# hit the api to retire the backend reports 
 def backend_retire(reportId):
     doc = {
                 "reportId" : reportId,
