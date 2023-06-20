@@ -9,10 +9,10 @@ config.read("/opt/sparkjobs/ml-analytics-service/config.ini")
 script_path = config.get("REPORTS_FILEPATH","script_path")
 sys.path.insert(0, script_path)
 
-from get_token import get_access_token
-from create import frontend_create,backend_create
-from update import backend_update,frontend_update
-from retire import backend_retire,frontend_retire
+from get_token import *
+from create import *
+from update import *
+from retire import *
 import constants
 
 access_token = None
@@ -20,12 +20,13 @@ response_api = get_access_token()
 if response_api["status_code"] == constants.success_code:
    access_token = response_api["result"]["access_token"]
 
-backend_create_files = os.listdir(config.get("REPORTS_FILEPATH","folder_config") + "backend/create/")
+base_path = os.getcwd()
+backend_create_files = os.listdir( base_path + "/config/backend/create/")
+frontend_create_files = os.listdir(base_path + "/config/frontend/create")
 
 # json file for retire 
-backend_retire_reports = config.get("REPORTS_FILEPATH","folder_config") + "backend/retire/reports.json"
-
-frontend_retire_reports = config.get("REPORTS_FILEPATH","folder_config") + "frontend/retire/reports.json"
+backend_retire_reports = os.listdir(base_path + "/config/backend/retire/reports.json")
+frontend_retire_reports = os.listdir(base_path + "/config/frontend/retire/reports.json")
 
 
 # load data from json file 
@@ -46,14 +47,14 @@ for file in backend_create_files:
 
 #calling create function for report creation
 if (access_token!= None):
-    for file in frontend_create_files:
-      frontend_create(access_token,file)
+   # calling retire function for report disabling    
+   for file in frontend_retire_reports_list:
+      frontend_retire(access_token,file)
+   
+   #calling create function for report creation   
+   for file in frontend_create_files:
+      frontend_create(access_token,file,base_path)
 
    # calling update function for report updation
    for file in frontend_update_files:
       frontend_update(access_token,file)
-
-   # calling retire function for report disabling    
-   for file in frontend_retire_reports_list:
-      frontend_retire(access_token,file)
-
