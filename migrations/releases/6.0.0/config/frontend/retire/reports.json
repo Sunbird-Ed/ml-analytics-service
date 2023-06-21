@@ -1,6 +1,13 @@
 {
     "reports" : [
-        "PDR_survey_report"
+        "Observation Report PDR",
+        "Observation_with_rubric_report_PDR",
+        "Improvement_projects_report_for_PDR",
+        "Improvement_Consumption_Report",
+        "Improvement_Projects_Report",
+        "Observation_consumption_Report",
+        "Observation_report",
+        "Observation_with_rubric_report"
     ]
 }
 

@@ -24,11 +24,12 @@ headers_api = {
 reportsLookUp = {}
 
 # Fetch all reports list and return tag and id 
-def fetchAllReports():
+def fetchAllReports(access_token):
     doc = {
             "operation": "fetch_all_reports"
         }
     try:
+        headers_api["x-authenticated-user-token"] = access_token
         returnValue = {}
         url_reports_list = base_url + constants.reports_list
         json_body = {
@@ -106,75 +107,65 @@ def backend_update(file_name,base_path):
     
 
 # Creation of report using Json config making an API call
-def frontend_update(access_token,file_name,base_path):
-    doc = {}
-    try :
-        reportsLookUp = fetchAllReports()
-
-        # remove .json from filename
-        fileName_without_extension = file_name.split(".json")[0]
-        
-        headers_api["x-authenticated-user-token"] = access_token
-        
-        url_frontend_update = base_url + constants.frontend_update + str(reportsLookUp[fileName_without_extension])
-        file_path = base_path + "/config/frontend/update/" + file_name
-        
-        with open(file_path) as data_file:
-                 json_config = json.load(data_file)
-                 json_config.update({
-                     "request" : {
-                         "report" : {
-                             "createdby" : config.get("JSON_VARIABLE","createdBy")
-                         }
-                     }
-                 })
-
-        doc = {
-                  "configFileName" : file_name,
-                  "config" : json.dumps(json_config),
-                  "operation": "frontEnd_update"
-               }
-
-        response_api = requests.patch(
-                   url_frontend_update,
-                   data= json.dumps(json_config),
-                   headers=headers_api
-                )
-        
-        if response_api.status_code == constants.success_code:
-            typeErr = "crud"
-        else:
-            doc["errmsg"] = str(response_api.status_code)  + response_api.text
-            typeErr = "error"
-        
-        data_file.close
-        
-
-    except Exception as exception:
-        doc["errmsg"] = "Exception message {}: {}".format(type(exception).__name__, exception)
-        typeErr = "exception"
-
-    insert_doc(doc,typeErr)   
-
-
-def frontend_update_with_reportId(access_token,reportJson,reportId):
+def frontend_update(access_token,file_name,base_path,reportJson=False,reportId=False):
+    docUpdate = {}
+    proceedFlag = False
+    typeErr = ""
     headers_api["x-authenticated-user-token"] = access_token
     
-    url_frontend_update = base_url + constants.frontend_update + str(reportId)
-    doc = {
-                  "reportId" : reportId,
-                  "config" : json.dumps(reportJson),
-                  "operation": "frontend_status_update"
-            }
-    response_api = requests.patch(
-                   url_frontend_update,
-                   data= json.dumps(reportJson),
-                   headers=headers_api
-                )
-    if response_api.status_code == constants.success_code:
-        typeErr = "crud"
+    if reportJson and reportId:
+        proceedFlag = True
+        url_frontend_update = base_url + constants.frontend_update + str(reportId)
+        json_config = reportJson
+
+        docUpdate = {
+            "reportId" : reportId,
+            "config" : json.dumps(reportJson),
+            "operation": "frontend_status_update"
+        }
     else:
-        doc["errmsg"] = str(response_api.status_code)  + response_api.text
-        typeErr = "error"
-        
-    insert_doc(doc,typeErr)
+        try :
+            reportsLookUp = fetchAllReports(access_token)
+
+            # remove .json from filename
+            fileName_without_extension = file_name.split(".json")[0]
+
+            url_frontend_update = base_url + constants.frontend_update + str(reportsLookUp[fileName_without_extension])
+            file_path = os.path.join( base_path , "config/frontend/update" , file_name)
+            
+            with open(file_path) as data_file:
+                json_config = json.load(data_file)
+
+            docUpdate = {
+                      "configFileName" : file_name,
+                      "config" : json.dumps(json_config),
+                      "operation": "frontend_update"
+                   }
+            data_file.close  
+            proceedFlag = True
+
+        except Exception as exception:
+            docUpdate["errmsg"] = "Exception message {}: {}".format(type(exception).__name__, exception)
+            typeErr = "exception"
+            proceedFlag = False
+
+    if proceedFlag :
+        try:
+            response_api = requests.patch(
+                               url_frontend_update,
+                               data= json.dumps(json_config),
+                               headers=headers_api
+                            )
+
+            if response_api.status_code == constants.success_code:
+                typeErr = "crud"
+            else:
+                docUpdate["errmsg"] = str(response_api.status_code)  + response_api.text
+                typeErr = "error"
+        except Exception as exception:
+                docUpdate["errmsg"] = "Exception message {}: {}".format(type(exception).__name__, exception)
+                typeErr = "exception"
+    
+    insert_doc(docUpdate,typeErr)
+
+    

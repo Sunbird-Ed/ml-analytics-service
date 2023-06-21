@@ -5,13 +5,14 @@ from configparser import ConfigParser,ExtendedInterpolation
 # Read the Config
 root_path = "/opt/sparkjobs/ml-analytics-service/"
 config = ConfigParser(interpolation=ExtendedInterpolation())
-config.read(root_path + "config.ini")
+# config.read(root_path + "config.ini")
+config.read("/Users/adithyadinesh/Documents/shikshalokam/Data_Engineering/report_config.ini")
 
 sys.path.insert(0, root_path + "migrations/lib")
 
 from mongo_log import *
 import constants
-from update import backend_update,frontend_update,frontend_update_with_reportId
+from update import backend_update,frontend_update
 
 
 # Required field gathering for API
@@ -82,7 +83,7 @@ def frontend_create(access_token,file_name,base_path):
      try :
         headers_api["x-authenticated-user-token"] = access_token
         url_frontend_create = base_url + constants.frontend_create
-        file_path = base_path + "/config/frontend/create/" + file_name
+        file_path = os.path.join( base_path , "config/frontend/create" , file_name)
         with open(file_path) as data_file:
                  json_config = json.load(data_file)
                  json_config["request"]["report"]["createdby"] = config.get("JSON_VARIABLE","createdBy")
@@ -110,19 +111,19 @@ def frontend_create(access_token,file_name,base_path):
               if json_config['request']['report']['reportconfig']['report_type'] == "program_dashboard":
                   json_config['request']['report']["status"] = "live"
                   reportId = response_data["result"]["reportId"]
-                  frontend_update_with_reportId(access_token,json_config,reportId)
+                  print("Here : ",reportId)
+                  frontend_update(access_token,file_name,base_path,json_config,reportId)
 
           else:
               doc["errmsg"] = str(response_api.status_code)  + response_api.text
               response_type = "error"
           doc["api_response"] = response_api.json()
         elif value_check == "update":
-           frontend_update()
+           frontend_update(access_token,file_name,base_path)
 
         else :
             doc["operation"]= "frontend_create_duplicate_run"
             response_type = "duplicate_run"
-            pass
         data_file.close
      except Exception as exception:
             doc["errmsg"] = "Exception message {}: {}".format(type(exception).__name__, exception)

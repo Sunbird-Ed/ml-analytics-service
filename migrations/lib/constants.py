@@ -18,3 +18,5 @@ reports_list = "/api/data/v1/report-service/report/list"
 content_type = "application/json"
 content_type_url = "application/x-www-form-urlencoded"
 
+# Mongo collections 
+reports_log_collec = "reports_logs"

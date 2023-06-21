@@ -3,6 +3,7 @@ from bson.objectid import ObjectId
 import os, json, sys
 from configparser import ConfigParser,ExtendedInterpolation
 from datetime import datetime
+import constants
 
 root_path = "/opt/sparkjobs/ml-analytics-service/"
 config = ConfigParser(interpolation=ExtendedInterpolation())
@@ -10,7 +11,7 @@ config.read(root_path + "config.ini")
 
 client = MongoClient(config.get('MONGO', 'url'))
 db = client[config.get('MONGO', 'database_name')]
-log_collec = db[config.get('MONGO', 'reports_log_collec')]
+log_collec = db[constants.reports_log_collec]
 
 curr_datetime = datetime.now()
 
@@ -43,3 +44,20 @@ def query_mongo(file_path,file):
 
     else :
        return "create"
+
+
+def query_retire(file):
+   #Query MongoDb
+   
+   mydoc = log_collec.find({"file": file})
+   mydoc_count = mydoc.count()
+   
+   if mydoc_count > 0:
+      for doc in mydoc:
+         if doc["status"] == "Failed":
+               return True
+         elif doc["status"] == "Success" :
+               return False
+   else :
+      return True
+

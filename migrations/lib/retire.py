@@ -22,59 +22,100 @@ headers_api = {
 
 
 # hit the api to retire the frontend reports 
-def frontend_retire(access_token,tag):
-    reportsLookUp = fetchAllReports()
-
-    doc = {
-                "reportTag" : tag,
-                "operation": "frontEnd_retire"
-            }
-
+def frontend_retire(access_token,fileNames,base_path):
+    reportsLookUp = fetchAllReports(access_token)
+    
     headers_api["x-authenticated-user-token"] = access_token
 
     try:
-        url_frontend_retire = base_url + constants.frontend_retire + str(reportsLookUp[tag])
-        response_api = requests.delete(
-                   url_frontend_retire,
-                   headers=headers_api
-                )
-    
-        doc["reportId"] = str(reportsLookUp[tag])
 
-        if response_api.status_code == constants.success_code:
-            typeErr = "crud"
-        else:
-            doc["errmsg"] = str(response_api.status_code)  + response_api.text
-            typeErr = "error"
-    
+        for fileName in fileNames:
+
+            # reports file path 
+            frontend_retire_reports = os.path.join(base_path,"config/frontend/retire",fileName)
+
+            doc = {
+                    "operation": "frontend_retire",
+                    "file" : str(frontend_retire_reports)
+                }
+            
+            # check if the file is already executed or not 
+            if query_retire(frontend_retire_reports):
+                # load data from json file
+                with open(frontend_retire_reports) as json_file:
+                   frontend_retire_reports_list = json.load(json_file)
+                   frontend_retire_reports_list = frontend_retire_reports_list['reports']
+                json_file.close
+
+                typeErr = ""
+
+                for tag in frontend_retire_reports_list:
+                    url_frontend_retire = base_url + constants.frontend_retire + str(reportsLookUp[tag])
+                    response_api = requests.delete(
+                               url_frontend_retire,
+                               headers=headers_api
+                            )
+
+                    doc["reportId"] = str(reportsLookUp[tag])
+
+                    if response_api.status_code == constants.success_code:
+                        typeErr = "crud"
+                    else:
+                        doc["errmsg"] = str(response_api.status_code)  + response_api.text
+                        typeErr = "error"
+            else:
+                doc["operation"]= "frontend_retire_duplicate_run"
+                typeErr = "duplicate_run"
+        
+            insert_doc(doc,typeErr)
     except Exception as exception:
+        print(exception)
         doc["errmsg"] = "Exception message {}: {}".format(type(exception).__name__, exception)
         typeErr = "exception"
-
-    insert_doc(doc,typeErr)
+        insert_doc(doc,typeErr)
 
 
 # hit the api to retire the backend reports 
-def backend_retire(reportId):
-    doc = {
-                "reportId" : reportId,
-                "operation": "backEnd_retire"
-            }
+def backend_retire(fileNames,base_path):
     
     try:
-        url_backend_retire = base_url + constants.backend_retire + str(reportId)
-        response_api = requests.patch(
-                   url_backend_retire,
-                   headers=headers_api
-                )
+
+
+        for fileName in fileNames:
+            # reports file path 
+            backend_retire_reports = os.path.join(base_path,"config/backend/retire",fileName)
+            doc = {
+                    "operation": "backend_retire",
+                    "file" : str(backend_retire_reports)
+                }
+            if query_retire(backend_retire_reports):
+                with open(backend_retire_reports) as json_file:
+                   backend_retire_reports_list = json.load(json_file)
+                   backend_retire_reports_list = backend_retire_reports_list['reports']
+                json_file.close
+
+                for reportId in backend_retire_reports_list:
+                    doc['reportId'] = reportId
+                    url_backend_retire = base_url + constants.backend_retire + str(reportId)
+                    response_api = requests.patch(
+                        url_backend_retire,
+                        headers=headers_api
+                        )
     
-        if response_api.status_code == constants.success_code:
-            typeErr = "crud"
-        else:
-            doc["errmsg"] = str(response_api.status_code)  + response_api.text
-            typeErr = "error"
+                    if response_api.status_code == constants.success_code:
+                        typeErr = "crud"
+                    else:
+                        doc["errmsg"] = str(response_api.status_code)  + response_api.text
+                        typeErr = "error"
+    
+                
+            else:
+                doc["operation"]= "backend_retire_duplicate_run"
+                typeErr = "duplicate_run"
+        
+            insert_doc(doc,typeErr)
+    
     except Exception as exception:
         doc["errmsg"] = "Exception message {}: {}".format(type(exception).__name__, exception)
         typeErr = "exception"
-
-    insert_doc(doc,typeErr)
+        insert_doc(doc,typeErr)

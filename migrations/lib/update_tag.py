@@ -1,5 +1,4 @@
-import requests
-import os, json,sys
+import requests ,os, json,sys,re
 from configparser import ConfigParser,ExtendedInterpolation
 
 # Read the Config
@@ -53,7 +52,6 @@ def get_report(report_ids):
          doc["errmsg"] = "Exception message {}: {}".format(type(exception).__name__, exception)
          response_type = "exception"
    insert_doc(doc,response_type)
-
 # Creation of chart using Json config making an API call
 def update_report(json_config,id):
     doc = {
@@ -78,7 +76,7 @@ def update_report(json_config,id):
                    data= json.dumps(update_config),
                    headers=headers_api
                 )
-
+        
         if response_api.status_code == constants.success_code:
             doc["api_response"] = response_api.json()
             typeErr = "crud"
@@ -93,5 +91,64 @@ def update_report(json_config,id):
 
     insert_doc(doc,typeErr)
 
-report_ids = config.get("REPORT_IDS","update_tag").split(',')
-get_report(report_ids)
+# report_ids = config.get("REPORT_IDS","update_tag").split(',')
+# get_report(report_ids)
+
+def fetch_ml_reports():
+    doc = {
+            "operation": "get_report"
+           }
+    try:
+        # regular expression to find all report ids starting with keyword ml 
+        regex =  r'^ml_'
+        reportIds = []
+        reports_to_update = {}
+        url_frontend_get_all = base_url + constants.reports_list
+        json_body = {
+            'request' : {
+                'filters' :{}
+            }
+        }
+        response_api = requests.post(
+                                 url_frontend_get_all,
+                                 data= json.dumps(json_body),
+                                 headers=headers_api
+                               )
+        doc["api"] = url_frontend_get_all
+        if response_api.status_code == constants.success_code:
+            response_type = "crud"
+            all_reports = response_api.json()
+            all_reports = all_reports["result"]["reports"]
+            # iterate through the result and find the report id and config of reports which starts with ml 
+            for index in all_reports:
+                if 'dataSource' in index['reportconfig'].keys():
+                    dataSource = index['reportconfig']['dataSource']
+                    if isinstance(dataSource, list):
+                        for eachDS in dataSource:
+                            if re.match(regex, eachDS['id']):
+                                if index["reportid"] not in reportIds:
+                                    reportIds.append(index["reportid"])
+                                    reports_to_update[index["reportid"]] = index
+            
+            
+            return reports_to_update
+
+        else:
+            doc["errmsg"] = str(response_api.status_code)  + response_api.text
+            response_type = "error"
+                   
+
+
+    except Exception as exception:
+         doc["errmsg"] = "Exception message {}: {}".format(type(exception).__name__, exception)
+         response_type = "exception"
+         
+    insert_doc(doc,response_type)
+
+
+
+def update_tag():
+    fetchReports = fetch_ml_reports()
+    for reportId,jsonConfig in fetchReports.items():
+        print(reportId)
+        update_report(jsonConfig,reportId)
