@@ -5,7 +5,8 @@ from configparser import ConfigParser,ExtendedInterpolation
 # Read the Config
 root_path = "/opt/sparkjobs/ml-analytics-service/"
 config = ConfigParser(interpolation=ExtendedInterpolation())
-config.read(root_path + "config.ini")
+# config.read(root_path + "config.ini")
+config.read("/Users/adithyadinesh/Documents/shikshalokam/Data_Engineering/report_config.ini")
 
 sys.path.insert(0, root_path + "migrations/lib")
 

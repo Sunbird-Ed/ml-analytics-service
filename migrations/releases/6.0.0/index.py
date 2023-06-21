@@ -22,9 +22,7 @@ response_api = get_access_token()
 if response_api["status_code"] == constants.success_code:
    access_token = response_api["result"]["access_token"]
 
-
-base_path = os.getcwd()
-
+# get the list of files to create 
 backend_create_files = os.listdir( base_path + "/config/backend/create/")
 frontend_create_files = os.listdir(base_path + "/config/frontend/create")
 
