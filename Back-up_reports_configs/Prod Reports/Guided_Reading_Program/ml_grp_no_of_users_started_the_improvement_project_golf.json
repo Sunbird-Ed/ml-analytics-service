@@ -1,0 +1,131 @@
+{
+    "id": "ekstep.analytics.report.get",
+    "ver": "1.0",
+    "ts": "2023-05-30T14:34:46.624+00:00",
+    "params": {
+        "resmsgid": "9a3f98ec-ebf7-4445-868a-7f665b575ef0",
+        "status": "successful",
+        "client_key": null
+    },
+    "responseCode": "OK",
+    "result": {
+        "createdOn": 1658432058504,
+        "updatedOn": 1671452775490,
+        "reportId": "ml_grp_no_of_users_started_the_improvement_project_golf",
+        "config": {
+            "streamQuery": true,
+            "reportConfig": {
+                "id": "ml_grp_no_of_users_started_the_improvement_project_golf",
+                "mergeConfig": {
+                    "postContainer": "odev-dev-diksha-privatereports",
+                    "container": "odev-dev-diksha-privatereports",
+                    "basePath": "/mount/data/analytics/tmp",
+                    "reportPath": "ml_grp_no_of_users_started_the_improvement_project_golf.csv",
+                    "rollup": 0
+                },
+                "labels": {
+                    "SUM(unique_users)": "total_content_plays_on_portal",
+                    "legend": "No of users Started the improvement project",
+                    "total_content_plays_on_portal": "No of users Started the improvement project",
+                    "parent_channel": "parent_channel",
+                    "program_name": "Program Name",
+                    "state_name": "State Name"
+                },
+                "dateRange": {
+                    "staticInterval": "LastDay",
+                    "granularity": "all",
+                    "intervalSlider": 0
+                },
+                "metrics": [
+                    {
+                        "metric": "total_content_plays_on_portal",
+                        "label": "total_content_plays_on_portal",
+                        "druidQuery": {
+                            "dataSource": "ml-project-programLevel-status",
+                            "limitSpec": {
+                                "type": "default",
+                                "limit": 50000,
+                                "columns": [
+                                    {
+                                        "dimension": "SUM(unique_users)",
+                                        "direction": "descending"
+                                    }
+                                ]
+                            },
+                            "filters": [
+                                {
+                                    "type": "equals",
+                                    "dimension": "status_of_project",
+                                    "value": "started"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "project_created_type",
+                                    "value": "project imported from library"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "private_program",
+                                    "value": "false"
+                                },
+                                {
+                                    "dimension": "program_name",
+                                    "type": "regex",
+                                    "value": "^GRC((?!(?i)(test)).)*$"
+                                }
+                            ],
+                            "granularity": "all",
+                            "dimensions": [
+                                {
+                                    "fieldName": "program_name",
+                                    "aliasName": "Program Name"
+                                },
+                                {
+                                    "fieldName": "state_name",
+                                    "aliasName": "State Name"
+                                },
+                                {
+                                    "fieldName": "parent_channel",
+                                    "aliasName": "parent_channel"
+                                }
+                            ],
+                            "aggregations": [
+                                {
+                                    "fieldName": "unique_users",
+                                    "type": "longSum",
+                                    "name": "total_content_plays_on_portal"
+                                }
+                            ],
+                            "queryType": "groupBy"
+                        }
+                    }
+                ],
+                "output": [
+                    {
+                        "type": "csv",
+                        "metrics": [
+                            "total_content_plays_on_portal"
+                        ],
+                        "dims": [
+                            "date"
+                        ],
+                        "fileParameters": [
+                            "id",
+                            "dims"
+                        ]
+                    }
+                ],
+                "queryType": "groupBy"
+            },
+            "container": "odev-dev-diksha-privatereports",
+            "store": "oci",
+            "key": "hawk-eye/"
+        },
+        "requestedBy": "423647fd-701a-4e74-b0cf-a959c49459ab",
+        "reportDescription": "Big Number will give no of users who started the improvement project",
+        "submittedOn": 1658432058504,
+        "status": "ACTIVE",
+        "status_msg": "REPORT SUCCESSFULLY ACTIVATED",
+        "reportSchedule": "DAILY"
+    }
+}

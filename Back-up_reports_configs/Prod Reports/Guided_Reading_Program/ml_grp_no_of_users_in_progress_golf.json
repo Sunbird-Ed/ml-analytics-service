@@ -1,0 +1,131 @@
+{
+    "id": "ekstep.analytics.report.get",
+    "ver": "1.0",
+    "ts": "2023-05-30T14:35:00.912+00:00",
+    "params": {
+        "resmsgid": "f165eb53-19a3-4f04-bc01-7cf6dd1bee1f",
+        "status": "successful",
+        "client_key": null
+    },
+    "responseCode": "OK",
+    "result": {
+        "createdOn": 1658432181095,
+        "updatedOn": 1671456713123,
+        "reportId": "ml_grp_no_of_users_in_progress_golf",
+        "config": {
+            "streamQuery": true,
+            "reportConfig": {
+                "id": "ml_grp_no_of_users_in_progress_golf",
+                "mergeConfig": {
+                    "postContainer": "odev-dev-diksha-privatereports",
+                    "container": "odev-dev-diksha-privatereports",
+                    "basePath": "/mount/data/analytics/tmp",
+                    "reportPath": "ml_grp_no_of_users_in_progress_golf.csv",
+                    "rollup": 0
+                },
+                "labels": {
+                    "SUM(unique_users)": "total_content_plays_on_portal",
+                    "legend": "No of users In progress",
+                    "total_content_plays_on_portal": "No of users In progress",
+                    "parent_channel": "parent_channel",
+                    "program_name": "Program Name",
+                    "state_name": "State Name"
+                },
+                "dateRange": {
+                    "staticInterval": "LastDay",
+                    "granularity": "all",
+                    "intervalSlider": 0
+                },
+                "metrics": [
+                    {
+                        "metric": "total_content_plays_on_portal",
+                        "label": "total_content_plays_on_portal",
+                        "druidQuery": {
+                            "dataSource": "ml-project-programLevel-status",
+                            "limitSpec": {
+                                "type": "default",
+                                "limit": 50000,
+                                "columns": [
+                                    {
+                                        "dimension": "SUM(unique_users)",
+                                        "direction": "descending"
+                                    }
+                                ]
+                            },
+                            "filters": [
+                                {
+                                    "type": "equals",
+                                    "dimension": "status_of_project",
+                                    "value": "inProgress"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "project_created_type",
+                                    "value": "project imported from library"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "private_program",
+                                    "value": "false"
+                                },
+                                {
+                                    "dimension": "program_name",
+                                    "type": "regex",
+                                    "value": "^GRC((?!(?i)(test)).)*$"
+                                }
+                            ],
+                            "granularity": "all",
+                            "dimensions": [
+                                {
+                                    "fieldName": "parent_channel",
+                                    "aliasName": "parent_channel"
+                                },
+                                {
+                                    "fieldName": "program_name",
+                                    "aliasName": "Program Name"
+                                },
+                                {
+                                    "fieldName": "state_name",
+                                    "aliasName": "State Name"
+                                }
+                            ],
+                            "aggregations": [
+                                {
+                                    "fieldName": "unique_users",
+                                    "type": "longSum",
+                                    "name": "total_content_plays_on_portal"
+                                }
+                            ],
+                            "queryType": "groupBy"
+                        }
+                    }
+                ],
+                "output": [
+                    {
+                        "type": "csv",
+                        "metrics": [
+                            "total_content_plays_on_portal"
+                        ],
+                        "dims": [
+                            "date"
+                        ],
+                        "fileParameters": [
+                            "id",
+                            "dims"
+                        ]
+                    }
+                ],
+                "queryType": "groupBy"
+            },
+            "container": "odev-dev-diksha-privatereports",
+            "store": "oci",
+            "key": "hawk-eye/"
+        },
+        "requestedBy": "423647fd-701a-4e74-b0cf-a959c49459ab",
+        "reportDescription": "Big Number will give an overall unique users who are in progress",
+        "submittedOn": 1658432181095,
+        "status": "ACTIVE",
+        "status_msg": "REPORT SUCCESSFULLY ACTIVATED",
+        "reportSchedule": "DAILY"
+    }
+}

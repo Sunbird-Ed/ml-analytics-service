@@ -1,0 +1,496 @@
+{
+    "id": "ekstep.analytics.report.get",
+    "ver": "1.0",
+    "ts": "2023-05-30T14:28:14.240+00:00",
+    "params": {
+        "resmsgid": "160e2d94-b367-4070-ba76-84abe1f462dd",
+        "status": "successful",
+        "client_key": null
+    },
+    "responseCode": "OK",
+    "result": {
+        "createdOn": 1655295654447,
+        "updatedOn": 1671105282373,
+        "reportId": "ml_domain_wise_unique_entities_at_each_level_api",
+        "config": {
+            "streamQuery": true,
+            "reportConfig": {
+                "id": "ml_domain_wise_unique_entities_at_each_level_api",
+                "mergeConfig": {
+                    "postContainer": "odev-dev-diksha-privatereports",
+                    "container": "odev-dev-diksha-privatereports",
+                    "basePath": "/mount/data/analytics/tmp",
+                    "reportPath": "ml_domain_wise_unique_entities_at_each_level_api.csv",
+                    "rollup": 0
+                },
+                "labels": {
+                    "total_content_download": "L5",
+                    "domain_name": "Domain",
+                    "total_content_plays_on_app": "L3",
+                    "total_content_plays_on_desktop": "L2",
+                    "legend": "Domain wise unique entities at each level",
+                    "total_content_plays_on_portal": "L1",
+                    "organisation_name": "Organisation",
+                    "district_name": "District name",
+                    "program_name": "Program name",
+                    "state_slug": "state_slug",
+                    "SUM(unique_entities)": "total_content_download",
+                    "solution_name": "Observation name",
+                    "total_content_plays": "L4"
+                },
+                "dateRange": {
+                    "staticInterval": "LastDay",
+                    "granularity": "all",
+                    "intervalSlider": 0
+                },
+                "metrics": [
+                    {
+                        "metric": "total_content_plays_on_portal",
+                        "label": "total_content_plays_on_portal",
+                        "druidQuery": {
+                            "dataSource": "ml-obs-domain",
+                            "limitSpec": {
+                                "type": "default",
+                                "limit": 10000,
+                                "columns": [
+                                    {
+                                        "dimension": "SUM(unique_entities)",
+                                        "direction": "descending"
+                                    }
+                                ]
+                            },
+                            "filters": [
+                                {
+                                    "type": "equals",
+                                    "dimension": "domain_level",
+                                    "value": "L1"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "solution_type",
+                                    "value": "observation_with_rubric"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "private_program",
+                                    "value": "false"
+                                },
+                                {
+                                    "type": "regex",
+                                    "dimension": "program_name",
+                                    "value": "^((?!(?i)(test)).)*$"
+                                }
+                            ],
+                            "granularity": "all",
+                            "dimensions": [
+                                {
+                                    "type": "extraction",
+                                    "extractionFn": [
+                                        {
+                                            "type": "registeredLookup",
+                                            "retainMissingValue": true,
+                                            "fn": "stateSlugLookup"
+                                        }
+                                    ],
+                                    "fieldName": "state_name",
+                                    "aliasName": "state_slug"
+                                },
+                                {
+                                    "fieldName": "program_name",
+                                    "aliasName": "Program name"
+                                },
+                                {
+                                    "fieldName": "solution_name",
+                                    "aliasName": "Observation name"
+                                },
+                                {
+                                    "fieldName": "district_name",
+                                    "aliasName": "District name"
+                                },
+                                {
+                                    "fieldName": "domain_name",
+                                    "aliasName": "Domain"
+                                },
+                                {
+                                    "fieldName": "organisation_name",
+                                    "aliasName": "Organisation"
+                                }
+                            ],
+                            "aggregations": [
+                                {
+                                    "fieldName": "unique_entities",
+                                    "type": "longSum",
+                                    "name": "total_content_plays_on_portal"
+                                }
+                            ],
+                            "postAggregations": [],
+                            "queryType": "groupBy"
+                        }
+                    },
+                    {
+                        "metric": "total_content_plays_on_desktop",
+                        "label": "L2",
+                        "druidQuery": {
+                            "dataSource": "ml-obs-domain",
+                            "limitSpec": {
+                                "type": "default",
+                                "limit": 10000,
+                                "columns": [
+                                    {
+                                        "dimension": "SUM(unique_entities)",
+                                        "direction": "descending"
+                                    }
+                                ]
+                            },
+                            "filters": [
+                                {
+                                    "type": "equals",
+                                    "dimension": "domain_level",
+                                    "value": "L2"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "solution_type",
+                                    "value": "observation_with_rubric"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "private_program",
+                                    "value": "false"
+                                },
+                                {
+                                    "type": "regex",
+                                    "dimension": "program_name",
+                                    "value": "^((?!(?i)(test)).)*$"
+                                }
+                            ],
+                            "granularity": "all",
+                            "dimensions": [
+                                {
+                                    "type": "extraction",
+                                    "extractionFn": [
+                                        {
+                                            "type": "registeredLookup",
+                                            "retainMissingValue": true,
+                                            "fn": "stateSlugLookup"
+                                        }
+                                    ],
+                                    "fieldName": "state_name",
+                                    "aliasName": "state_slug"
+                                },
+                                {
+                                    "fieldName": "program_name",
+                                    "aliasName": "Program name"
+                                },
+                                {
+                                    "fieldName": "solution_name",
+                                    "aliasName": "Observation name"
+                                },
+                                {
+                                    "fieldName": "district_name",
+                                    "aliasName": "District name"
+                                },
+                                {
+                                    "fieldName": "domain_name",
+                                    "aliasName": "Domain"
+                                },
+                                {
+                                    "fieldName": "organisation_name",
+                                    "aliasName": "Organisation"
+                                }
+                            ],
+                            "aggregations": [
+                                {
+                                    "fieldName": "unique_entities",
+                                    "type": "longSum",
+                                    "name": "total_content_plays_on_desktop"
+                                }
+                            ],
+                            "postAggregations": [],
+                            "queryType": "groupBy"
+                        }
+                    },
+                    {
+                        "metric": "total_content_plays_on_app",
+                        "label": "L3",
+                        "druidQuery": {
+                            "dataSource": "ml-obs-domain",
+                            "limitSpec": {
+                                "type": "default",
+                                "limit": 10000,
+                                "columns": [
+                                    {
+                                        "dimension": "SUM(unique_entities)",
+                                        "direction": "descending"
+                                    }
+                                ]
+                            },
+                            "filters": [
+                                {
+                                    "type": "equals",
+                                    "dimension": "domain_level",
+                                    "value": "L3"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "solution_type",
+                                    "value": "observation_with_rubric"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "private_program",
+                                    "value": "false"
+                                },
+                                {
+                                    "type": "regex",
+                                    "dimension": "program_name",
+                                    "value": "^((?!(?i)(test)).)*$"
+                                }
+                            ],
+                            "granularity": "all",
+                            "dimensions": [
+                                {
+                                    "type": "extraction",
+                                    "extractionFn": [
+                                        {
+                                            "type": "registeredLookup",
+                                            "retainMissingValue": true,
+                                            "fn": "stateSlugLookup"
+                                        }
+                                    ],
+                                    "fieldName": "state_name",
+                                    "aliasName": "state_slug"
+                                },
+                                {
+                                    "fieldName": "program_name",
+                                    "aliasName": "Program name"
+                                },
+                                {
+                                    "fieldName": "solution_name",
+                                    "aliasName": "Observation name"
+                                },
+                                {
+                                    "fieldName": "district_name",
+                                    "aliasName": "District name"
+                                },
+                                {
+                                    "fieldName": "domain_name",
+                                    "aliasName": "Domain"
+                                },
+                                {
+                                    "fieldName": "organisation_name",
+                                    "aliasName": "Organisation"
+                                }
+                            ],
+                            "aggregations": [
+                                {
+                                    "fieldName": "unique_entities",
+                                    "type": "longSum",
+                                    "name": "total_content_plays_on_app"
+                                }
+                            ],
+                            "postAggregations": [],
+                            "queryType": "groupBy"
+                        }
+                    },
+                    {
+                        "metric": "total_content_plays",
+                        "label": "L4",
+                        "druidQuery": {
+                            "dataSource": "ml-obs-domain",
+                            "limitSpec": {
+                                "type": "default",
+                                "limit": 10000,
+                                "columns": [
+                                    {
+                                        "dimension": "SUM(unique_entities)",
+                                        "direction": "descending"
+                                    }
+                                ]
+                            },
+                            "filters": [
+                                {
+                                    "type": "equals",
+                                    "dimension": "domain_level",
+                                    "value": "L4"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "solution_type",
+                                    "value": "observation_with_rubric"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "private_program",
+                                    "value": "false"
+                                },
+                                {
+                                    "type": "regex",
+                                    "dimension": "program_name",
+                                    "value": "^((?!(?i)(test)).)*$"
+                                }
+                            ],
+                            "granularity": "all",
+                            "dimensions": [
+                                {
+                                    "type": "extraction",
+                                    "extractionFn": [
+                                        {
+                                            "type": "registeredLookup",
+                                            "retainMissingValue": true,
+                                            "fn": "stateSlugLookup"
+                                        }
+                                    ],
+                                    "fieldName": "state_name",
+                                    "aliasName": "state_slug"
+                                },
+                                {
+                                    "fieldName": "program_name",
+                                    "aliasName": "Program name"
+                                },
+                                {
+                                    "fieldName": "solution_name",
+                                    "aliasName": "Observation name"
+                                },
+                                {
+                                    "fieldName": "district_name",
+                                    "aliasName": "District name"
+                                },
+                                {
+                                    "fieldName": "domain_name",
+                                    "aliasName": "Domain"
+                                },
+                                {
+                                    "fieldName": "organisation_name",
+                                    "aliasName": "Organisation"
+                                }
+                            ],
+                            "aggregations": [
+                                {
+                                    "fieldName": "unique_entities",
+                                    "type": "longSum",
+                                    "name": "total_content_plays"
+                                }
+                            ],
+                            "postAggregations": [],
+                            "queryType": "groupBy"
+                        }
+                    },
+                    {
+                        "metric": "total_content_download",
+                        "label": "L5",
+                        "druidQuery": {
+                            "dataSource": "ml-obs-domain",
+                            "limitSpec": {
+                                "type": "default",
+                                "limit": 10000,
+                                "columns": [
+                                    {
+                                        "dimension": "SUM(unique_entities)",
+                                        "direction": "descending"
+                                    }
+                                ]
+                            },
+                            "filters": [
+                                {
+                                    "type": "equals",
+                                    "dimension": "domain_level",
+                                    "value": "L5"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "solution_type",
+                                    "value": "observation_with_rubric"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "private_program",
+                                    "value": "false"
+                                },
+                                {
+                                    "type": "regex",
+                                    "dimension": "program_name",
+                                    "value": "^((?!(?i)(test)).)*$"
+                                }
+                            ],
+                            "granularity": "all",
+                            "dimensions": [
+                                {
+                                    "type": "extraction",
+                                    "extractionFn": [
+                                        {
+                                            "type": "registeredLookup",
+                                            "retainMissingValue": true,
+                                            "fn": "stateSlugLookup"
+                                        }
+                                    ],
+                                    "fieldName": "state_name",
+                                    "aliasName": "state_slug"
+                                },
+                                {
+                                    "fieldName": "program_name",
+                                    "aliasName": "Program name"
+                                },
+                                {
+                                    "fieldName": "solution_name",
+                                    "aliasName": "Observation name"
+                                },
+                                {
+                                    "fieldName": "district_name",
+                                    "aliasName": "District name"
+                                },
+                                {
+                                    "fieldName": "domain_name",
+                                    "aliasName": "Domain"
+                                },
+                                {
+                                    "fieldName": "organisation_name",
+                                    "aliasName": "Organisation"
+                                }
+                            ],
+                            "aggregations": [
+                                {
+                                    "fieldName": "unique_entities",
+                                    "type": "longSum",
+                                    "name": "total_content_download"
+                                }
+                            ],
+                            "postAggregations": [],
+                            "queryType": "groupBy"
+                        }
+                    }
+                ],
+                "output": [
+                    {
+                        "type": "csv",
+                        "metrics": [
+                            "total_content_plays_on_portal",
+                            "total_content_plays_on_desktop",
+                            "total_content_plays_on_app",
+                            "total_content_plays",
+                            "total_content_download"
+                        ],
+                        "dims": [
+                            "date",
+                            "state_slug"
+                        ],
+                        "fileParameters": [
+                            "id",
+                            "dims"
+                        ]
+                    }
+                ],
+                "queryType": "groupBy"
+            },
+            "container": "odev-dev-diksha-privatereports",
+            "store": "oci",
+            "key": "hawk-eye/"
+        },
+        "requestedBy": "423647fd-701a-4e74-b0cf-a959c49459ab",
+        "reportDescription": "The number of unique entities observed on each level obtained in each of the domain in the observation with rubric",
+        "submittedOn": 1655295654447,
+        "status": "ACTIVE",
+        "status_msg": "REPORT SUCCESSFULLY ACTIVATED",
+        "reportSchedule": "DAILY"
+    }
+}
