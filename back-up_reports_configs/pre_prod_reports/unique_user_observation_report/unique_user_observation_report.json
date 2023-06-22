@@ -1,0 +1,116 @@
+{
+    "id": "api.report.read",
+    "params": {
+        "err": null,
+        "errmsg": null,
+        "msgid": "27ea8822-d037-4516-abdc-202fb6d35b30",
+        "resmsgid": "27ea8822-d037-4516-abdc-202fb6d35b30",
+        "status": "success"
+    },
+    "responseCode": "OK",
+    "result": {
+        "reports": [
+            {
+                "reportid": "3c618357-f35b-4dad-b6e3-2ba3f99620c0",
+                "title": "Unique user observation report",
+                "description": "This report will track no. of unique users consuming observations on the platform",
+                "authorizedroles": [
+                    "REPORT_ADMIN",
+                    "REPORT_VIEWER"
+                ],
+                "status": "draft",
+                "type": "public",
+                "reportaccessurl": "\"https://preprod.ntp.net.in\"/dashBoard/reports/3c618357-f35b-4dad-b6e3-2ba3f99620c0",
+                "createdon": "2023-01-30T03:27:11.435Z",
+                "updatedon": "2023-01-30T03:27:11.435Z",
+                "createdby": "773d5976-e4df-4707-8121-71a4bc479bea",
+                "reportconfig": {
+                    "label": "Unique user observation report",
+                    "title": "Unique user observation report",
+                    "charts": [
+                        {
+                            "id": "Big_Number",
+                            "bigNumbers": [
+                                {
+                                    "footer": " ",
+                                    "header": "No. of unique users consuming the observations ( with and without rubric)",
+                                    "dataExpr": "No of unique users consuming the observations"
+                                },
+                                {
+                                    "footer": " ",
+                                    "header": "No. of unique users started the observations ( with and without rubric)",
+                                    "dataExpr": "No of unique users started the observations"
+                                },
+                                {
+                                    "footer": " ",
+                                    "header": "No. of unique users submitted the observations ( with and without rubric)",
+                                    "dataExpr": "No of unique users submitted the observations"
+                                }
+                            ],
+                            "dataSource": {
+                                "ids": [
+                                    "ml_no_of_unique_users_consuming_the_observations",
+                                    "ml_no_of_unique_users_started_the_observations",
+                                    "ml_no_of_unique_users_submitted_the_observations"
+                                ],
+                                "commonDimension": "Date"
+                            }
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "reference": "State Name",
+                            "controlType": "multi-select",
+                            "displayName": "State"
+                        },
+                        {
+                            "reference": "Program Name",
+                            "controlType": "multi-select",
+                            "displayName": "Program"
+                        },
+                        {
+                            "reference": "District Name",
+                            "controlType": "multi-select",
+                            "displayName": "District"
+                        }
+                    ],
+                    "dataSource": [
+                        {
+                            "id": "ml_no_of_unique_users_consuming_the_observations",
+                            "path": "/reports/fetch/hawk-eye/ml_no_of_unique_users_consuming_the_observations.json"
+                        },
+                        {
+                            "id": "ml_no_of_unique_users_started_the_observations",
+                            "path": "/reports/fetch/hawk-eye/ml_no_of_unique_users_started_the_observations.json"
+                        },
+                        {
+                            "id": "ml_no_of_unique_users_submitted_the_observations",
+                            "path": "/reports/fetch/hawk-eye/ml_no_of_unique_users_submitted_the_observations.json"
+                        }
+                    ],
+                    "description": "This report will track no. of unique users consuming observations on the platform",
+                    "downloadUrl": ""
+                },
+                "templateurl": null,
+                "slug": "hawk-eye",
+                "reportgenerateddate": "2023-01-30T00:00:00.000Z",
+                "reportduration": {
+                    "enddate": "12-02-2020",
+                    "startdate": "12-02-2020"
+                },
+                "tags": [
+                    "1Bn"
+                ],
+                "updatefrequency": "one-time",
+                "parameters": [
+                    "$slug"
+                ],
+                "report_type": "report",
+                "accesspath": null,
+                "visibilityflags": null,
+                "children": []
+            }
+        ],
+        "count": 1
+    }
+}
