@@ -1,7 +1,7 @@
 {
     "request": {
         "report": {
-            "title": "PDR Observation report new solution type",
+            "title": "Observation Report PDR",
             "description": "The report provides the operation charts for Observation without rubric form",
             "authorizedroles": [
                 "PROGRAM_DESIGNER",
@@ -12,7 +12,7 @@
             "createdby": "$createdby",
             "reportconfig": {
                 "files": [],
-                "label": "PDR Observation report new solution type",
+                "label": "Observation Report PDR",
                 "table": [
                     {
                         "id": "ml_district_wise_observation_status_and_entities_observed_table_a_sl_pdr",
@@ -206,7 +206,7 @@
                         "downloadUrl": "/reports/fetch/hawk-eye/ml_district_wise_observation_status_and_entities_observed_table_block_sl_pdr.csv"
                     }
                 ],
-                "title": "PDR Observation report new solution type",
+                "title": "Observation Report PDR",
                 "charts": [
                     {
                         "id": "Big_Number",
@@ -600,7 +600,7 @@
                 "downloadUrl": "",
                 "report_type": "program_dashboard",
                 "report_status": "active",
-                "solution_type": "observation_with_rubric_no_criteria_level_report"
+                "solution_type": "observation"
             },
             "slug": "hawk-eye",
             "reportgenerateddate": "2023-05-22T00:00:00.000Z",
@@ -609,7 +609,7 @@
                 "startdate": "12-02-2020"
             },
             "tags": [
-                "PDR_Observation_report_new_solution_type"
+                "Observation_Report_PDR"
             ],
             "updatefrequency": "DAILY",
             "parameters": [],
