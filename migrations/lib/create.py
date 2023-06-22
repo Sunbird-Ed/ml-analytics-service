@@ -13,7 +13,6 @@ from mongo_log import *
 import constants
 from update import backend_update,frontend_update
 
-
 # Required field gathering for API
 base_url = config.get("API_ENDPOINTS","base_url")
 headers_api = {
