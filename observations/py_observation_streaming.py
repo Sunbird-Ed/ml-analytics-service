@@ -508,11 +508,30 @@ try:
                                 title = []
                                 goal = []
                                 externalId =[]
-                                for prj in criteria['improvement-projects']:
-                                  prj_id.append(str(prj['_id']))
-                                  title.append(prj['title'])
-                                  goal.append(prj['goal'])
-                                  externalId.append(prj['externalId'])
+                                try:
+                                  for prj in criteria['improvement-projects']:
+                                    try:
+                                      prj_id.append(str(prj['_id']))
+                                    except:
+                                      prj_id.append("")
+                                    try:
+                                      title.append(prj['title'])
+                                    except:
+                                      title.append("")
+                                    try:
+                                      goal.append(prj['goal'])
+                                    except:
+                                      goal.append("")
+                                    try:
+                                      externalId.append(prj['externalId'])
+                                    except:
+                                      externalId.append("")
+                                except:
+                                  prj_id = []
+                                  title = []
+                                  goal = []
+                                  externalId =[]
+
                                 try:
                                   obj['imp_project_id'] = prj_id
                                 except KeyError:
