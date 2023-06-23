@@ -109,7 +109,6 @@ def frontend_create(access_token,file_name,base_path):
               if json_config['request']['report']['reportconfig']['report_type'] == "program_dashboard":
                   json_config['request']['report']["status"] = "live"
                   reportId = response_data["result"]["reportId"]
-                  print("Here : ",reportId)
                   frontend_update(access_token,file_name,base_path,json_config,reportId)
 
           else:

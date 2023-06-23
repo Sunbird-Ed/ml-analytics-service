@@ -135,6 +135,7 @@ def frontend_update(access_token,file_name,base_path,reportJson=False,reportId=F
             
             with open(file_path) as data_file:
                 json_config = json.load(data_file)
+                json_config["request"]["report"]["createdby"] = config.get("JSON_VARIABLE","createdBy")
 
             docUpdate = {
                       "configFileName" : file_name,
