@@ -92,6 +92,46 @@ debug_logBackuphandler = TimedRotatingFileHandler(f"{file_name_for_debug_log}",w
 infoLogger.addHandler(debug_logHandler)
 infoLogger.addHandler(debug_logBackuphandler)
 
+#Check for duplicate
+duplicate_checker = None
+data_fixer = None
+datasource_name = json.loads(config.get("DRUID","ml_distinctCnt_obs_status_spec"))["spec"]["dataSchema"]["dataSource"]
+try:
+    with open(f'{config.get("COMMON","obs_tracker_path")}', 'r', newline='') as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            if row['datasource'] == datasource_name:
+                if row['task_created_date'] != str(datetime.datetime.now().date()):
+                    # Check: Daily run - Date is not duplicate
+                    duplicate_checker = False
+                else: 
+                    druid_id = row['task_id']
+                    druid_status = requests.get(f'{config.get("DRUID", "batch_url")}/{druid_id}/status')
+                    druid_status.raise_for_status()
+                    ingest_status = druid_status.json()["status"]["status"]
+                    if ingest_status == 'SUCCESS':
+                        # Check: Date is duplicate
+                        duplicate_checker = True
+                        bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"ABORT: 'Duplicate-run' for {datasource_name}")
+                    else:
+                        # Check: Date duplicate but ingestion didn't get processed
+                        duplicate_checker = False
+                        data_fixer = True
+            else:
+                # Check: New task_id or No task_id
+                duplicate_checker = False
+
+except FileNotFoundError:
+    data =[["datasource", "task_id", "task_created_date"]]
+    with open(f'{config.get("COMMON","obs_tracker_path")}', 'w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(data[0])
+
+# FOLLOW: Exit of dupliate run
+if duplicate_checker: 
+    errorLogger.error("Duplicate Run -- ABORT")
+    sys.exit()
+
 try:
    def removeduplicate(it):
       seen = []
@@ -543,128 +583,65 @@ obs_sub_soln_df.unpersist()
 
 final_df = obs_sub_pgm_df.dropDuplicates()
 obs_sub_pgm_df.unpersist()
-final_df.coalesce(1).write.format("json").mode("overwrite").save(
-   config.get("OUTPUT_DIR", "observation_status")+"/"
+
+#observation submission distinct count
+final_df_distinct_obs_status = final_df.groupBy("program_name","program_id","solution_name","solution_id","status","state_name","state_externalId","district_name","district_externalId","block_name","block_externalId","organisation_name","organisation_id","parent_channel","solution_type","private_program").agg(countDistinct(F.col("submission_id")).alias("unique_submissions"),countDistinct(F.col("entity_id")).alias("unique_entities"),countDistinct(F.col("user_id")).alias("unique_users"),countDistinct(F.col("solution_id")).alias("unique_solution"))
+if not data_fixer:
+    final_df_distinct_obs_status = final_df_distinct_obs_status.withColumn("time_stamp", current_timestamp())
+else:
+    final_df_distinct_obs_status = final_df_distinct_obs_status.withColumn("time_stamp", lit(date_format(date_sub(current_timestamp(), 1), "yyyy-MM-dd HH:mm:ss.SSS")))
+
+final_df_distinct_obs_status = final_df_distinct_obs_status.dropDuplicates()
+final_df_distinct_obs_status.coalesce(1).write.format("json").mode("overwrite").save(
+   config.get("OUTPUT_DIR","observation_distinctCount_status") + "/"
 )
 
 final_df.unpersist()
+final_df_distinct_obs_status.unpersist()
 
-for filename in os.listdir(config.get("OUTPUT_DIR", "observation_status")+"/"):
+#observation submission distinct count
+for filename in os.listdir(config.get("OUTPUT_DIR", "observation_distinctCount_status")+"/"):
    if filename.endswith(".json"):
       os.rename(
-         config.get("OUTPUT_DIR", "observation_status") + "/" + filename, 
-         config.get("OUTPUT_DIR", "observation_status") + "/sl_observation_status.json"
+         config.get("OUTPUT_DIR", "observation_distinctCount_status") + "/" + filename,
+         config.get("OUTPUT_DIR", "observation_distinctCount_status") + "/ml_observation_distinctCount_status.json"
       )
 
 
-local_path = config.get("OUTPUT_DIR", "observation_status")
-blob_path = config.get("COMMON", "observation_blob_path")
+#observation submission distinct count
+local_distinctCount_path = config.get("OUTPUT_DIR", "observation_distinctCount_status")
+blob_distinctCount_path = config.get("COMMON", "observation_distinctCount_blob_path")
 
-for files in os.listdir(local_path):
-   if "sl_observation_status.json" in files:
-      cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = files)
+for files in os.listdir(local_distinctCount_path):
+   if "ml_observation_distinctCount_status.json" in files:
+      cloud_init.upload_to_cloud(blob_Path = blob_distinctCount_path, local_Path = local_distinctCount_path, file_Name = files)
 
-
-sl_status_spec = {}
-sl_status_spec = json.loads(config.get("DRUID","observation_status_injestion_spec"))
-datasources = [sl_status_spec["spec"]["dataSchema"]["dataSource"]]
-ingestion_specs = [json.dumps(sl_status_spec)]
 
 druid_batch_end_point = config.get("DRUID", "batch_url")
 headers = {'Content-Type': 'application/json'}
 
-for i,j in zip(datasources,ingestion_specs):
-   druid_end_point = config.get("DRUID", "metadata_url") + i
-   #druid_batch_end_point = config.get("DRUID", "batch_url")
-   #headers = {'Content-Type': 'application/json'}
-   get_timestamp = requests.get(druid_end_point, headers=headers)
-   successLogger.debug(get_timestamp)
-   if get_timestamp.status_code == 200 :
-      successLogger.debug("Successfully fetched time stamp of the datasource " + i)
-      timestamp = get_timestamp.json()
-      #calculating interval from druid get api 
-      minTime = timestamp["segments"]["minTime"]
-      maxTime = timestamp["segments"]["maxTime"]
-      min1 = datetime.datetime.strptime(minTime,"%Y-%m-%dT%H:%M:%S.%fZ")
-      max1 = datetime.datetime.strptime(maxTime,"%Y-%m-%dT%H:%M:%S.%fZ")
-      new_format = "%Y-%m-%d"
-      min1.strftime(new_format)
-      max1.strftime(new_format)
-      minmonth = "{:02d}".format(min1.month)
-      maxmonth = "{:02d}".format(max1.month)
-      min2 = str(min1.year) + "-" + minmonth + "-" + str(min1.day)
-      max2 = str(max1.year) + "-" + maxmonth  + "-" + str(max1.day)
-      interval = min2 + "_" + max2
-      successLogger.debug(interval)
+#observation submission distinct count
+ml_distinctCnt_obs_status_spec = json.loads(config.get("DRUID","ml_distinctCnt_obs_status_spec"))
+ml_distinctCnt_obs_status_datasource = ml_distinctCnt_obs_status_spec["spec"]["dataSchema"]["dataSource"]
+distinctCnt_obs_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_obs_status_spec), headers=headers)
 
-      time.sleep(50)
+new_row = {
+    "datasource": ml_distinctCnt_obs_status_datasource,
+    "task_id": distinctCnt_obs_start_supervisor.json()["task"],
+    "task_created_date" : datetime.datetime.now().date()
+}
+with open(f'{config.get("COMMON","obs_tracker_path")}', 'a', newline='') as file:
+    writer = csv.DictWriter(file, fieldnames=["datasource", "task_id", "task_created_date"])
+    writer.writerow(new_row)
 
-      disable_datasource = requests.delete(druid_end_point, headers=headers)
-      if disable_datasource.status_code == 200:
-         successLogger.debug("successfully disabled the datasource " + i)
-         time.sleep(300)
-
-         delete_segments = requests.delete(
-            druid_end_point + "/intervals/" + interval, headers=headers
-         )
-         if delete_segments.status_code == 200:
-            successLogger.debug("successfully deleted the segments " + i)
-            time.sleep(600)
-
-            enable_datasource = requests.get(druid_end_point, headers=headers)
-            if enable_datasource.status_code == 204 or enable_datasource.status_code == 200:
-               time.sleep(600)
-               successLogger.debug("successfully enabled the datasource " + i)
-
-               start_supervisor = requests.post(druid_batch_end_point, data=j, headers=headers)
-               successLogger.debug("ingest data")
-               if start_supervisor.status_code == 200:
-                  successLogger.debug(
-                     "started the batch ingestion task sucessfully for the datasource " + i
-                  )
-                  time.sleep(50)
-               else:
-                  errorLogger.error("failed to start batch ingestion task" + i)
-                  errorLogger.error(
-                     "failed to start batch ingestion task" + str(start_supervisor.status_code)
-                  ) 
-                  errorLogger.error(start_supervisor.text)
-
-            else:
-               errorLogger.error("failed to enable the datasource " + i)
-               errorLogger.error(
-                    "failed to enable the datasource " + str(enable_datasource.status_code)
-               )
-               errorLogger.error(enable_datasource.text)
-         else:
-            errorLogger.error("failed to delete the segments of the datasource " + i)
-            errorLogger.error(
-                "failed to delete the segments of the datasource " + str(delete_segments.status_code)
-            )
-            errorLogger.error(delete_segments.text)
-      else:
-         errorLogger.error("failed to disable the datasource " + i)
-         errorLogger.error(
-                "failed to disable the datasource " + str(disable_datasource.status_code)
-         )
-         errorLogger.error(disable_datasource.text)
-
-   elif get_timestamp.status_code == 204:
-      start_supervisor = requests.post(druid_batch_end_point, data=j, headers=headers)
-      if start_supervisor.status_code == 200:
-         successLogger.debug(
-            "started the batch ingestion task sucessfully for the datasource " + i
-         )
-         time.sleep(50)
-      else:
-         errorLogger.error("failed to start batch ingestion task" + i)
-         errorLogger.error(
-            "failed to start batch ingestion task" + str(start_supervisor.status_code)
-         )
-         errorLogger.error(start_supervisor.text)
-   else:
-      errorLogger.error("failed to get the timestamp of the datasource " + i)
-      errorLogger.error(
-                "failed to get the timestamp of the datasource " + str(get_timestamp.status_code)
-      )
-      errorLogger.error(get_timestamp.text)
+if distinctCnt_obs_start_supervisor.status_code == 200:
+   successLogger.debug(
+        "started the batch ingestion task sucessfully for the datasource " + ml_distinctCnt_obs_status_datasource
+   )
+   time.sleep(50)
+else:
+   errorLogger.error(
+        "failed to start batch ingestion task of ml-obs-status " + str(distinctCnt_obs_start_supervisor.status_code)
+   )
+   errorLogger.error(distinctCnt_obs_start_supervisor.text)
+   
