@@ -508,6 +508,7 @@ try:
                                 title = []
                                 goal = []
                                 externalId =[]
+
                                 try:
                                   for prj in criteria['improvement-projects']:
                                     try:
