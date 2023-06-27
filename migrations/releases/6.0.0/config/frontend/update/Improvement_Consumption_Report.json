@@ -1,0 +1,261 @@
+{
+    "request": {
+        "report": {
+            "title": "Improvement Consumption Report",
+            "description": "This report will track the no. of improvements being consumed on the platform",
+            "authorizedroles": [
+                "REPORT_ADMIN",
+                "REPORT_VIEWER"
+            ],
+            "status": "draft",
+            "type": "public",
+            "createdby": "$createdby",
+            "reportconfig": {
+                "label": "Improvement Consumption Report",
+                "table": [
+                    {
+                        "id": "ml_no_of_improvements_by_state_sl",
+                        "name": "Improvement status by state",
+                        "config": {
+                            "paging": true,
+                            "filters": [
+                                {
+                                    "label": "Program Name",
+                                    "reference": "Program Name",
+                                    "searchable": true,
+                                    "controlType": "multi-select",
+                                    "displayName": "Select Program",
+                                    "placeholder": "Select Program"
+                                },
+                                {
+                                    "label": "State Name",
+                                    "reference": "State Name",
+                                    "searchable": true,
+                                    "controlType": "multi-select",
+                                    "displayName": "Select State",
+                                    "placeholder": "Select State"
+                                }
+                            ],
+                            "lengthMenu": [
+                                25,
+                                50,
+                                75,
+                                100
+                            ],
+                            "searchable": true,
+                            "columnConfig": [
+                                {
+                                    "data": "Program Name",
+                                    "title": "Program Name"
+                                },
+                                {
+                                    "data": "State Name",
+                                    "title": "State Name"
+                                },
+                                {
+                                    "data": "started",
+                                    "title": "Started"
+                                },
+                                {
+                                    "data": "inProgress",
+                                    "title": "In-Progress"
+                                },
+                                {
+                                    "data": "completed",
+                                    "title": "Submitted"
+                                },
+                                {
+                                    "data": "evidence",
+                                    "title": "Submitted projects with evidence"
+                                }
+                            ],
+                            "bLengthChange": true
+                        },
+                        "valuesExpr": "tableData",
+                        "columnsExpr": "keys",
+                        "downloadUrl": "/reports/fetch/hawk-eye/ml_no_of_improvements_by_state_sl.csv"
+                    },
+                    {
+                        "id": "ml_no_of_improvements_by_district_sl",
+                        "name": "Improvement status by district",
+                        "config": {
+                            "paging": true,
+                            "filters": [
+                                {
+                                    "label": "Program Name",
+                                    "reference": "Program Name",
+                                    "searchable": true,
+                                    "controlType": "multi-select",
+                                    "displayName": "Select Program",
+                                    "placeholder": "Select Program"
+                                },
+                                {
+                                    "label": "State Name",
+                                    "reference": "State Name",
+                                    "searchable": true,
+                                    "controlType": "multi-select",
+                                    "displayName": "Select State",
+                                    "placeholder": "Select State"
+                                },
+                                {
+                                    "label": "District Name",
+                                    "reference": "District Name",
+                                    "searchable": true,
+                                    "controlType": "multi-select",
+                                    "displayName": "Select District",
+                                    "placeholder": "Select District"
+                                }
+                            ],
+                            "lengthMenu": [
+                                25,
+                                50,
+                                75,
+                                100
+                            ],
+                            "searchable": true,
+                            "columnConfig": [
+                                {
+                                    "data": "Program Name",
+                                    "title": "Program Name"
+                                },
+                                {
+                                    "data": "State Name",
+                                    "title": "State Name"
+                                },
+                                {
+                                    "data": "District Name",
+                                    "title": "District Name"
+                                },
+                                {
+                                    "data": "started",
+                                    "title": "Started"
+                                },
+                                {
+                                    "data": "inProgress",
+                                    "title": "In-Progress"
+                                },
+                                {
+                                    "data": "completed",
+                                    "title": "Submitted"
+                                },
+                                {
+                                    "data": "evidence",
+                                    "title": "Submitted projects with evidence"
+                                }
+                            ],
+                            "bLengthChange": true
+                        },
+                        "valuesExpr": "tableData",
+                        "columnsExpr": "keys",
+                        "downloadUrl": "/reports/fetch/hawk-eye/ml_no_of_improvements_by_district_sl.csv"
+                    }
+                ],
+                "title": "Improvement Consumption Report",
+                "charts": [
+                    {
+                        "id": "Big_Number",
+                        "bigNumbers": [
+                            {
+                                "footer": " ",
+                                "header": "No. of improvements in started status currently",
+                                "dataExpr": "No of improvements in started status currently"
+                            },
+                            {
+                                "footer": " ",
+                                "header": "No. of improvements in progress status currently",
+                                "dataExpr": "No of improvements in progress status currently"
+                            },
+                            {
+                                "footer": " ",
+                                "header": "No. of improvements submitted till date",
+                                "dataExpr": "No of improvements submitted till date"
+                            },
+                            {
+                                "footer": " ",
+                                "header": "No. of improvements submitted with evidence till date",
+                                "dataExpr": "No of improvements submitted with evidence till date"
+                            }
+                        ],
+                        "dataSource": {
+                            "ids": [
+                                "ml_no_of_improvements_in_started_status_currently_sl",
+                                "ml_no_of_improvements_in_progress_status_currently_sl",
+                                "ml_no_of_improvements_submitted_till_date_sl",
+                                "ml_no_of_improvements_submitted_with_evidence_till_date_sl"
+                            ],
+                            "commonDimension": "Date"
+                        }
+                    }
+                ],
+                "filters": [
+                    {
+                        "reference": "state name",
+                        "controlType": "multi-select",
+                        "displayName": "State"
+                    },
+                    {
+                        "reference": "Program name",
+                        "controlType": "multi-select",
+                        "displayName": "Program"
+                    },
+                    {
+                        "reference": "District name",
+                        "controlType": "multi-select",
+                        "displayName": "District"
+                    },
+                    {
+                        "reference": "Block name",
+                        "dependency": {
+                            "reference": "District name",
+                            "displayName": "district"
+                        },
+                        "controlType": "multi-select",
+                        "displayName": "Block"
+                    }
+                ],
+                "dataSource": [
+                    {
+                        "id": "ml_no_of_improvements_in_started_status_currently_sl",
+                        "path": "/reports/fetch/hawk-eye/ml_no_of_improvements_in_started_status_currently_sl.json"
+                    },
+                    {
+                        "id": "ml_no_of_improvements_in_progress_status_currently_sl",
+                        "path": "/reports/fetch/hawk-eye/ml_no_of_improvements_in_progress_status_currently_sl.json"
+                    },
+                    {
+                        "id": "ml_no_of_improvements_submitted_till_date_sl",
+                        "path": "/reports/fetch/hawk-eye/ml_no_of_improvements_submitted_till_date_sl.json"
+                    },
+                    {
+                        "id": "ml_no_of_improvements_submitted_with_evidence_till_date_sl",
+                        "path": "/reports/fetch/hawk-eye/ml_no_of_improvements_submitted_with_evidence_till_date_sl.json"
+                    },
+                    {
+                        "id": "ml_no_of_improvements_by_state_sl",
+                        "path": "/reports/fetch/hawk-eye/ml_no_of_improvements_by_state_sl.json"
+                    },
+                    {
+                        "id": "ml_no_of_improvements_by_district_sl",
+                        "path": "/reports/fetch/hawk-eye/ml_no_of_improvements_by_district_sl.json"
+                    }
+                ],
+                "description": "Tracking no. of improvements being consumed on the platform",
+                "downloadUrl": ""
+            },
+            "slug": "hawk-eye",
+            "reportgenerateddate": "2023-05-05T00:00:00.000Z",
+            "reportduration": {
+                "enddate": "12-02-2020",
+                "startdate": "12-02-2020"
+            },
+            "tags": [
+                "Improvement_Consumption_Report"
+            ],
+            "updatefrequency": "DAILY",
+            "parameters": [
+                "$slug"
+            ],
+            "report_type": "report"
+        }
+    }
+}

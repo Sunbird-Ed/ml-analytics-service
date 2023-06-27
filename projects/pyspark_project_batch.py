@@ -22,7 +22,6 @@ from collections import OrderedDict, Counter
 import logging
 from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
 import datetime
-from slackclient import SlackClient
 from datetime import date
 from pyspark.sql import DataFrame
 from typing import Iterable
@@ -32,13 +31,11 @@ from pyspark.sql.functions import element_at, split, col
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
-bot = SlackClient(config.get("SLACK","token"))
 sys.path.append(config.get("COMMON", "cloud_module_path"))
 
 from cloud import MultiCloud
 
 cloud_init = MultiCloud()
-formatter = logging.Formatter('%(asctime)s - %(levelname)s')
 
 details = argparse.ArgumentParser(description='Pass the ProgramID')
 details.add_argument('--program_id',metavar='--program_id', type=str, help='Program IDs', required=False)
@@ -48,23 +45,61 @@ if args.program_id :
  program_Id = args.program_id
  program_unique_id  = ObjectId(program_Id)
 
+# date formating
+current_date = datetime.date.today()
+formatted_current_date = current_date.strftime("%d-%B-%Y")
+number_of_days_logs_kept = current_date - datetime.timedelta(days=7)
+number_of_days_logs_kept = number_of_days_logs_kept.strftime("%d-%B-%Y")
+
+# file path for log
+file_path_for_output_and_debug_log = config.get('LOGS', 'project_success_error')
+file_name_for_output_log = f"{file_path_for_output_and_debug_log}{formatted_current_date}-output.log"
+file_name_for_debug_log = f"{file_path_for_output_and_debug_log}{formatted_current_date}-debug.log"
+
+# Remove old log entries
+files_with_date_pattern = [file 
+for file in os.listdir(file_path_for_output_and_debug_log) 
+if re.match(r"\d{2}-\w+-\d{4}-*", 
+file)]
+
+for file_name in files_with_date_pattern:
+    file_path = os.path.join(file_path_for_output_and_debug_log, file_name)
+    if os.path.isfile(file_path):
+        file_date = file_name.split('.')[0]
+        date = file_date.split('-')[0] + '-' + file_date.split('-')[1] + '-' + file_date.split('-')[2]
+        if date < number_of_days_logs_kept:
+            os.remove(file_path)
+
+
+formatter = logging.Formatter('%(asctime)s - %(levelname)s')
+
+# Handler for output and debug Log
+output_logHandler = RotatingFileHandler(f"{file_name_for_output_log}")
+output_logHandler.setFormatter(formatter)
+
+debug_logHandler = RotatingFileHandler(f"{file_name_for_debug_log}")
+debug_logHandler.setFormatter(formatter)
+
+# Add the successLoger
 successLogger = logging.getLogger('success log')
 successLogger.setLevel(logging.DEBUG)
-
-# Add the log message handler to the logger
-successHandler = RotatingFileHandler(config.get('LOGS', 'project_success'))
-successBackuphandler = TimedRotatingFileHandler(config.get('LOGS','project_success'), when="w0",backupCount=1)
-successHandler.setFormatter(formatter)
-successLogger.addHandler(successHandler)
+successBackuphandler = TimedRotatingFileHandler(f"{file_name_for_output_log}", when="w0",backupCount=1)
+successLogger.addHandler(output_logHandler)
 successLogger.addHandler(successBackuphandler)
 
+# Add the Errorloger
 errorLogger = logging.getLogger('error log')
 errorLogger.setLevel(logging.ERROR)
-errorHandler = RotatingFileHandler(config.get('LOGS', 'project_error'))
-errorBackuphandler = TimedRotatingFileHandler(config.get('LOGS', 'project_error'),when="w0",backupCount=1)
-errorHandler.setFormatter(formatter)
-errorLogger.addHandler(errorHandler)
+errorBackuphandler = TimedRotatingFileHandler(f"{file_name_for_output_log}",when="w0",backupCount=1)
+errorLogger.addHandler(output_logHandler)
 errorLogger.addHandler(errorBackuphandler)
+
+# Add the Infologer
+infoLogger = logging.getLogger('info log')
+infoLogger.setLevel(logging.INFO)
+debug_logBackuphandler = TimedRotatingFileHandler(f"{file_name_for_debug_log}",when="w0",backupCount=1)
+infoLogger.addHandler(debug_logHandler)
+infoLogger.addHandler(debug_logBackuphandler)
 
 
 clientProd = MongoClient(config.get('MONGO', 'url'))
@@ -109,7 +144,8 @@ orgInfo_udf = udf(orgName,orgSchema)
 successLogger.debug(
         "Program started  " + str(datetime.datetime.now())
    )	   
-bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"*** Start for {program_unique_id}: {datetime.datetime.now()} ***\n")
+# bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"*** Start for {program_unique_id}: {datetime.datetime.now()} ***\n")
+infoLogger.info(f"*** Start for {program_unique_id}: {datetime.datetime.now()} ***\n")
 spark = SparkSession.builder.appName("projects").config(
     "spark.driver.memory", "50g"
 ).config(
@@ -800,7 +836,8 @@ if program_unique_id :
     ml_distinctCnt_projects_spec['spec']['ioConfig'].update({"appendToExisting":True})
 distinctCnt_projects_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_projects_spec), headers=headers)
 if distinctCnt_projects_start_supervisor.status_code == 200:
-    bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Successfully Ingested for {ml_distinctCnt_projects_datasource}")
+    # bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Successfully Ingested for {ml_distinctCnt_projects_datasource}")
+    infoLogger.info(f"Successfully Ingested for {ml_distinctCnt_projects_datasource}")
     successLogger.debug("started the batch ingestion task sucessfully for the datasource " + ml_distinctCnt_projects_datasource)
 else:
     errorLogger.error("failed to start batch ingestion task of ml-project-status " + str(distinctCnt_projects_start_supervisor.status_code))
@@ -817,7 +854,8 @@ if program_unique_id:
     ml_distinctCnt_prgmlevel_projects_spec["spec"]["ioConfig"].update({"appendToExisting":True})
 distinctCnt_prgmlevel_projects_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_prgmlevel_projects_spec), headers=headers)
 if distinctCnt_prgmlevel_projects_start_supervisor.status_code == 200:
-    bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Successfully Ingested for {ml_distinctCnt_prgmlevel_projects_datasource}")
+    # bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Successfully Ingested for {ml_distinctCnt_prgmlevel_projects_datasource}")
+    infoLogger.info(f"Successfully Ingested for {ml_distinctCnt_prgmlevel_projects_datasource}")
     successLogger.debug("started the batch ingestion task sucessfully for the datasource " + ml_distinctCnt_prgmlevel_projects_datasource)
 else:
     errorLogger.error(
@@ -865,16 +903,20 @@ for i, j in zip(datasources,ingestion_specs):
     start_supervisor = requests.post(druid_batch_end_point, data=j, headers=headers)
     successLogger.debug("--- INGEST DATA ---")
     if start_supervisor.status_code == 200:
-        bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Succesfully ingested the data in {i}")
+        # bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Succesfully ingested the data in {i}")
+        infoLogger.info(f"Succesfully ingested the data in {i}")
         successLogger.debug("started the batch ingestion task sucessfully for the datasource " + i)
     else:
         errorLogger.error("failed to start batch ingestion task" + i)
         errorLogger.error("failed to start batch ingestion task " + str(start_supervisor.status_code))
         errorLogger.error(start_supervisor.text)
-        bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Failed to ingested the data in {i}")
+        # bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Failed to ingested the data in {i}")
+        infoLogger.info(f"Failed to ingested the data in {i}")
 
 
 if program_unique_id :
- bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Ingested for {program_unique_id}")
+#  bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Ingested for {program_unique_id}")
+ infoLogger.info(f"Ingested for {program_unique_id}")
 else :
- bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Succesfully ingested all program's data")
+#  bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Succesfully ingested all program's data")
+ infoLogger.info(f"Succesfully ingested all program's data")

@@ -1,0 +1,351 @@
+{
+    "id": "ekstep.analytics.report.get",
+    "ver": "1.0",
+    "ts": "2023-05-30T14:18:39.979+00:00",
+    "params": {
+        "resmsgid": "79a164c1-e24f-49a5-a591-5533c7d292a6",
+        "status": "successful",
+        "client_key": null
+    },
+    "responseCode": "OK",
+    "result": {
+        "createdOn": 1672041717508,
+        "updatedOn": 1672041717508,
+        "reportId": "ml_no_of_improvements_by_district_table",
+        "config": {
+            "streamQuery": true,
+            "reportConfig": {
+                "id": "ml_no_of_improvements_by_district_table",
+                "mergeConfig": {
+                    "postContainer": "odev-dev-diksha-privatereports",
+                    "container": "odev-dev-diksha-privatereports",
+                    "basePath": "/mount/data/analytics/tmp",
+                    "reportPath": "ml_no_of_improvements_by_district_table.csv",
+                    "rollup": 0
+                },
+                "labels": {
+                    "total_content_plays_on_app": "completed",
+                    "total_content_plays_on_desktop": "inProgress",
+                    "legend": "Improvement projects status by district",
+                    "SUM(no_of_imp_with_evidence)": "total_content_plays",
+                    "total_content_plays_on_portal": "started",
+                    "district_name": "District Name",
+                    "program_name": "Program Name",
+                    "state_name": "State Name",
+                    "total_content_plays": "evidence"
+                },
+                "dateRange": {
+                    "staticInterval": "LastDay",
+                    "granularity": "all",
+                    "intervalSlider": 0
+                },
+                "metrics": [
+                    {
+                        "metric": "total_content_plays_on_portal",
+                        "label": "total_content_plays_on_portal",
+                        "druidQuery": {
+                            "dataSource": "ml-project-status",
+                            "limitSpec": {
+                                "type": "default",
+                                "limit": 50000,
+                                "columns": [
+                                    {
+                                        "dimension": "SUM(unique_users)",
+                                        "direction": "descending"
+                                    }
+                                ]
+                            },
+                            "filters": [
+                                {
+                                    "dimension": "state_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "program_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "district_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "status_of_project",
+                                    "value": "started"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "private_program",
+                                    "value": "false"
+                                },
+                                {
+                                    "type": "regex",
+                                    "dimension": "program_name",
+                                    "value": "^((?!(?i)(test)).)*$"
+                                }
+                            ],
+                            "granularity": "all",
+                            "dimensions": [
+                                {
+                                    "fieldName": "state_name",
+                                    "aliasName": "State Name"
+                                },
+                                {
+                                    "fieldName": "program_name",
+                                    "aliasName": "Program Name"
+                                },
+                                {
+                                    "fieldName": "district_name",
+                                    "aliasName": "District Name"
+                                }
+                            ],
+                            "aggregations": [
+                                {
+                                    "fieldName": "unique_users",
+                                    "type": "longSum",
+                                    "name": "total_content_plays_on_portal"
+                                }
+                            ],
+                            "queryType": "groupBy"
+                        }
+                    },
+                    {
+                        "metric": "total_content_plays_on_desktop",
+                        "label": "inProgress",
+                        "druidQuery": {
+                            "dataSource": "ml-project-status",
+                            "limitSpec": {
+                                "type": "default",
+                                "limit": 50000,
+                                "columns": [
+                                    {
+                                        "dimension": "SUM(unique_users)",
+                                        "direction": "descending"
+                                    }
+                                ]
+                            },
+                            "filters": [
+                                {
+                                    "dimension": "state_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "program_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "district_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "status_of_project",
+                                    "value": "inProgress"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "private_program",
+                                    "value": "false"
+                                },
+                                {
+                                    "type": "regex",
+                                    "dimension": "program_name",
+                                    "value": "^((?!(?i)(test)).)*$"
+                                }
+                            ],
+                            "granularity": "all",
+                            "dimensions": [
+                                {
+                                    "fieldName": "state_name",
+                                    "aliasName": "State Name"
+                                },
+                                {
+                                    "fieldName": "program_name",
+                                    "aliasName": "Program Name"
+                                },
+                                {
+                                    "fieldName": "district_name",
+                                    "aliasName": "District Name"
+                                }
+                            ],
+                            "aggregations": [
+                                {
+                                    "fieldName": "unique_users",
+                                    "type": "longSum",
+                                    "name": "total_content_plays_on_desktop"
+                                }
+                            ],
+                            "queryType": "groupBy"
+                        }
+                    },
+                    {
+                        "metric": "total_content_plays_on_app",
+                        "label": "completed",
+                        "druidQuery": {
+                            "dataSource": "ml-project-status",
+                            "limitSpec": {
+                                "type": "default",
+                                "limit": 50000,
+                                "columns": [
+                                    {
+                                        "dimension": "SUM(unique_users)",
+                                        "direction": "descending"
+                                    }
+                                ]
+                            },
+                            "filters": [
+                                {
+                                    "dimension": "state_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "program_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "district_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "status_of_project",
+                                    "value": "submitted"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "private_program",
+                                    "value": "false"
+                                },
+                                {
+                                    "type": "regex",
+                                    "dimension": "program_name",
+                                    "value": "^((?!(?i)(test)).)*$"
+                                }
+                            ],
+                            "granularity": "all",
+                            "dimensions": [
+                                {
+                                    "fieldName": "state_name",
+                                    "aliasName": "State Name"
+                                },
+                                {
+                                    "fieldName": "program_name",
+                                    "aliasName": "Program Name"
+                                },
+                                {
+                                    "fieldName": "district_name",
+                                    "aliasName": "District Name"
+                                }
+                            ],
+                            "aggregations": [
+                                {
+                                    "fieldName": "unique_users",
+                                    "type": "longSum",
+                                    "name": "total_content_plays_on_app"
+                                }
+                            ],
+                            "queryType": "groupBy"
+                        }
+                    },
+                    {
+                        "metric": "total_content_plays",
+                        "label": "evidence",
+                        "druidQuery": {
+                            "dataSource": "ml-project-status",
+                            "limitSpec": {
+                                "type": "default",
+                                "limit": 50000,
+                                "columns": [
+                                    {
+                                        "dimension": "SUM(no_of_imp_with_evidence)",
+                                        "direction": "descending"
+                                    }
+                                ]
+                            },
+                            "filters": [
+                                {
+                                    "dimension": "state_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "program_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "district_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "status_of_project",
+                                    "value": "submitted"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "private_program",
+                                    "value": "false"
+                                },
+                                {
+                                    "type": "regex",
+                                    "dimension": "program_name",
+                                    "value": "^((?!(?i)(test)).)*$"
+                                }
+                            ],
+                            "granularity": "all",
+                            "dimensions": [
+                                {
+                                    "fieldName": "state_name",
+                                    "aliasName": "State Name"
+                                },
+                                {
+                                    "fieldName": "program_name",
+                                    "aliasName": "Program Name"
+                                },
+                                {
+                                    "fieldName": "district_name",
+                                    "aliasName": "District Name"
+                                }
+                            ],
+                            "aggregations": [
+                                {
+                                    "fieldName": "no_of_imp_with_evidence",
+                                    "type": "longSum",
+                                    "name": "total_content_plays"
+                                }
+                            ],
+                            "queryType": "groupBy"
+                        }
+                    }
+                ],
+                "output": [
+                    {
+                        "type": "csv",
+                        "metrics": [
+                            "total_content_plays_on_portal",
+                            "total_content_plays_on_desktop",
+                            "total_content_plays_on_app",
+                            "total_content_plays"
+                        ],
+                        "dims": [
+                            "date"
+                        ],
+                        "fileParameters": [
+                            "id",
+                            "dims"
+                        ]
+                    }
+                ],
+                "queryType": "groupBy"
+            },
+            "container": "odev-dev-diksha-privatereports",
+            "store": "oci",
+            "key": "hawk-eye/"
+        },
+        "requestedBy": "423647fd-701a-4e74-b0cf-a959c49459ab",
+        "reportDescription": "The table will show no. of improvements started, in progress, submitted and submitted with evidence state, district and program wise",
+        "submittedOn": 1672041717508,
+        "status": "ACTIVE",
+        "status_msg": "REPORT SUCCESSFULLY ACTIVATED",
+        "reportSchedule": "DAILY"
+    }
+}

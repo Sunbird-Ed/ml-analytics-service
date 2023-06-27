@@ -33,39 +33,64 @@ config.read(config_path[0] + "/config.ini")
 sys.path.append(config.get("COMMON", "cloud_module_path"))
 
 from cloud import MultiCloud
-
 cloud_init = MultiCloud()
+
+
+# Date formating
+current_date = datetime.date.today()
+formatted_current_date = current_date.strftime("%d-%B-%Y")
+number_of_days_logs_kept = current_date - datetime.timedelta(days=7)
+number_of_days_logs_kept = number_of_days_logs_kept.strftime("%d-%B-%Y")
+
+# Files path for logs
+file_path_for_output_and_debug_log = config.get('LOGS', 'project_success_error')
+file_name_for_output_log = f"{file_path_for_output_and_debug_log}{formatted_current_date}-output.log"
+file_name_for_debug_log = f"{file_path_for_output_and_debug_log}{formatted_current_date}-debug.log"
+
+# Remove old log entries 
+files_with_date_pattern = [file 
+for file in os.listdir(file_path_for_output_and_debug_log) 
+if re.match(r"\d{2}-\w+-\d{4}-*", 
+file)]
+
+for file_name in files_with_date_pattern:
+    file_path = os.path.join(file_path_for_output_and_debug_log, file_name)
+    if os.path.isfile(file_path):
+        file_date = file_name.split('.')[0]
+        date = file_date.split('-')[0] + '-' + file_date.split('-')[1] + '-' + file_date.split('-')[2]
+        if date < number_of_days_logs_kept:
+            os.remove(file_path)
+
+# Add loggers
 formatter = logging.Formatter('%(asctime)s - %(levelname)s')
 
+# handler for output and debug Log
+output_logHandler = RotatingFileHandler(f"{file_name_for_output_log}")
+output_logHandler.setFormatter(formatter)
+
+debug_logHandler = RotatingFileHandler(f"{file_name_for_debug_log}")
+debug_logHandler.setFormatter(formatter)
+
+# Add the successLoger
 successLogger = logging.getLogger('success log')
 successLogger.setLevel(logging.DEBUG)
-
-# Add the log message handler to the logger
-successHandler = logging.handlers.RotatingFileHandler(
-    config.get('LOGS', 'project_success')
-)
-successBackuphandler = TimedRotatingFileHandler(
-    config.get('LOGS','project_success'),
-    when="w0",
-    backupCount=1
-)
-successHandler.setFormatter(formatter)
-successLogger.addHandler(successHandler)
+successBackuphandler = TimedRotatingFileHandler(f"{file_name_for_output_log}", when="w0",backupCount=1)
+successLogger.addHandler(output_logHandler)
 successLogger.addHandler(successBackuphandler)
 
+# Add the Errorloger
 errorLogger = logging.getLogger('error log')
 errorLogger.setLevel(logging.ERROR)
-errorHandler = logging.handlers.RotatingFileHandler(
-    config.get('LOGS', 'project_error')
-)
-errorBackuphandler = TimedRotatingFileHandler(
-    config.get('LOGS', 'project_error'),
-    when="w0",
-    backupCount=1
-)
-errorHandler.setFormatter(formatter)
-errorLogger.addHandler(errorHandler)
+errorBackuphandler = TimedRotatingFileHandler(f"{file_name_for_output_log}",when="w0",backupCount=1)
+errorLogger.addHandler(output_logHandler)
 errorLogger.addHandler(errorBackuphandler)
+
+# Add the Infologer
+infoLogger = logging.getLogger('info log')
+infoLogger.setLevel(logging.INFO)
+debug_logBackuphandler = TimedRotatingFileHandler(f"{file_name_for_debug_log}",when="w0",backupCount=1)
+infoLogger.addHandler(debug_logHandler)
+infoLogger.addHandler(debug_logBackuphandler)
 
 try:
     def convert_to_row(d: dict) -> Row:

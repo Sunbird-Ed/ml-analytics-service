@@ -1,0 +1,113 @@
+{
+    "id": "api.report.read",
+    "params": {
+        "err": null,
+        "errmsg": null,
+        "msgid": "85502726-91c3-446b-baf1-d864c6a57557",
+        "resmsgid": "85502726-91c3-446b-baf1-d864c6a57557",
+        "status": "success"
+    },
+    "responseCode": "OK",
+    "result": {
+        "reports": [
+            {
+                "reportid": "8ede2507-0c18-4247-86da-a385b8289ea8",
+                "title": "Observation consumption Report",
+                "description": "This report will track the no. of observation consumption on the platform",
+                "authorizedroles": [
+                    "REPORT_ADMIN",
+                    "ORG_ADMIN",
+                    "REPORT_VIEWER"
+                ],
+                "status": "draft",
+                "type": "public",
+                "reportaccessurl": "\"https://diksha.gov.in\"/dashBoard/reports/8ede2507-0c18-4247-86da-a385b8289ea8",
+                "createdon": "2022-07-20T02:22:17.614Z",
+                "updatedon": "2022-07-20T02:22:17.614Z",
+                "createdby": "423647fd-701a-4e74-b0cf-a959c49459ab",
+                "reportconfig": {
+                    "label": "Observation consumption Report",
+                    "title": "Observation consumption Report",
+                    "charts": [
+                        {
+                            "id": "Big_Number",
+                            "bigNumbers": [
+                                {
+                                    "footer": " ",
+                                    "header": "No. of observations in started status currently",
+                                    "dataExpr": "No of observations in started status currently"
+                                },
+                                {
+                                    "footer": " ",
+                                    "header": "No. of observations submitted till date",
+                                    "dataExpr": "No of observations submitted till date"
+                                }
+                            ],
+                            "dataSource": {
+                                "ids": [
+                                    "ml_no_of_observations_in_started_status_currently",
+                                    "ml_no_of_observations_submitted_till_date"
+                                ],
+                                "commonDimension": "Date"
+                            }
+                        }
+                    ],
+                    "filters": [
+                        {
+                            "reference": "State Name",
+                            "controlType": "multi-select",
+                            "displayName": "State"
+                        },
+                        {
+                            "reference": "Program Name",
+                            "controlType": "multi-select",
+                            "displayName": "Program"
+                        },
+                        {
+                            "reference": "District Name",
+                            "controlType": "multi-select",
+                            "displayName": "District"
+                        }
+                    ],
+                    "dataSource": [
+                        {
+                            "id": "ml_no_of_observations_in_started_status_currently",
+                            "path": "/reports/fetch/hawk-eye/ml_no_of_observations_in_started_status_currently.json"
+                        },
+                        {
+                            "id": "ml_no_of_observations_submitted_till_date",
+                            "path": "/reports/fetch/hawk-eye/ml_no_of_observations_submitted_till_date.json"
+                        }
+                    ],
+                    "description": "This report will track the no. of observation consumption on the platform",
+                    "downloadUrl": ""
+                },
+                "templateurl": null,
+                "slug": "hawk-eye",
+                "reportgenerateddate": "2022-07-20T00:00:00.000Z",
+                "reportduration": {
+                    "enddate": "12-02-2020",
+                    "startdate": "12-02-2020"
+                },
+                "tags": [
+                    "1Bn"
+                ],
+                "updatefrequency": "DAILY",
+                "parameters": [
+                    "$slug"
+                ],
+                "report_type": "report",
+                "accesspath": null,
+                "visibilityflags": null,
+                "children": [
+                    {
+                        "status": "live",
+                        "reportid": "8ede2507-0c18-4247-86da-a385b8289ea8",
+                        "hashed_val": "c2w="
+                    }
+                ]
+            }
+        ],
+        "count": 1
+    }
+}

@@ -1,0 +1,127 @@
+{
+    "id": "ekstep.analytics.report.get",
+    "ver": "1.0",
+    "ts": "2023-05-30T13:41:04.620+00:00",
+    "params": {
+        "resmsgid": "acd51913-049e-4ab4-be2a-8a8b55cafabd",
+        "status": "successful",
+        "client_key": null
+    },
+    "responseCode": "OK",
+    "result": {
+        "createdOn": 1672676819922,
+        "updatedOn": 1672814648730,
+        "reportId": "ml_no_of_anonymous_user_ub",
+        "config": {
+            "reportConfig": {
+                "id": "ml_no_of_anonymous_user_ub",
+                "mergeConfig": {
+                    "rollupRange": 2,
+                    "rollupAge": "ACADEMIC_YEAR",
+                    "postContainer": "reports",
+                    "container": "reports",
+                    "basePath": "/mount/data/analytics/tmp",
+                    "reportPath": "ml_no_of_anonymous_user_ub.csv",
+                    "rollupCol": "Date||%d-%m-%Y",
+                    "rollup": 1
+                },
+                "labels": {
+                    "derived_loc_state": "State Name",
+                    "total_unique_devices": "total_content_plays_on_portal",
+                    "legend": "No of logins with Anonymous user",
+                    "date": "Date",
+                    "total_content_plays_on_portal": "No of logins with Anonymous user",
+                    "derived_loc_district": "District Name"
+                },
+                "dateRange": {
+                    "staticInterval": "LastDay",
+                    "granularity": "day",
+                    "intervalSlider": 0
+                },
+                "metrics": [
+                    {
+                        "metric": "total_content_plays_on_portal",
+                        "label": "total_content_plays_on_portal",
+                        "druidQuery": {
+                            "dataSource": "summary-distinct-counts",
+                            "limitSpec": {
+                                "type": "default",
+                                "limit": 10000,
+                                "columns": [
+                                    {
+                                        "dimension": "total_unique_user",
+                                        "direction": "descending"
+                                    }
+                                ]
+                            },
+                            "filters": [
+                                {
+                                    "type": "isnotnull",
+                                    "dimension": "derived_loc_district"
+                                },
+                                {
+                                    "type": "isnotnull",
+                                    "dimension": "derived_loc_state"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "user_login_type",
+                                    "value": "administrator"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "user_signin_type",
+                                    "value": "Anonymous"
+                                }
+                            ],
+                            "granularity": "day",
+                            "dimensions": [
+                                {
+                                    "fieldName": "derived_loc_state",
+                                    "aliasName": "State Name"
+                                },
+                                {
+                                    "fieldName": "derived_loc_district",
+                                    "aliasName": "District Name"
+                                }
+                            ],
+                            "aggregations": [
+                                {
+                                    "name": "total_content_plays_on_portal",
+                                    "fieldName": "unique_users",
+                                    "type": "HLLSketchMerge"
+                                }
+                            ],
+                            "queryType": "groupBy"
+                        }
+                    }
+                ],
+                "output": [
+                    {
+                        "type": "csv",
+                        "metrics": [
+                            "total_content_plays_on_portal"
+                        ],
+                        "dims": [
+                            "date"
+                        ],
+                        "fileParameters": [
+                            "id",
+                            "dims"
+                        ]
+                    }
+                ],
+                "queryType": "groupBy"
+            },
+            "store": "azure",
+            "container": "reports",
+            "key": "hawk-eye/"
+        },
+        "requestedBy": "773d5976-e4df-4707-8121-71a4bc479bea",
+        "reportDescription": "Big Number will give an idea of number of users who logged in with leader persona till date",
+        "submittedOn": 1672676819922,
+        "status": "ACTIVE",
+        "status_msg": "REPORT SUCCESSFULLY ACTIVATED",
+        "reportSchedule": "DAILY"
+    }
+}

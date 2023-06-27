@@ -1,0 +1,625 @@
+{
+    "request": {
+        "report": {
+            "title": "Observation Report PDR",
+            "description": "The report provides the operation charts for Observation without rubric form",
+            "authorizedroles": [
+                "PROGRAM_DESIGNER",
+                "PROGRAM_MANAGER"
+            ],
+            "status": "live",
+            "type": "protected",
+            "createdby": "$createdby",
+            "reportconfig": {
+                "files": [],
+                "label": "Observation Report PDR",
+                "table": [
+                    {
+                        "id": "ml_district_wise_observation_status_and_entities_observed_table_a_sl_pdr",
+                        "name": "District wise status",
+                        "config": {
+                            "info": true,
+                            "paging": true,
+                            "filters": [
+                                {
+                                    "label": "district_name",
+                                    "reference": "district_externalId",
+                                    "searchable": true,
+                                    "controlType": "multi-select",
+                                    "displayName": "District",
+                                    "placeholder": "Select district"
+                                },
+                                {
+                                    "label": "organisation_name",
+                                    "reference": "organisation_id",
+                                    "searchable": true,
+                                    "controlType": "multi-select",
+                                    "displayName": "Organisation",
+                                    "placeholder": "Select Organisation"
+                                }
+                            ],
+                            "lengthMenu": [
+                                10,
+                                25,
+                                50,
+                                100
+                            ],
+                            "searchable": true,
+                            "columnConfig": [
+                                {
+                                    "data": "district_externalId",
+                                    "title": "district_externalId"
+                                },
+                                {
+                                    "data": "program_id",
+                                    "title": "program_id"
+                                },
+                                {
+                                    "data": "solution_id",
+                                    "title": "solution_id"
+                                },
+                                {
+                                    "data": "organisation_id",
+                                    "title": "organisation_id"
+                                },
+                                {
+                                    "data": "Program Name",
+                                    "title": "Program Name"
+                                },
+                                {
+                                    "data": "Observation Name",
+                                    "title": "Observation Name"
+                                },
+                                {
+                                    "data": "organisation_name",
+                                    "title": "Organisation Name"
+                                },
+                                {
+                                    "data": "district_name",
+                                    "title": "District"
+                                },
+                                {
+                                    "data": "No of users started",
+                                    "title": "No. of users (started)"
+                                },
+                                {
+                                    "data": "No of users completed",
+                                    "title": "No. of users (submitted)"
+                                },
+                                {
+                                    "data": "Total submissions",
+                                    "title": "Total Submissions"
+                                },
+                                {
+                                    "data": "Entities observed",
+                                    "title": "Entities Observed"
+                                }
+                            ],
+                            "bLengthChange": true
+                        },
+                        "valuesExpr": "tableData",
+                        "columnsExpr": "keys",
+                        "downloadUrl": "/reports/fetch/hawk-eye/ml_district_wise_observation_status_and_entities_observed_table_a_sl_pdr.csv"
+                    },
+                    {
+                        "id": "ml_district_wise_observation_status_and_entities_observed_table_block_sl_pdr",
+                        "name": "Block wise status ",
+                        "config": {
+                            "info": true,
+                            "paging": true,
+                            "filters": [
+                                {
+                                    "label": "district_name",
+                                    "reference": "district_externalId",
+                                    "searchable": true,
+                                    "controlType": "multi-select",
+                                    "displayName": "District",
+                                    "placeholder": "Select district"
+                                },
+                                {
+                                    "label": "Block Name",
+                                    "reference": "block_externalId",
+                                    "searchable": true,
+                                    "controlType": "multi-select",
+                                    "displayName": "Block",
+                                    "placeholder": "Select Block"
+                                },
+                                {
+                                    "label": "organisation_name",
+                                    "reference": "organisation_id",
+                                    "searchable": true,
+                                    "controlType": "multi-select",
+                                    "displayName": "Organisation",
+                                    "placeholder": "Select Organisation"
+                                }
+                            ],
+                            "lengthMenu": [
+                                10,
+                                25,
+                                50,
+                                100
+                            ],
+                            "searchable": true,
+                            "columnConfig": [
+                                {
+                                    "data": "district_externalId",
+                                    "title": "district_externalId"
+                                },
+                                {
+                                    "data": "block_externalId",
+                                    "title": "block_externalId"
+                                },
+                                {
+                                    "data": "program_id",
+                                    "title": "program_id"
+                                },
+                                {
+                                    "data": "solution_id",
+                                    "title": "solution_id"
+                                },
+                                {
+                                    "data": "organisation_id",
+                                    "title": "organisation_id"
+                                },
+                                {
+                                    "data": "Program Name",
+                                    "title": "Program Name"
+                                },
+                                {
+                                    "data": "Observation Name",
+                                    "title": "Observation Name"
+                                },
+                                {
+                                    "data": "organisation_name",
+                                    "title": "Organisation Name"
+                                },
+                                {
+                                    "data": "district_name",
+                                    "title": "District"
+                                },
+                                {
+                                    "data": "Block name",
+                                    "title": "Block"
+                                },
+                                {
+                                    "data": "No of users started",
+                                    "title": "No. of users (started)"
+                                },
+                                {
+                                    "data": "No of users completed",
+                                    "title": "No. of users (submitted)"
+                                },
+                                {
+                                    "data": "Total submissions",
+                                    "title": "Total Submissions"
+                                },
+                                {
+                                    "data": "Entities observed",
+                                    "title": "Entities Observed"
+                                }
+                            ],
+                            "bLengthChange": true,
+                            "hasDependencyFilters": true
+                        },
+                        "valuesExpr": "tableData",
+                        "columnsExpr": "keys",
+                        "downloadUrl": "/reports/fetch/hawk-eye/ml_district_wise_observation_status_and_entities_observed_table_block_sl_pdr.csv"
+                    }
+                ],
+                "title": "Observation Report PDR",
+                "charts": [
+                    {
+                        "id": "Big_Number",
+                        "bigNumbers": [
+                            {
+                                "footer": " ",
+                                "header": "Unique users who submitted form",
+                                "dataExpr": "Total Unique Users"
+                            },
+                            {
+                                "footer": " ",
+                                "header": "Unique Users who started form",
+                                "dataExpr": "Unique Users who started form"
+                            },
+                            {
+                                "footer": " ",
+                                "header": "Total submissions",
+                                "dataExpr": "Total submissions"
+                            },
+                            {
+                                "footer": " ",
+                                "header": "Total entities observed",
+                                "dataExpr": "Total entities observed"
+                            }
+                        ],
+                        "dataSource": {
+                            "ids": [
+                                "ml_total_unique_users_sl_pdr",
+                                "ml_unique_users_who_started_form_sl_pdr",
+                                "ml_total_submissions_sl_pdr",
+                                "ml_total_entities_observed_sl_pdr"
+                            ],
+                            "commonDimension": "Date"
+                        }
+                    },
+                    {
+                        "id": "ml_district_wise_unique_users_who_submitted_form_sl_pdr",
+                        "colors": [
+                            {
+                                "borderColor": "rgb(0, 199, 134)",
+                                "borderWidth": 2,
+                                "backgroundColor": "rgba(0, 199, 134, 0.3)"
+                            },
+                            {
+                                "borderColor": "rgb(255, 161, 29)",
+                                "borderWidth": 2,
+                                "backgroundColor": "rgba(255, 161, 29, 0.3)"
+                            },
+                            {
+                                "borderColor": "rgb(255, 69, 88)",
+                                "borderWidth": 2,
+                                "backgroundColor": "rgba(255, 69, 88, 0.3)"
+                            },
+                            {
+                                "borderColor": "rgb(242, 203, 28)",
+                                "borderWidth": 2,
+                                "backgroundColor": "rgba(242, 203, 28, 0.3)"
+                            },
+                            {
+                                "borderColor": "rgb(55, 70, 73)",
+                                "borderWidth": 2,
+                                "backgroundColor": "rgba(55, 70, 73, 0.3)"
+                            }
+                        ],
+                        "filters": [
+                            {
+                                "reference": "district_name",
+                                "controlType": "multi-select",
+                                "displayName": "District"
+                            },
+                            {
+                                "reference": "Block name",
+                                "dependency": {
+                                    "reference": "district_name",
+                                    "displayName": "district"
+                                },
+                                "controlType": "multi-select",
+                                "displayName": "Block"
+                            },
+                            {
+                                "reference": "organisation_name",
+                                "controlType": "multi-select",
+                                "displayName": "Organisation"
+                            }
+                        ],
+                        "options": {
+                            "title": {
+                                "text": "District wise unique users who submitted form",
+                                "display": true,
+                                "fontSize": 16
+                            },
+                            "legend": {
+                                "display": false
+                            },
+                            "scales": {
+                                "xAxes": [
+                                    {
+                                        "ticks": {
+                                            "autoSkip": false
+                                        },
+                                        "scaleLabel": {
+                                            "display": true,
+                                            "labelString": "District"
+                                        }
+                                    }
+                                ],
+                                "yAxes": [
+                                    {
+                                        "scaleLabel": {
+                                            "display": true,
+                                            "labelString": "No of unique users"
+                                        }
+                                    }
+                                ]
+                            },
+                            "tooltips": {
+                                "mode": "x-axis",
+                                "intersect": false,
+                                "bodySpacing": 5,
+                                "titleSpacing": 5
+                            },
+                            "responsive": true,
+                            "showLastUpdatedOn": true
+                        },
+                        "datasets": [
+                            {
+                                "label": "No of unique users",
+                                "dataExpr": "No of unique users"
+                            }
+                        ],
+                        "chartType": "bar",
+                        "dataSource": {
+                            "ids": [
+                                "ml_district_wise_unique_users_who_submitted_form_sl_pdr"
+                            ],
+                            "commonDimension": "district_name"
+                        },
+                        "labelsExpr": "district_name"
+                    },
+                    {
+                        "id": "ml_district_wise_unique_entities_observed_sl_pdr",
+                        "colors": [
+                            {
+                                "borderColor": "rgb(0, 199, 134)",
+                                "borderWidth": 2,
+                                "backgroundColor": "rgba(0, 199, 134, 0.3)"
+                            },
+                            {
+                                "borderColor": "rgb(255, 161, 29)",
+                                "borderWidth": 2,
+                                "backgroundColor": "rgba(255, 161, 29, 0.3)"
+                            },
+                            {
+                                "borderColor": "rgb(255, 69, 88)",
+                                "borderWidth": 2,
+                                "backgroundColor": "rgba(255, 69, 88, 0.3)"
+                            },
+                            {
+                                "borderColor": "rgb(242, 203, 28)",
+                                "borderWidth": 2,
+                                "backgroundColor": "rgba(242, 203, 28, 0.3)"
+                            },
+                            {
+                                "borderColor": "rgb(55, 70, 73)",
+                                "borderWidth": 2,
+                                "backgroundColor": "rgba(55, 70, 73, 0.3)"
+                            }
+                        ],
+                        "filters": [
+                            {
+                                "reference": "district_name",
+                                "controlType": "multi-select",
+                                "displayName": "District"
+                            },
+                            {
+                                "reference": "Block name",
+                                "dependency": {
+                                    "reference": "district_name",
+                                    "displayName": "district"
+                                },
+                                "controlType": "multi-select",
+                                "displayName": "Block"
+                            },
+                            {
+                                "reference": "organisation_name",
+                                "controlType": "multi-select",
+                                "displayName": "Organisation"
+                            }
+                        ],
+                        "options": {
+                            "title": {
+                                "text": "District wise unique entities observed",
+                                "display": true,
+                                "fontSize": 16
+                            },
+                            "legend": {
+                                "display": false
+                            },
+                            "scales": {
+                                "xAxes": [
+                                    {
+                                        "ticks": {
+                                            "autoSkip": false
+                                        },
+                                        "scaleLabel": {
+                                            "display": true,
+                                            "labelString": "district_name"
+                                        }
+                                    }
+                                ],
+                                "yAxes": [
+                                    {
+                                        "scaleLabel": {
+                                            "display": true,
+                                            "labelString": "No of entities"
+                                        }
+                                    }
+                                ]
+                            },
+                            "tooltips": {
+                                "mode": "x-axis",
+                                "intersect": false,
+                                "bodySpacing": 5,
+                                "titleSpacing": 5
+                            },
+                            "responsive": true,
+                            "showLastUpdatedOn": true
+                        },
+                        "datasets": [
+                            {
+                                "label": "No of entities",
+                                "dataExpr": "No of entities"
+                            }
+                        ],
+                        "chartType": "bar",
+                        "dataSource": {
+                            "ids": [
+                                "ml_district_wise_unique_entities_observed_sl_pdr"
+                            ],
+                            "commonDimension": "district_name"
+                        },
+                        "labelsExpr": "district_name"
+                    },
+                    {
+                        "id": "ml_district_wise_no_of_submissions_vs_observation_status_sl_pdr",
+                        "colors": [
+                            {
+                                "borderColor": "rgb(0, 199, 134)",
+                                "borderWidth": 2,
+                                "backgroundColor": "rgba(0, 199, 134, 0.3)"
+                            },
+                            {
+                                "borderColor": "rgb(255, 161, 29)",
+                                "borderWidth": 2,
+                                "backgroundColor": "rgba(255, 161, 29, 0.3)"
+                            },
+                            {
+                                "borderColor": "rgb(255, 69, 88)",
+                                "borderWidth": 2,
+                                "backgroundColor": "rgba(255, 69, 88, 0.3)"
+                            },
+                            {
+                                "borderColor": "rgb(242, 203, 28)",
+                                "borderWidth": 2,
+                                "backgroundColor": "rgba(242, 203, 28, 0.3)"
+                            },
+                            {
+                                "borderColor": "rgb(55, 70, 73)",
+                                "borderWidth": 2,
+                                "backgroundColor": "rgba(55, 70, 73, 0.3)"
+                            }
+                        ],
+                        "filters": [
+                            {
+                                "reference": "district_name",
+                                "controlType": "multi-select",
+                                "displayName": "District"
+                            },
+                            {
+                                "reference": "Block name",
+                                "dependency": {
+                                    "reference": "district_name",
+                                    "displayName": "district"
+                                },
+                                "controlType": "multi-select",
+                                "displayName": "Block"
+                            },
+                            {
+                                "reference": "organisation_name",
+                                "controlType": "multi-select",
+                                "displayName": "Organisation"
+                            }
+                        ],
+                        "options": {
+                            "title": {
+                                "text": "District wise No of Submissions Vs Observation status",
+                                "display": true,
+                                "fontSize": 16
+                            },
+                            "legend": {
+                                "display": true
+                            },
+                            "scales": {
+                                "xAxes": [
+                                    {
+                                        "stacked": true,
+                                        "scaleLabel": {
+                                            "display": true,
+                                            "labelString": "district_name"
+                                        }
+                                    }
+                                ],
+                                "yAxes": [
+                                    {
+                                        "stacked": true,
+                                        "scaleLabel": {
+                                            "display": true,
+                                            "labelString": "No of submissions"
+                                        }
+                                    }
+                                ]
+                            },
+                            "tooltips": {
+                                "mode": "x-axis",
+                                "intersect": false,
+                                "bodySpacing": 5,
+                                "titleSpacing": 5
+                            },
+                            "responsive": true,
+                            "showLastUpdatedOn": true
+                        },
+                        "datasets": [
+                            {
+                                "label": "submitted",
+                                "dataExpr": "completed"
+                            },
+                            {
+                                "label": "started",
+                                "dataExpr": "started"
+                            }
+                        ],
+                        "chartType": "bar",
+                        "dataSource": {
+                            "ids": [
+                                "ml_district_wise_no_of_submissions_vs_observation_status_sl_pdr"
+                            ],
+                            "commonDimension": "district_name"
+                        },
+                        "labelsExpr": "district_name"
+                    }
+                ],
+                "dataSource": [
+                    {
+                        "id": "ml_total_unique_users_sl_pdr",
+                        "path": "/reports/fetch/hawk-eye/ml_total_unique_users_sl_pdr.json"
+                    },
+                    {
+                        "id": "ml_total_submissions_sl_pdr",
+                        "path": "/reports/fetch/hawk-eye/ml_total_submissions_sl_pdr.json"
+                    },
+                    {
+                        "id": "ml_total_entities_observed_sl_pdr",
+                        "path": "/reports/fetch/hawk-eye/ml_total_entities_observed_sl_pdr.json"
+                    },
+                    {
+                        "id": "ml_district_wise_unique_users_who_submitted_form_sl_pdr",
+                        "path": "/reports/fetch/hawk-eye/ml_district_wise_unique_users_who_submitted_form_sl_pdr.json"
+                    },
+                    {
+                        "id": "ml_district_wise_unique_entities_observed_sl_pdr",
+                        "path": "/reports/fetch/hawk-eye/ml_district_wise_unique_entities_observed_sl_pdr.json"
+                    },
+                    {
+                        "id": "ml_district_wise_no_of_submissions_vs_observation_status_sl_pdr",
+                        "path": "/reports/fetch/hawk-eye/ml_district_wise_no_of_submissions_vs_observation_status_sl_pdr.json"
+                    },
+                    {
+                        "id": "ml_unique_users_who_started_form_sl_pdr",
+                        "path": "/reports/fetch/hawk-eye/ml_unique_users_who_started_form_sl_pdr.json"
+                    },
+                    {
+                        "id": "ml_district_wise_observation_status_and_entities_observed_table_a_sl_pdr",
+                        "path": "/reports/fetch/hawk-eye/ml_district_wise_observation_status_and_entities_observed_table_a_sl_pdr.json"
+                    },
+                    {
+                        "id": "ml_district_wise_observation_status_and_entities_observed_table_block_sl_pdr",
+                        "path": "/reports/fetch/hawk-eye/ml_district_wise_observation_status_and_entities_observed_table_block_sl_pdr.json"
+                    }
+                ],
+                "description": "The report provides the operation charts for Observation without rubric form",
+                "downloadUrl": "",
+                "report_type": "program_dashboard",
+                "report_status": "active",
+                "solution_type": "observation"
+            },
+            "slug": "hawk-eye",
+            "reportgenerateddate": "2023-05-22T00:00:00.000Z",
+            "reportduration": {
+                "enddate": "12-02-2020",
+                "startdate": "12-02-2020"
+            },
+            "tags": [
+                "Observation_Report_PDR"
+            ],
+            "updatefrequency": "DAILY",
+            "parameters": [],
+            "report_type": "report",
+            "accesspath": {
+                "role": [
+                    "PROGRAM_DESIGNER",
+                    "PROGRAM_MANAGER"
+                ]
+            }
+        }
+    }
+}

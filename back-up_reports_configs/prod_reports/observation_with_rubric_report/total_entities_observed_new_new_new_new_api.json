@@ -1,0 +1,156 @@
+{
+    "id": "ekstep.analytics.report.get",
+    "ver": "1.0",
+    "ts": "2023-05-30T14:26:43.025+00:00",
+    "params": {
+        "resmsgid": "f3ccb7d5-bfb7-47d9-a9da-0d0787e048b9",
+        "status": "successful",
+        "client_key": null
+    },
+    "responseCode": "OK",
+    "result": {
+        "createdOn": 1655294545876,
+        "updatedOn": 1671104193539,
+        "reportId": "total_entities_observed_new_new_new_new_api",
+        "config": {
+            "streamQuery": true,
+            "reportConfig": {
+                "id": "total_entities_observed_new_new_new_new_api",
+                "mergeConfig": {
+                    "postContainer": "odev-dev-diksha-privatereports",
+                    "container": "odev-dev-diksha-privatereports",
+                    "basePath": "/mount/data/analytics/tmp",
+                    "reportPath": "total_entities_observed_new_new_new_new_api.csv",
+                    "rollup": 0
+                },
+                "labels": {
+                    "legend": "Total entities observed",
+                    "total_content_plays_on_portal": "Total entities observed",
+                    "organisation_name": "Organisation",
+                    "parent_channel": "parent_channel",
+                    "district_name": "District name",
+                    "program_name": "Program name",
+                    "state_slug": "state_slug",
+                    "SUM(unique_entities)": "total_content_plays_on_portal",
+                    "solution_name": "Observation name"
+                },
+                "dateRange": {
+                    "staticInterval": "LastDay",
+                    "granularity": "all",
+                    "intervalSlider": 0
+                },
+                "metrics": [
+                    {
+                        "metric": "total_content_plays_on_portal",
+                        "label": "total_content_plays_on_portal",
+                        "druidQuery": {
+                            "dataSource": "ml-obs-status",
+                            "limitSpec": {
+                                "type": "default",
+                                "limit": 10000,
+                                "columns": [
+                                    {
+                                        "dimension": "SUM(unique_entities)",
+                                        "direction": "descending"
+                                    }
+                                ]
+                            },
+                            "filters": [
+                                {
+                                    "type": "equals",
+                                    "dimension": "status",
+                                    "value": "completed"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "private_program",
+                                    "value": "false"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "solution_type",
+                                    "value": "observation_with_rubric"
+                                },
+                                {
+                                    "type": "regex",
+                                    "dimension": "program_name",
+                                    "value": "^((?!(?i)(test)).)*$"
+                                }
+                            ],
+                            "granularity": "all",
+                            "dimensions": [
+                                {
+                                    "type": "extraction",
+                                    "extractionFn": [
+                                        {
+                                            "type": "registeredLookup",
+                                            "retainMissingValue": true,
+                                            "fn": "stateSlugLookup"
+                                        }
+                                    ],
+                                    "fieldName": "state_name",
+                                    "aliasName": "state_slug"
+                                },
+                                {
+                                    "fieldName": "parent_channel",
+                                    "aliasName": "parent_channel"
+                                },
+                                {
+                                    "fieldName": "district_name",
+                                    "aliasName": "District name"
+                                },
+                                {
+                                    "fieldName": "program_name",
+                                    "aliasName": "Program name"
+                                },
+                                {
+                                    "fieldName": "solution_name",
+                                    "aliasName": "Observation name"
+                                },
+                                {
+                                    "fieldName": "organisation_name",
+                                    "aliasName": "Organisation"
+                                }
+                            ],
+                            "aggregations": [
+                                {
+                                    "fieldName": "unique_entities",
+                                    "type": "longSum",
+                                    "name": "total_content_plays_on_portal"
+                                }
+                            ],
+                            "postAggregations": [],
+                            "queryType": "groupBy"
+                        }
+                    }
+                ],
+                "output": [
+                    {
+                        "type": "csv",
+                        "metrics": [
+                            "total_content_plays_on_portal"
+                        ],
+                        "dims": [
+                            "date",
+                            "state_slug"
+                        ],
+                        "fileParameters": [
+                            "id",
+                            "dims"
+                        ]
+                    }
+                ],
+                "queryType": "groupBy"
+            },
+            "container": "odev-dev-diksha-privatereports",
+            "store": "oci",
+            "key": "hawk-eye/"
+        },
+        "requestedBy": "423647fd-701a-4e74-b0cf-a959c49459ab",
+        "reportDescription": "Total no. of unique entities for which observation are done",
+        "submittedOn": 1655294545876,
+        "status": "ACTIVE",
+        "status_msg": "REPORT SUCCESSFULLY ACTIVATED",
+        "reportSchedule": "DAILY"
+    }
+}

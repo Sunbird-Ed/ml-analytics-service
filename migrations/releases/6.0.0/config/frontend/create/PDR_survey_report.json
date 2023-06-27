@@ -1,0 +1,62 @@
+{
+    "request": {
+        "report": {
+            "title": "PDR survey report",
+            "description": "survey report",
+            "authorizedroles": [
+                "PROGRAM_DESIGNER",
+                "PROGRAM_MANAGER"
+            ],
+            "status": "draft",
+            "type": "protected",
+            "createdby": "$createdby",
+            "reportconfig": {
+                "files": [],
+                "label": "PDR survey report",
+                "table": [
+                    {
+                        "name": "District wise Status"
+                    },
+                    {
+                        "name": "Block wise Status"
+                    }
+                ],
+                "title": "PDR survey report",
+                "charts": [
+                    {
+                        "id": "Big_Number",
+                        "bigNumbers": [],
+                        "dataSource": {
+                            "ids": [],
+                            "commonDimension": "Date"
+                        }
+                    }
+                ],
+                "dataSource": [],
+                "description": "survey report",
+                "downloadUrl": "",
+                "report_type": "program_dashboard",
+                "report_status": "active",
+                "solution_type": "survey"
+            },
+            "slug": "hawk-eye",
+            "reportgenerateddate": "2023-06-07T00:00:00.000Z",
+            "reportduration": {
+                "enddate": "12-02-2020",
+                "startdate": "12-02-2020"
+            },
+            "tags": [
+                "PDR_survey_report"
+            ],
+            "updatefrequency": "DAILY",
+            "parameters": [],
+            "report_type": "report",
+            "accesspath": {
+                "role": [
+                    "PROGRAM_DESIGNER",
+                    "PROGRAM_MANAGER"
+                ]
+            }
+        }
+    }
+}

@@ -1,0 +1,394 @@
+{
+    "id": "ekstep.analytics.report.get",
+    "ver": "1.0",
+    "ts": "2023-06-01T08:15:58.347+00:00",
+    "params": {
+        "resmsgid": "ce102c19-f20c-4858-ae69-589a0757afaa",
+        "status": "successful",
+        "client_key": null
+    },
+    "responseCode": "OK",
+    "result": {
+        "createdOn": 1669379639228,
+        "updatedOn": 1669379639228,
+        "reportId": "district_wise_no_of_submissions_vs_observation_status_new_new_new_api_test_pabitra_new1_final_five",
+        "config": {
+            "streamQuery": true,
+            "reportConfig": {
+                "id": "district_wise_no_of_submissions_vs_observation_status_new_new_new_api_test_pabitra_new1_final_five",
+                "mergeConfig": {
+                    "postContainer": "odev-dev-diksha-privatereports",
+                    "container": "odev-dev-diksha-privatereports",
+                    "basePath": "/mount/data/analytics/tmp",
+                    "reportPath": "district_wise_no_of_submissions_vs_observation_status_new_new_new_api_test_pabitra_new1_final_five.csv",
+                    "rollup": 0
+                },
+                "labels": {
+                    "district_externalId": "district_externalId",
+                    "program_id": "program_id",
+                    "SUM(unique_submissions)": "total_content_plays",
+                    "total_content_plays_on_app": "In Progress",
+                    "total_content_plays_on_desktop": "Started",
+                    "legend": "District wise submissions Vs observation status",
+                    "solution_id": "solution_id",
+                    "total_content_plays_on_portal": "Completed",
+                    "organisation_name": "organisation_name",
+                    "organisation_id": "organisation_id",
+                    "district_name": "district_name",
+                    "program_name": "Program name",
+                    "state_slug": "state_slug",
+                    "solution_name": "Observation name",
+                    "total_content_plays": "Rating Pending"
+                },
+                "dateRange": {
+                    "staticInterval": "LastDay",
+                    "granularity": "all",
+                    "intervalSlider": 0
+                },
+                "metrics": [
+                    {
+                        "metric": "total_content_plays_on_portal",
+                        "label": "total_content_plays_on_portal",
+                        "druidQuery": {
+                            "dataSource": "ml-obs-status",
+                            "limitSpec": {
+                                "type": "default",
+                                "limit": 10000,
+                                "columns": [
+                                    {
+                                        "dimension": "SUM(unique_submissions)",
+                                        "direction": "descending"
+                                    }
+                                ]
+                            },
+                            "filters": [
+                                {
+                                    "type": "equals",
+                                    "dimension": "status",
+                                    "value": "completed"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "private_program",
+                                    "value": "false"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "solution_type",
+                                    "value": "observation_with_rubric"
+                                }
+                            ],
+                            "granularity": "all",
+                            "dimensions": [
+                                {
+                                    "fieldName": "district_name",
+                                    "aliasName": "district_name"
+                                },
+                                {
+                                    "fieldName": "program_name",
+                                    "aliasName": "Program name"
+                                },
+                                {
+                                    "fieldName": "solution_name",
+                                    "aliasName": "Observation name"
+                                },
+                                {
+                                    "fieldName": "organisation_name",
+                                    "aliasName": "organisation_name"
+                                },
+                                {
+                                    "fieldName": "solution_id",
+                                    "aliasName": "solution_id"
+                                },
+                                {
+                                    "fieldName": "district_externalId",
+                                    "aliasName": "district_externalId"
+                                },
+                                {
+                                    "fieldName": "organisation_id",
+                                    "aliasName": "organisation_id"
+                                },
+                                {
+                                    "fieldName": "program_id",
+                                    "aliasName": "program_id"
+                                }
+                            ],
+                            "aggregations": [
+                                {
+                                    "fieldName": "unique_submissions",
+                                    "type": "longSum",
+                                    "name": "total_content_plays_on_portal"
+                                }
+                            ],
+                            "postAggregations": [],
+                            "queryType": "groupBy"
+                        }
+                    },
+                    {
+                        "metric": "total_content_plays_on_desktop",
+                        "label": "Started",
+                        "druidQuery": {
+                            "dataSource": "ml-obs-status",
+                            "limitSpec": {
+                                "type": "default",
+                                "limit": 10000,
+                                "columns": [
+                                    {
+                                        "dimension": "SUM(unique_submissions)",
+                                        "direction": "descending"
+                                    }
+                                ]
+                            },
+                            "filters": [
+                                {
+                                    "type": "equals",
+                                    "dimension": "status",
+                                    "value": "started"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "private_program",
+                                    "value": "false"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "solution_type",
+                                    "value": "observation_with_rubric"
+                                }
+                            ],
+                            "granularity": "all",
+                            "dimensions": [
+                                {
+                                    "fieldName": "district_name",
+                                    "aliasName": "district_name"
+                                },
+                                {
+                                    "fieldName": "program_name",
+                                    "aliasName": "Program name"
+                                },
+                                {
+                                    "fieldName": "solution_name",
+                                    "aliasName": "Observation name"
+                                },
+                                {
+                                    "fieldName": "organisation_name",
+                                    "aliasName": "organisation_name"
+                                },
+                                {
+                                    "fieldName": "solution_id",
+                                    "aliasName": "solution_id"
+                                },
+                                {
+                                    "fieldName": "district_externalId",
+                                    "aliasName": "district_externalId"
+                                },
+                                {
+                                    "fieldName": "organisation_id",
+                                    "aliasName": "organisation_id"
+                                },
+                                {
+                                    "fieldName": "program_id",
+                                    "aliasName": "program_id"
+                                }
+                            ],
+                            "aggregations": [
+                                {
+                                    "fieldName": "unique_submissions",
+                                    "type": "longSum",
+                                    "name": "total_content_plays_on_desktop"
+                                }
+                            ],
+                            "postAggregations": [],
+                            "queryType": "groupBy"
+                        }
+                    },
+                    {
+                        "metric": "total_content_plays_on_app",
+                        "label": "In Progress",
+                        "druidQuery": {
+                            "dataSource": "ml-obs-status",
+                            "limitSpec": {
+                                "type": "default",
+                                "limit": 50000,
+                                "columns": [
+                                    {
+                                        "dimension": "SUM(unique_submissions)",
+                                        "direction": "descending"
+                                    }
+                                ]
+                            },
+                            "filters": [
+                                {
+                                    "type": "equals",
+                                    "dimension": "status",
+                                    "value": "inprogress"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "private_program",
+                                    "value": "false"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "solution_type",
+                                    "value": "observation_with_rubric"
+                                }
+                            ],
+                            "granularity": "all",
+                            "dimensions": [
+                                {
+                                    "fieldName": "district_name",
+                                    "aliasName": "district_name"
+                                },
+                                {
+                                    "fieldName": "program_name",
+                                    "aliasName": "Program name"
+                                },
+                                {
+                                    "fieldName": "solution_name",
+                                    "aliasName": "Observation name"
+                                },
+                                {
+                                    "fieldName": "organisation_name",
+                                    "aliasName": "organisation_name"
+                                },
+                                {
+                                    "fieldName": "solution_id",
+                                    "aliasName": "solution_id"
+                                },
+                                {
+                                    "fieldName": "district_externalId",
+                                    "aliasName": "district_externalId"
+                                },
+                                {
+                                    "fieldName": "organisation_id",
+                                    "aliasName": "organisation_id"
+                                },
+                                {
+                                    "fieldName": "program_id",
+                                    "aliasName": "program_id"
+                                }
+                            ],
+                            "aggregations": [
+                                {
+                                    "fieldName": "unique_submissions",
+                                    "type": "longSum",
+                                    "name": "total_content_plays_on_app"
+                                }
+                            ],
+                            "postAggregations": [],
+                            "queryType": "groupBy"
+                        }
+                    },
+                    {
+                        "metric": "total_content_plays",
+                        "label": "Rating Pending",
+                        "druidQuery": {
+                            "dataSource": "ml-obs-status",
+                            "limitSpec": {
+                                "type": "default",
+                                "limit": 50000,
+                                "columns": [
+                                    {
+                                        "dimension": "SUM(unique_submissions)",
+                                        "direction": "descending"
+                                    }
+                                ]
+                            },
+                            "filters": [
+                                {
+                                    "type": "equals",
+                                    "dimension": "status",
+                                    "value": "ratingPending"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "private_program",
+                                    "value": "false"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "solution_type",
+                                    "value": "observation_with_rubric"
+                                }
+                            ],
+                            "granularity": "all",
+                            "dimensions": [
+                                {
+                                    "fieldName": "district_name",
+                                    "aliasName": "district_name"
+                                },
+                                {
+                                    "fieldName": "program_name",
+                                    "aliasName": "Program name"
+                                },
+                                {
+                                    "fieldName": "solution_name",
+                                    "aliasName": "Observation name"
+                                },
+                                {
+                                    "fieldName": "organisation_name",
+                                    "aliasName": "organisation_name"
+                                },
+                                {
+                                    "fieldName": "solution_id",
+                                    "aliasName": "solution_id"
+                                },
+                                {
+                                    "fieldName": "district_externalId",
+                                    "aliasName": "district_externalId"
+                                },
+                                {
+                                    "fieldName": "organisation_id",
+                                    "aliasName": "organisation_id"
+                                },
+                                {
+                                    "fieldName": "program_id",
+                                    "aliasName": "program_id"
+                                }
+                            ],
+                            "aggregations": [
+                                {
+                                    "fieldName": "unique_submissions",
+                                    "type": "longSum",
+                                    "name": "total_content_plays"
+                                }
+                            ],
+                            "postAggregations": [],
+                            "queryType": "groupBy"
+                        }
+                    }
+                ],
+                "output": [
+                    {
+                        "type": "csv",
+                        "metrics": [
+                            "total_content_plays_on_portal",
+                            "total_content_plays_on_desktop",
+                            "total_content_plays_on_app",
+                            "total_content_plays"
+                        ],
+                        "dims": [
+                            "date",
+                            "solution_id"
+                        ],
+                        "fileParameters": [
+                            "id",
+                            "dims"
+                        ]
+                    }
+                ],
+                "queryType": "groupBy"
+            },
+            "container": "odev-dev-diksha-privatereports",
+            "store": "oci",
+            "key": "hawk-eye/"
+        },
+        "requestedBy": "423647fd-701a-4e74-b0cf-a959c49459ab",
+        "reportDescription": "The reports provides the operational and insight charts for observation with rubric forms",
+        "submittedOn": 1669379639228,
+        "status": "ACTIVE",
+        "status_msg": "REPORT SUCCESSFULLY ACTIVATED",
+        "reportSchedule": "DAILY"
+    }
+}

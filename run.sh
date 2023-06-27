@@ -4,6 +4,8 @@ export PYSPARK_PYTHON=python3
 export TZ=Asia/Kolkata date
 source /opt/sparkjobs/ml-analytics-service/shell_script_config
 echo "RUNNING JOB"
+driver_memory=$driver_memory
+executor_memory=$executor_memory
 
 # PROJECT: Gather Program IDs
 echo ""
@@ -31,7 +33,7 @@ echo "Daily Projects Batch Job Ingestion == Started"
 filename=$projects_program_filename
 n=1
 while read line; do
-	. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory 50g --executor-memory 50g /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_batch.py --program_id ${line/,}
+	. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory ${driver_memory} --executor-memory ${executor_memory} /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_batch.py --program_id ${line/,}
 n=$((n+1))
 done < $filename
 echo "Daily Projects Batch Job Ingestion == Completed"
@@ -42,7 +44,7 @@ echo ""
 echo "$(date)"
 echo "====================================="
 echo "Daily Observation Status Batch Job Ingestion == Started"
-. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory 50g --executor-memory 50g /opt/sparkjobs/ml-analytics-service/observations/pyspark_observation_status_batch.py
+. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory ${driver_memory} --executor-memory ${executor_memory} /opt/sparkjobs/ml-analytics-service/observations/pyspark_observation_status_batch.py
 echo "Daily Observation Status Batch Job Ingestion == Completed"
 echo "*************************************"
 
@@ -51,7 +53,7 @@ echo ""
 echo "$(date)"
 echo "====================================="
 echo "Daily Survey Status Batch Job Ingestion == Started"
-. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory 50g --executor-memory 50g /opt/sparkjobs/ml-analytics-service/survey/pyspark_survey_status.py
+. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory ${driver_memory} --executor-memory ${executor_memory} /opt/sparkjobs/ml-analytics-service/survey/pyspark_survey_status.py
 echo "Daily Survey Status Batch Job Ingestion == Completed"
 echo "*************************************"
 

@@ -1,0 +1,63 @@
+from pymongo import MongoClient
+from bson.objectid import ObjectId
+import os, json, sys
+from configparser import ConfigParser,ExtendedInterpolation
+from datetime import datetime
+import constants
+
+root_path = "/opt/sparkjobs/ml-analytics-service/"
+config = ConfigParser(interpolation=ExtendedInterpolation())
+config.read(root_path + "config.ini")
+
+client = MongoClient(config.get('MONGO', 'url'))
+db = client[config.get('MONGO', 'database_name')]
+log_collec = db[constants.reports_log_collec]
+
+curr_datetime = datetime.now()
+
+def insert_doc(doc,type):
+    doc["createdAt"] = curr_datetime
+    doc["updatedAt"] = curr_datetime
+
+    if type == "crud":
+       doc["status"] = "Success"
+    elif type == "error" or type == "exception":
+       doc["status"] = "Failed"
+    elif type == "duplicate_run":
+       doc["status"] = "Skipped"
+
+    log_collec.insert_one(doc)
+
+def query_mongo(file_path,file):
+    #Query MongoDb
+    mydoc = log_collec.find({"config_file_name":file_path})
+    doc_count = mydoc.count()
+
+    if doc_count > 0:
+       for doc in mydoc:
+          if doc["status"] == "Failed":
+                return "create"
+          elif doc["status"] == "Success" and  doc["config"] == file:
+                return "update"
+          else:
+                return "pass"
+
+    else :
+       return "create"
+
+
+def query_retire(file):
+   #Query MongoDb
+   
+   mydoc = log_collec.find({"file": file})
+   mydoc_count = mydoc.count()
+   
+   if mydoc_count > 0:
+      for doc in mydoc:
+         if doc["status"] == "Failed":
+               return True
+         elif doc["status"] == "Success" :
+               return False
+   else :
+      return True
+

@@ -1,0 +1,566 @@
+{
+    "request": {
+        "reportId": "ml_improvement_projects_status_by_district_table_sl_pdr",
+        "config": {
+            "streamQuery": true,
+            "reportConfig": {
+                "id": "ml_improvement_projects_status_by_district_table_sl_pdr",
+                "mergeConfig": {
+                    "postContainer": "$postContainer",
+                    "container": "$container",
+                    "basePath": "/mount/data/analytics/tmp",
+                    "reportPath": "ml_improvement_projects_status_by_district_table_sl_pdr.csv",
+                    "rollup": 0
+                },
+                "labels": {
+                    "district_externalId": "district_externalId",
+                    "program_id": "program_id",
+                    "project_title": "Improvement Project Name",
+                    "total_content_plays_on_app": "completed",
+                    "total_content_plays_on_desktop": "inProgress",
+                    "legend": "Submitted projects with evidence",
+                    "total_scans_on_portal": "Submitted projects with evidence",
+                    "solution_id": "solution_id",
+                    "SUM(no_of_imp_with_evidence)": "total_scans_on_portal",
+                    "total_content_plays_on_portal": "started",
+                    "organisation_name": "organisation_name",
+                    "organisation_id": "organisation_id",
+                    "district_name": "district_name",
+                    "program_name": "Program Name",
+                    "total_content_plays": "certificates",
+                    "total_app_sessions": "In progress projects with evidence"
+                },
+                "dateRange": {
+                    "staticInterval": "LastDay",
+                    "granularity": "all",
+                    "intervalSlider": 0
+                },
+                "metrics": [
+                    {
+                        "metric": "total_content_plays_on_portal",
+                        "label": "total_content_plays_on_portal",
+                        "druidQuery": {
+                            "dataSource": "ml-project-status",
+                            "limitSpec": {
+                                "type": "default",
+                                "limit": 50000,
+                                "columns": [
+                                    {
+                                        "dimension": "SUM(unique_users)",
+                                        "direction": "descending"
+                                    }
+                                ]
+                            },
+                            "filters": [
+                                {
+                                    "type": "equals",
+                                    "dimension": "status_of_project",
+                                    "value": "started"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "private_program",
+                                    "value": "false"
+                                },
+                                {
+                                    "dimension": "state_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "district_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "organisation_name",
+                                    "type": "isnotnull"
+                                }
+                            ],
+                            "granularity": "all",
+                            "dimensions": [
+                                {
+                                    "fieldName": "program_name",
+                                    "aliasName": "Program Name"
+                                },
+                                {
+                                    "fieldName": "project_title",
+                                    "aliasName": "Improvement Project Name"
+                                },
+                                {
+                                    "fieldName": "district_name",
+                                    "aliasName": "district_name"
+                                },
+                                {
+                                    "fieldName": "organisation_name",
+                                    "aliasName": "organisation_name"
+                                },
+                                {
+                                    "fieldName": "solution_id",
+                                    "aliasName": "solution_id"
+                                },
+                                {
+                                    "fieldName": "district_externalId",
+                                    "aliasName": "district_externalId"
+                                },
+                                {
+                                    "fieldName": "organisation_id",
+                                    "aliasName": "organisation_id"
+                                },
+                                {
+                                    "fieldName": "program_id",
+                                    "aliasName": "program_id"
+                                }
+                            ],
+                            "aggregations": [
+                                {
+                                    "fieldName": "unique_users",
+                                    "type": "longSum",
+                                    "name": "total_content_plays_on_portal"
+                                }
+                            ],
+                            "postAggregations": [],
+                            "queryType": "groupBy"
+                        }
+                    },
+                    {
+                        "metric": "total_content_plays_on_desktop",
+                        "label": "inProgress",
+                        "druidQuery": {
+                            "dataSource": "ml-project-status",
+                            "limitSpec": {
+                                "type": "default",
+                                "limit": 50000,
+                                "columns": [
+                                    {
+                                        "dimension": "SUM(unique_users)",
+                                        "direction": "descending"
+                                    }
+                                ]
+                            },
+                            "filters": [
+                                {
+                                    "type": "equals",
+                                    "dimension": "status_of_project",
+                                    "value": "inProgress"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "private_program",
+                                    "value": "false"
+                                },
+                                {
+                                    "dimension": "state_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "district_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "organisation_name",
+                                    "type": "isnotnull"
+                                }
+                            ],
+                            "granularity": "all",
+                            "dimensions": [
+                                {
+                                    "fieldName": "program_name",
+                                    "aliasName": "Program Name"
+                                },
+                                {
+                                    "fieldName": "project_title",
+                                    "aliasName": "Improvement Project Name"
+                                },
+                                {
+                                    "fieldName": "district_name",
+                                    "aliasName": "district_name"
+                                },
+                                {
+                                    "fieldName": "organisation_name",
+                                    "aliasName": "organisation_name"
+                                },
+                                {
+                                    "fieldName": "solution_id",
+                                    "aliasName": "solution_id"
+                                },
+                                {
+                                    "fieldName": "district_externalId",
+                                    "aliasName": "district_externalId"
+                                },
+                                {
+                                    "fieldName": "organisation_id",
+                                    "aliasName": "organisation_id"
+                                },
+                                {
+                                    "fieldName": "program_id",
+                                    "aliasName": "program_id"
+                                }
+                            ],
+                            "aggregations": [
+                                {
+                                    "fieldName": "unique_users",
+                                    "type": "longSum",
+                                    "name": "total_content_plays_on_desktop"
+                                }
+                            ],
+                            "postAggregations": [],
+                            "queryType": "groupBy"
+                        }
+                    },
+                    {
+                        "metric": "total_content_plays_on_app",
+                        "label": "completed",
+                        "druidQuery": {
+                            "dataSource": "ml-project-status",
+                            "limitSpec": {
+                                "type": "default",
+                                "limit": 50000,
+                                "columns": [
+                                    {
+                                        "dimension": "SUM(unique_users)",
+                                        "direction": "descending"
+                                    }
+                                ]
+                            },
+                            "filters": [
+                                {
+                                    "type": "equals",
+                                    "dimension": "status_of_project",
+                                    "value": "submitted"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "private_program",
+                                    "value": "false"
+                                },
+                                {
+                                    "dimension": "state_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "district_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "organisation_name",
+                                    "type": "isnotnull"
+                                }
+                            ],
+                            "granularity": "all",
+                            "dimensions": [
+                                {
+                                    "fieldName": "program_name",
+                                    "aliasName": "Program Name"
+                                },
+                                {
+                                    "fieldName": "project_title",
+                                    "aliasName": "Improvement Project Name"
+                                },
+                                {
+                                    "fieldName": "district_name",
+                                    "aliasName": "district_name"
+                                },
+                                {
+                                    "fieldName": "organisation_name",
+                                    "aliasName": "organisation_name"
+                                },
+                                {
+                                    "fieldName": "solution_id",
+                                    "aliasName": "solution_id"
+                                },
+                                {
+                                    "fieldName": "district_externalId",
+                                    "aliasName": "district_externalId"
+                                },
+                                {
+                                    "fieldName": "organisation_id",
+                                    "aliasName": "organisation_id"
+                                },
+                                {
+                                    "fieldName": "program_id",
+                                    "aliasName": "program_id"
+                                }
+                            ],
+                            "aggregations": [
+                                {
+                                    "fieldName": "unique_users",
+                                    "type": "longSum",
+                                    "name": "total_content_plays_on_app"
+                                }
+                            ],
+                            "postAggregations": [],
+                            "queryType": "groupBy"
+                        }
+                    },
+                    {
+                        "metric": "total_content_plays",
+                        "label": "certificates",
+                        "druidQuery": {
+                            "dataSource": "ml-project-status",
+                            "limitSpec": {
+                                "type": "default",
+                                "limit": 50000,
+                                "columns": [
+                                    {
+                                        "dimension": "SUM(no_of_certificate_issued)",
+                                        "direction": "descending"
+                                    }
+                                ]
+                            },
+                            "filters": [
+                                {
+                                    "type": "equals",
+                                    "dimension": "private_program",
+                                    "value": "false"
+                                },
+                                {
+                                    "dimension": "state_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "district_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "organisation_name",
+                                    "type": "isnotnull"
+                                }
+                            ],
+                            "granularity": "all",
+                            "dimensions": [
+                                {
+                                    "fieldName": "program_name",
+                                    "aliasName": "Program Name"
+                                },
+                                {
+                                    "fieldName": "project_title",
+                                    "aliasName": "Improvement Project Name"
+                                },
+                                {
+                                    "fieldName": "district_name",
+                                    "aliasName": "district_name"
+                                },
+                                {
+                                    "fieldName": "organisation_name",
+                                    "aliasName": "organisation_name"
+                                },
+                                {
+                                    "fieldName": "solution_id",
+                                    "aliasName": "solution_id"
+                                },
+                                {
+                                    "fieldName": "district_externalId",
+                                    "aliasName": "district_externalId"
+                                },
+                                {
+                                    "fieldName": "organisation_id",
+                                    "aliasName": "organisation_id"
+                                },
+                                {
+                                    "fieldName": "program_id",
+                                    "aliasName": "program_id"
+                                }
+                            ],
+                            "aggregations": [
+                                {
+                                    "fieldName": "no_of_certificate_issued",
+                                    "type": "longSum",
+                                    "name": "total_content_plays"
+                                }
+                            ],
+                            "postAggregations": [],
+                            "queryType": "groupBy"
+                        }
+                    },
+                    {
+                        "metric": "total_app_sessions",
+                        "label": "In progress projects with evidence",
+                        "druidQuery": {
+                            "dataSource": "ml-project-status",
+                            "limitSpec": {
+                                "type": "default",
+                                "limit": 50000,
+                                "columns": [
+                                    {
+                                        "dimension": "SUM(no_of_imp_with_evidence_inprogress)",
+                                        "direction": "descending"
+                                    }
+                                ]
+                            },
+                            "filters": [
+                                {
+                                    "type": "equals",
+                                    "dimension": "private_program",
+                                    "value": "false"
+                                },
+                                {
+                                    "dimension": "state_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "district_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "organisation_name",
+                                    "type": "isnotnull"
+                                }
+                            ],
+                            "granularity": "all",
+                            "dimensions": [
+                                {
+                                    "fieldName": "program_name",
+                                    "aliasName": "Program Name"
+                                },
+                                {
+                                    "fieldName": "project_title",
+                                    "aliasName": "Improvement Project Name"
+                                },
+                                {
+                                    "fieldName": "district_name",
+                                    "aliasName": "district_name"
+                                },
+                                {
+                                    "fieldName": "organisation_name",
+                                    "aliasName": "organisation_name"
+                                },
+                                {
+                                    "fieldName": "solution_id",
+                                    "aliasName": "solution_id"
+                                },
+                                {
+                                    "fieldName": "district_externalId",
+                                    "aliasName": "district_externalId"
+                                },
+                                {
+                                    "fieldName": "organisation_id",
+                                    "aliasName": "organisation_id"
+                                },
+                                {
+                                    "fieldName": "program_id",
+                                    "aliasName": "program_id"
+                                }
+                            ],
+                            "aggregations": [
+                                {
+                                    "fieldName": "no_of_imp_with_evidence_inprogress",
+                                    "type": "longSum",
+                                    "name": "total_app_sessions"
+                                }
+                            ],
+                            "postAggregations": [],
+                            "queryType": "groupBy"
+                        }
+                    },
+                    {
+                        "metric": "total_scans_on_portal",
+                        "label": "Submitted projects with evidence",
+                        "druidQuery": {
+                            "dataSource": "ml-project-status",
+                            "limitSpec": {
+                                "type": "default",
+                                "limit": 50000,
+                                "columns": [
+                                    {
+                                        "dimension": "SUM(no_of_imp_with_evidence)",
+                                        "direction": "descending"
+                                    }
+                                ]
+                            },
+                            "filters": [
+                                {
+                                    "type": "equals",
+                                    "dimension": "private_program",
+                                    "value": "false"
+                                },
+                                {
+                                    "dimension": "state_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "district_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "organisation_name",
+                                    "type": "isnotnull"
+                                }
+                            ],
+                            "granularity": "all",
+                            "dimensions": [
+                                {
+                                    "fieldName": "program_name",
+                                    "aliasName": "Program Name"
+                                },
+                                {
+                                    "fieldName": "project_title",
+                                    "aliasName": "Improvement Project Name"
+                                },
+                                {
+                                    "fieldName": "district_name",
+                                    "aliasName": "district_name"
+                                },
+                                {
+                                    "fieldName": "organisation_name",
+                                    "aliasName": "organisation_name"
+                                },
+                                {
+                                    "fieldName": "solution_id",
+                                    "aliasName": "solution_id"
+                                },
+                                {
+                                    "fieldName": "district_externalId",
+                                    "aliasName": "district_externalId"
+                                },
+                                {
+                                    "fieldName": "organisation_id",
+                                    "aliasName": "organisation_id"
+                                },
+                                {
+                                    "fieldName": "program_id",
+                                    "aliasName": "program_id"
+                                }
+                            ],
+                            "aggregations": [
+                                {
+                                    "fieldName": "no_of_imp_with_evidence",
+                                    "type": "longSum",
+                                    "name": "total_scans_on_portal"
+                                }
+                            ],
+                            "postAggregations": [],
+                            "queryType": "groupBy"
+                        }
+                    }
+                ],
+                "output": [
+                    {
+                        "type": "csv",
+                        "metrics": [
+                            "total_content_plays_on_portal",
+                            "total_content_plays_on_desktop",
+                            "total_content_plays_on_app",
+                            "total_content_plays",
+                            "total_app_sessions",
+                            "total_scans_on_portal"
+                        ],
+                        "dims": [
+                            "date",
+                            "solution_id"
+                        ],
+                        "fileParameters": [
+                            "id",
+                            "dims"
+                        ]
+                    }
+                ],
+                "queryType": "groupBy"
+            },
+            "container": "$container",
+            "store": "$store",
+            "key": "hawk-eye/"
+        },
+        "createdBy": "$createdBy",
+        "description": "Status of Project, No. of users",
+        "reportSchedule": "DAILY"
+    }
+}
