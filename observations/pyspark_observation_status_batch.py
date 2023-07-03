@@ -796,4 +796,3 @@ else:
         "failed to start batch ingestion task of ml-obs-domain-criteria " + str(distinctCnt_obs_domain_criteria_start_supervisor.status_code)
    )
    errorLogger.error(distinctCnt_obs_domain_criteria_start_supervisor.text)
-   
