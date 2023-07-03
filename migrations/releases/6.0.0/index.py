@@ -27,7 +27,6 @@ backend_create_files = os.listdir( base_path + "/config/backend/create/")
 frontend_create_files = os.listdir(base_path + "/config/frontend/create")
 
 # get the list of files to update 
-backend_update_files = os.listdir( base_path + "/config/backend/update/")
 frontend_update_files = os.listdir(base_path + "/config/frontend/update/")
 
 # json file for retire 
