@@ -5,13 +5,9 @@ from configparser import ConfigParser,ExtendedInterpolation
 # Read the Config
 root_path = "/opt/sparkjobs/ml-analytics-service/"
 config = ConfigParser(interpolation=ExtendedInterpolation())
-# config.read(root_path + "config.ini")
-config.read("/Users/adithyadinesh/Documents/shikshalokam/Data_Engineering/report_config.ini")
+config.read(root_path + "config.ini")
 
 sys.path.insert(0, root_path + "migrations/lib")
-
-script_path = config.get("REPORTS_FILEPATH","script_path")
-sys.path.insert(0, script_path)
 
 from mongo_log import *
 import constants
@@ -23,7 +19,6 @@ headers_api = {
         'Content-Type': constants.content_type,
         'Authorization' : config.get("API_HEADERS","authorization_access_token")
     }
-
 
 # Creation of chart using Json config making an API call
 def backend_create(file_name,base_path):
