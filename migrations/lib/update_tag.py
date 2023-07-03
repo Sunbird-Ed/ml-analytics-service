@@ -150,5 +150,4 @@ def fetch_ml_reports():
 def update_tag():
     fetchReports = fetch_ml_reports()
     for reportId,jsonConfig in fetchReports.items():
-        print(reportId)
         update_report(jsonConfig,reportId)
