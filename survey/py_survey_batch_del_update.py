@@ -1,4 +1,4 @@
-import requests,json,os,sys,csv
+import requests,json,os,sys,csv, re
 from configparser import ConfigParser,ExtendedInterpolation
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))

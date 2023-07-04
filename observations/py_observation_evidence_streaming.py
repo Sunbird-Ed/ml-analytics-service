@@ -7,7 +7,7 @@
 
 import faust
 import logging
-import os, json
+import os, json, re
 import datetime
 from datetime import date
 from kafka import KafkaConsumer, KafkaProducer
