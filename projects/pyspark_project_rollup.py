@@ -6,7 +6,7 @@ import os
 import logging
 import requests
 import datetime
-import json, sys, time
+import json, sys, time, re
 
 import pyspark.sql.functions as F
 

@@ -4,7 +4,7 @@ import requests
 import datetime
 import argparse
 from datetime import date
-import json, csv, sys, os, time
+import json, csv, sys, os, time, re
 from configparser import ConfigParser, ExtendedInterpolation
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *

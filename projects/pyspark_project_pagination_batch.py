@@ -6,7 +6,7 @@
 #  entity information
 # -----------------------------------------------------------------
 
-import os, math
+import os, math, re
 import json, sys, time
 import requests
 import pyspark.sql.functions as F

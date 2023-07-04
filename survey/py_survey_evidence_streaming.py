@@ -9,7 +9,7 @@ import faust
 import logging
 import dateutil
 import requests
-import os, json
+import os, json, re
 import datetime
 from datetime import date,time
 from dateutil import parser as date_parser

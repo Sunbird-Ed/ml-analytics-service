@@ -2,7 +2,7 @@
 # Gather program ids for storing & running in Shell script
 # -----------------------------------------------------------------
 
-import json, sys, time, os
+import json, sys, time, os, re
 from configparser import ConfigParser,ExtendedInterpolation
 from pymongo import MongoClient
 from bson.objectid import ObjectId
