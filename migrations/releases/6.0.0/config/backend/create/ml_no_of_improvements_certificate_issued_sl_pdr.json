@@ -1,0 +1,169 @@
+{
+    "request": {
+        "reportId": "ml_no_of_improvements_certificate_issued_sl_pdr",
+        "config": {
+            "streamQuery": true,
+            "reportConfig": {
+                "id": "ml_no_of_improvements_certificate_issued_sl_pdr",
+                "mergeConfig": {
+                    "postContainer": "$postContainer",
+                    "container": "$container",
+                    "basePath": "/mount/data/analytics/tmp",
+                    "reportPath": "ml_no_of_improvements_certificate_issued_sl_pdr.csv",
+                    "rollup": 0
+                },
+                "labels": {
+                    "block_name": "Block name",
+                    "district_externalId": "district_externalId",
+                    "program_id": "program_id",
+                    "project_title": "Project name",
+                    "legend": "No of certificates issued",
+                    "SUM(no_of_certificate_issued)": "total_content_plays_on_portal",
+                    "solution_id": "solution_id",
+                    "block_externalId": "block_externalId",
+                    "status_of_project": "status of project",
+                    "total_content_plays_on_portal": "No of certificates issued new",
+                    "organisation_name": "Organisation",
+                    "organisation_id": "organisation_id",
+                    "parent_channel": "parent_channel",
+                    "district_name": "District name",
+                    "program_name": "Program name"
+                },
+                "dateRange": {
+                    "staticInterval": "LastDay",
+                    "granularity": "all",
+                    "intervalSlider": 0
+                },
+                "metrics": [
+                    {
+                        "metric": "total_content_plays_on_portal",
+                        "label": "total_content_plays_on_portal",
+                        "druidQuery": {
+                            "dataSource": "ml-project-status",
+                            "limitSpec": {
+                                "type": "default",
+                                "limit": 50000,
+                                "columns": [
+                                    {
+                                        "dimension": "SUM(no_of_certificate_issued)",
+                                        "direction": "descending"
+                                    }
+                                ]
+                            },
+                            "filters": [
+                                {
+                                    "type": "equals",
+                                    "dimension": "project_created_type",
+                                    "value": "project imported from library"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "private_program",
+                                    "value": "false"
+                                },
+                                {
+                                    "dimension": "state_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "district_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "organisation_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "block_name",
+                                    "type": "isnotnull"
+                                }
+                            ],
+                            "granularity": "all",
+                            "dimensions": [
+                                {
+                                    "fieldName": "parent_channel",
+                                    "aliasName": "parent_channel"
+                                },
+                                {
+                                    "fieldName": "program_name",
+                                    "aliasName": "Program name"
+                                },
+                                {
+                                    "fieldName": "district_name",
+                                    "aliasName": "district_name"
+                                },
+                                {
+                                    "fieldName": "block_name",
+                                    "aliasName": "Block Name"
+                                },
+                                {
+                                    "fieldName": "block_externalId",
+                                    "aliasName": "block_externalId"
+                                },
+                                {
+                                    "fieldName": "organisation_name",
+                                    "aliasName": "organisation_name"
+                                },
+                                {
+                                    "fieldName": "project_title",
+                                    "aliasName": "Project name"
+                                },
+                                {
+                                    "fieldName": "status_of_project",
+                                    "aliasName": "status of project"
+                                },
+                                {
+                                    "fieldName": "solution_id",
+                                    "aliasName": "solution_id"
+                                },
+                                {
+                                    "fieldName": "district_externalId",
+                                    "aliasName": "district_externalId"
+                                },
+                                {
+                                    "fieldName": "organisation_id",
+                                    "aliasName": "organisation_id"
+                                },
+                                {
+                                    "fieldName": "program_id",
+                                    "aliasName": "program_id"
+                                }
+                            ],
+                            "aggregations": [
+                                {
+                                    "fieldName": "no_of_certificate_issued",
+                                    "type": "longSum",
+                                    "name": "total_content_plays_on_portal"
+                                }
+                            ],
+                            "queryType": "groupBy"
+                        }
+                    }
+                ],
+                "output": [
+                    {
+                        "type": "csv",
+                        "metrics": [
+                            "total_content_plays_on_portal"
+                        ],
+                        "dims": [
+                            "date",
+                            "solution_id"
+                        ],
+                        "fileParameters": [
+                            "id",
+                            "dims"
+                        ]
+                    }
+                ],
+                "queryType": "groupBy"
+            },
+            "container": "$container",
+            "store": "$store",
+            "key": "hawk-eye/"
+        },
+        "createdBy": "$createdBy",
+        "description": "Big Number will give an overall count of certificates issued in the state in projects",
+        "reportSchedule": "DAILY"
+    }
+}

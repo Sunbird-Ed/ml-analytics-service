@@ -23,28 +23,51 @@ if response_api["status_code"] == constants.success_code:
    access_token = response_api["result"]["access_token"]
 
 # get the list of files to create 
-backend_create_files = os.listdir( base_path + "/config/backend/create/")
-frontend_create_files = os.listdir(base_path + "/config/frontend/create")
+try:
+   backend_create_files = os.listdir( base_path + "/config/backend/create/")
+except:
+   backend_create_files = []
+
+try:
+   frontend_create_files = os.listdir(base_path + "/config/frontend/create")
+except:
+   frontend_create_files = []
 
 # get the list of files to update 
-frontend_update_files = os.listdir(base_path + "/config/frontend/update/")
+try:
+   frontend_update_files = os.listdir(base_path + "/config/frontend/update/")
+except:
+   frontend_update_files = []
 
 # json file for retire 
-backend_retire_reports = os.listdir(base_path + "/config/backend/retire/")
-frontend_retire_reports = os.listdir(base_path + "/config/frontend/retire/")
+try:
+   backend_retire_reports = os.listdir(base_path + "/config/backend/retire/")
+except:
+   backend_retire_reports = []
+try:
+   frontend_retire_reports = os.listdir(base_path + "/config/frontend/retire/")
+except:
+   frontend_retire_reports = []
 
 # STEP 1 
 # call function to update tags of ml reports
-update_tag()
+print("================= Update Tag START =================")
+# update_tag()
+print("================= Update Tag END   =================")
 
 # STEP 2 
 # calling retire function for chart disabling    
+print("================= Backend Retire START =================")
 backend_retire(backend_retire_reports,base_path)
+print("================= Backend Retire END  =================")
 
 # STEP 3
 #calling create function for chart creation
+print("================= Backend Create START =================")
 for file in backend_create_files:
   backend_create(file,base_path)
+
+print("================= Backend Create END =================")
 
 
 #calling create function for report creation
@@ -52,12 +75,17 @@ if (access_token!= None):
 
    # STEP 4
    # calling update function for report updation
+   print("================= Frontend Update START =================")
    for file in frontend_update_files:
       frontend_update(access_token,file,base_path)
 
+   print("================= Frontend Update END =================")
+
    # STEP 5 
    # calling create function for report creation   
+   print("================= Frontend Create START =================")
    for file in frontend_create_files:
       frontend_create(access_token,file,base_path)
+   print("================= Frontend Create END =================")
 
    

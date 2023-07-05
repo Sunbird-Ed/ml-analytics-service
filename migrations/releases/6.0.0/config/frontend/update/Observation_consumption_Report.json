@@ -1,7 +1,7 @@
 {
     "request": {
         "report": {
-            "title": "Observation Consumption Report",
+            "title": "Observation consumption Report",
             "description": "This report will track the no. of observation consumption on the platform",
             "authorizedroles": [
                 "REPORT_ADMIN",
@@ -11,8 +11,8 @@
             "type": "public",
             "createdby": "$createdby",
             "reportconfig": {
-                "label": "Observation Consumption Report",
-                "title": "Observation Consumption Report",
+                "label": "Observation consumption Report",
+                "title": "Observation consumption Report",
                 "charts": [
                     {
                         "id": "Big_Number",
@@ -83,7 +83,7 @@
                 "startdate": "12-02-2020"
             },
             "tags": [
-                "Observation_Consumption_Report"
+                "Observation_consumption_Report"
             ],
             "updatefrequency": "DAILY",
             "parameters": [
