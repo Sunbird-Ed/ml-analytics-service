@@ -22,7 +22,7 @@ from collections import OrderedDict, Counter
 from typing import Iterable
 # from slackclient import SlackClient
 import logging
-from datetime import date,time
+from datetime import date
 from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
