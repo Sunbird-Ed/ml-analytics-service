@@ -2,7 +2,7 @@
 # Gather program ids for storing & running in Shell script
 # -----------------------------------------------------------------
 
-import json, sys, time, os
+import json, sys, time, os, re
 from configparser import ConfigParser,ExtendedInterpolation
 from pymongo import MongoClient
 from bson.objectid import ObjectId
@@ -64,6 +64,7 @@ with open(config.get('OUTPUT_DIR', 'program_text_file'), mode='w') as file:
             file.write(f"{ids}\n")
 
 infoLogger.info(f"Gathered ProgramIDs: {datetime.datetime.now()}")
+
 
 
 

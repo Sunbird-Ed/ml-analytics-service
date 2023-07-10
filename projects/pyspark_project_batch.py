@@ -6,7 +6,7 @@
 #  entity information
 # -----------------------------------------------------------------
 
-import json, sys, time
+import json, sys, time, re
 from configparser import ConfigParser,ExtendedInterpolation
 from pymongo import MongoClient
 from bson.objectid import ObjectId

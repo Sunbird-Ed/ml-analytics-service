@@ -7,7 +7,7 @@
 # -----------------------------------------------------------------
 
 import requests
-import json, csv, sys, os, time, redis
+import json, csv, sys, os, time, redis, re
 import datetime
 from datetime import date
 from configparser import ConfigParser, ExtendedInterpolation

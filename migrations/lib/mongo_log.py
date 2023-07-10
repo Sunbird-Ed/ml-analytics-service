@@ -15,18 +15,19 @@ log_collec = db[constants.reports_log_collec]
 
 curr_datetime = datetime.now()
 
-def insert_doc(doc,type):
-    doc["createdAt"] = curr_datetime
-    doc["updatedAt"] = curr_datetime
+def insert_doc(docMongo,type):
+    docMongo["createdAt"] = curr_datetime
+    docMongo["updatedAt"] = curr_datetime
 
     if type == "crud":
-       doc["status"] = "Success"
+       docMongo["status"] = "Success"
     elif type == "error" or type == "exception":
-       doc["status"] = "Failed"
+       docMongo["status"] = "Failed"
     elif type == "duplicate_run":
-       doc["status"] = "Skipped"
+       docMongo["status"] = "Skipped"
 
-    log_collec.insert_one(doc)
+    log_collec.insert_one(docMongo)
+
 
 def query_mongo(file_path,file):
     #Query MongoDb
@@ -48,12 +49,11 @@ def query_mongo(file_path,file):
 
 def query_retire(file):
    #Query MongoDb
+   mydocRetire = log_collec.find({"file": file})
+   mydocRetire_count = mydocRetire.count()
    
-   mydoc = log_collec.find({"file": file})
-   mydoc_count = mydoc.count()
-   
-   if mydoc_count > 0:
-      for doc in mydoc:
+   if mydocRetire_count > 0:
+      for doc in mydocRetire:
          if doc["status"] == "Failed":
                return True
          elif doc["status"] == "Success" :

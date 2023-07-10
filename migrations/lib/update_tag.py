@@ -52,6 +52,8 @@ def get_report(report_ids):
          doc["errmsg"] = "Exception message {}: {}".format(type(exception).__name__, exception)
          response_type = "exception"
    insert_doc(doc,response_type)
+
+
 # Creation of chart using Json config making an API call
 def update_report(json_config,id):
     doc = {
@@ -78,6 +80,7 @@ def update_report(json_config,id):
                 )
         
         if response_api.status_code == constants.success_code:
+            print("---> Tag update success : " + str(id))
             doc["api_response"] = response_api.json()
             typeErr = "crud"
         else:
@@ -87,6 +90,8 @@ def update_report(json_config,id):
 
     except Exception as exception:
         doc["errmsg"] = "Exception message {}: {}".format(type(exception).__name__, exception)
+        print("<--- Tag update failed : "+ str(id))
+        print("Exception message {}: {}".format(type(exception).__name__, exception))
         typeErr = "exception"
 
     insert_doc(doc,typeErr)
@@ -96,7 +101,7 @@ def update_report(json_config,id):
 
 def fetch_ml_reports():
     doc = {
-            "operation": "get_report"
+            "operation": "fetch_ml_report"
            }
     try:
         # regular expression to find all report ids starting with keyword ml 
@@ -129,8 +134,9 @@ def fetch_ml_reports():
                                 if index["reportid"] not in reportIds:
                                     reportIds.append(index["reportid"])
                                     reports_to_update[index["reportid"]] = index
-            
-            
+
+            doc['reports_to_update'] = reports_to_update
+            insert_doc(doc,response_type)
             return reports_to_update
 
         else:
@@ -141,6 +147,8 @@ def fetch_ml_reports():
 
     except Exception as exception:
          doc["errmsg"] = "Exception message {}: {}".format(type(exception).__name__, exception)
+         print("<--- Fetch ML Reports Failed ")
+         print("Exception message {}: {}".format(type(exception).__name__, exception))
          response_type = "exception"
          
     insert_doc(doc,response_type)
@@ -150,5 +158,4 @@ def fetch_ml_reports():
 def update_tag():
     fetchReports = fetch_ml_reports()
     for reportId,jsonConfig in fetchReports.items():
-        print(reportId)
         update_report(jsonConfig,reportId)

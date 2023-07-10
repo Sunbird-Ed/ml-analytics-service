@@ -6,7 +6,7 @@ import datetime
 from datetime import date
 from pyspark.sql import Row
 from pymongo import MongoClient
-import json, csv, sys, os, time
+import json, csv, sys, os, time, re
 from pyspark.sql.types import *
 from pyspark.sql import DataFrame
 import pyspark.sql.functions as F

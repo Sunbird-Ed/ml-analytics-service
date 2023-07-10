@@ -9,6 +9,7 @@ root_path = "/opt/sparkjobs/ml-analytics-service/"
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(root_path + "config.ini")
 
+
 sys.path.insert(0, root_path + "migrations/lib")
 
 from mongo_log import *
@@ -24,7 +25,7 @@ headers_api = {
 # hit the api to retire the frontend reports 
 def frontend_retire(access_token,fileNames,base_path):
     reportsLookUp = fetchAllReports(access_token)
-    
+
     headers_api["x-authenticated-user-token"] = access_token
 
     try:
@@ -77,17 +78,12 @@ def frontend_retire(access_token,fileNames,base_path):
 
 # hit the api to retire the backend reports 
 def backend_retire(fileNames,base_path):
-    
+    doc = {}
     try:
-
-
         for fileName in fileNames:
             # reports file path 
             backend_retire_reports = os.path.join(base_path,"config/backend/retire",fileName)
-            doc = {
-                    "operation": "backend_retire",
-                    "file" : str(backend_retire_reports)
-                }
+            
             if query_retire(backend_retire_reports):
                 with open(backend_retire_reports) as json_file:
                    backend_retire_reports_list = json.load(json_file)
@@ -95,27 +91,37 @@ def backend_retire(fileNames,base_path):
                 json_file.close
 
                 for reportId in backend_retire_reports_list:
+                    doc = {
+                    "operation": "backend_retire",
+                    "file" : str(backend_retire_reports)
+                    }
                     doc['reportId'] = reportId
-                    url_backend_retire = base_url + constants.backend_retire + str(reportId)
-                    response_api = requests.patch(
+                    url_backend_retire = base_url + constants.backend_retire + str(reportId).strip()
+                    
+                    response_api = requests.post(
                         url_backend_retire,
                         headers=headers_api
                         )
-    
                     if response_api.status_code == constants.success_code:
+                        print("---> Backend Rertire Success : " + str(reportId))
                         typeErr = "crud"
                     else:
                         doc["errmsg"] = str(response_api.status_code)  + response_api.text
                         typeErr = "error"
-    
-                
+                        print("<--- Backend Rertire Failed : " + str(reportId))
+                        print("Status Code : "+ str(response_api.status_code))
+                        print("Error Message : "+ str(response_api.text))
+
+                    insert_doc(doc,typeErr)  
             else:
                 doc["operation"]= "backend_retire_duplicate_run"
+                print("<--- Backend duplicate_run File : " + str(os.path.join(base_path,"config/backend/retire",fileName)))
                 typeErr = "duplicate_run"
-        
-            insert_doc(doc,typeErr)
+                insert_doc(doc,typeErr)
     
     except Exception as exception:
         doc["errmsg"] = "Exception message {}: {}".format(type(exception).__name__, exception)
+        print("<--- Backend Retire Failed")
+        print("Exception message {}: {}".format(type(exception).__name__, exception))
         typeErr = "exception"
         insert_doc(doc,typeErr)

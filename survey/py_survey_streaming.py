@@ -6,7 +6,7 @@
 # -----------------------------------------------------------------
 
 
-import sys, os, json
+import sys, os, json, re
 import datetime
 from datetime import date
 import kafka

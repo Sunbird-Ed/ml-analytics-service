@@ -11,7 +11,7 @@ frontend_get = "/api/data/v1/report-service/report/get/"
 backend_update = "/api/data/v1/report/jobs/"
 frontend_update = "/api/data/v1/report-service/report/update/"
 frontend_retire = "/api/data/v1/report-service/report/delete/"
-backend_retire = "/report/jobs/deactivate/"
+backend_retire = "api/data/v1/report/jobs/deactivate/"
 reports_list = "/api/data/v1/report-service/report/list"
 
 #API Headers

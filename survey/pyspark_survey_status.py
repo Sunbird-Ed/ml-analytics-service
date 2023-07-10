@@ -7,7 +7,7 @@
 # -----------------------------------------------------------------
 
 import requests
-import json, csv, sys, os, time
+import json, csv, sys, os, time, re
 import datetime
 from datetime import date
 from configparser import ConfigParser, ExtendedInterpolation
@@ -22,7 +22,7 @@ from collections import OrderedDict, Counter
 from typing import Iterable
 # from slackclient import SlackClient
 import logging
-from datetime import date,time
+from datetime import date
 from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
@@ -42,7 +42,7 @@ number_of_days_logs_kept = current_date - datetime.timedelta(days=7)
 number_of_days_logs_kept = number_of_days_logs_kept.strftime("%d-%B-%Y")
 
 # file path for log
-file_path_for_output_and_debug_log = config.get('LOGS', 'survey_status_success_error')
+file_path_for_output_and_debug_log = config.get('LOGS', 'survey_streaming_success_error')
 file_name_for_output_log = f"{file_path_for_output_and_debug_log}{formatted_current_date}-output.log"
 file_name_for_debug_log = f"{file_path_for_output_and_debug_log}{formatted_current_date}-debug.log"
 
