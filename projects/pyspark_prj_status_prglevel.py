@@ -6,7 +6,7 @@
 #  entity information
 # -----------------------------------------------------------------
 
-import json, sys, time
+import json, sys, time, csv
 from configparser import ConfigParser,ExtendedInterpolation
 from pymongo import MongoClient
 from bson.objectid import ObjectId
@@ -101,12 +101,50 @@ debug_logBackuphandler = TimedRotatingFileHandler(f"{file_name_for_debug_log}",w
 infoLogger.addHandler(debug_logHandler)
 infoLogger.addHandler(debug_logBackuphandler)
 
+#Check for duplicate
+duplicate_checker = None
+data_fixer = None
+datasource_name = json.loads(config.get("DRUID","ml_distinctCnt_projects_status_spec"))["spec"]["dataSchema"]["dataSource"]
+try:
+    with open(f'{config.get("COMMON","projects_tracker_path")}', 'r', newline='') as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            if row['program_id'] == program_Id and row['datasource'] == datasource_name:
+                if row['task_created_date'] != str(datetime.datetime.now().date()):
+                    # Check: Daily run - Date is not duplicate
+                    duplicate_checker = False
+                else: 
+                    druid_id = row['task_id']
+                    druid_status = requests.get(f'{config.get("DRUID", "batch_url")}/{druid_id}/status')
+                    druid_status.raise_for_status()
+                    ingest_status = druid_status.json()["status"]["status"]
+                    if ingest_status == 'SUCCESS':
+                        # Check: Date is duplicate
+                        duplicate_checker = True
+                        bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"ABORT: 'Duplicate-run' {datasource_name} for {program_unique_id}")
+                    else:
+                        # Check: Date duplicate but ingestion didn't get processed
+                        duplicate_checker = False
+                        data_fixer = True
+            else:
+                # Check: New task_id or No task_id
+                duplicate_checker = False
+
+except FileNotFoundError:
+    data =[["program_id", "datasource", "task_id", "task_created_date"]]
+    with open(f'{config.get("COMMON","projects_tracker_path")}', 'w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(data[0])
+
+# FOLLOW: Exit of dupliate run
+if duplicate_checker: 
+    errorLogger.error("Duplicate Run -- ABORT")
+    sys.exit()
 
 clientProd = MongoClient(config.get('MONGO', 'url'))
 db = clientProd[config.get('MONGO', 'database_name')]
 projectsCollec = db[config.get('MONGO', 'projects_collection')]
 datasource_name = json.loads(config.get("DRUID","project_injestion_spec"))["spec"]["dataSchema"]["dataSource"]
-
 
 try:
  def melt(df: DataFrame,id_vars: Iterable[str], value_vars: Iterable[str],
@@ -173,37 +211,15 @@ projects_cursorMongo = projectsCollec.aggregate(
         "$project": {
             "_id": {"$toString": "$_id"},
             "projectTemplateId": {"$toString": "$projectTemplateId"},
-            "solutionInformation": {"name": 1,"_id":{"$toString": "$solutionInformation._id"}},
-            "title": {
-                "$reduce": {
-                    "input": { "$split": ["$title", "\n"] },
-                    "initialValue": "",
-                    "in": { "$concat": ["$$value", " ", "$$this"] }
-                    }
-            },
             "remarks":1,
             "attachments":1,
             "programId": {"$toString": "$programId"},
             "programInformation": {"name": 1},
-            "metaInformation": {"duration": 1,"goal":1},
-            "syncedAt": 1,
-            "updatedAt": 1,
-            "isDeleted": 1,
-            "categories": 1,
             "tasks": 1,
             "status": 1,
             "userId": 1,
-            "description": {
-                "$reduce": {
-                    "input": { "$split": ["$description", "\n"] },
-                    "initialValue": "",
-                    "in": { "$concat": ["$$value", " ", "$$this"] }
-                    }
-            },
-            "createdAt": 1,
             "programExternalId": 1,
             "isAPrivateProgram": 1,
-            "hasAcceptedTAndC": 1,
             "userRoleInformation": 1,
             "userProfile": 1,
             "certificate": 1
@@ -217,11 +233,6 @@ successLogger.debug(
 projects_schema = StructType([
     StructField('_id', StringType(), True),
     StructField('projectTemplateId', StringType(), True),
-    StructField(
-        'solutionInformation',
-        StructType([StructField('name', StringType(), True),
-          StructField('_id', StringType(), True)])
-    ),
     StructField('title', StringType(), True),
     StructField('programId', StringType(), True),
     StructField('programExternalId', StringType(), True),
@@ -229,27 +240,9 @@ projects_schema = StructType([
         'programInformation',
         StructType([StructField('name', StringType(), True)])
     ),
-    StructField(
-        'metaInformation',
-        StructType([StructField('duration', StringType(), True),
-                    StructField('goal', StringType(), True)
-                    ])
-    ),
-    StructField('updatedAt', TimestampType(), True),
-    StructField('syncedAt', TimestampType(), True),
-    StructField('isDeleted', BooleanType(), True),
     StructField('status', StringType(), True),
     StructField('userId', StringType(), True),
-    StructField('description', StringType(), True),
-    StructField('createdAt', TimestampType(), True),
     StructField('isAPrivateProgram', BooleanType(), True),
-    StructField('hasAcceptedTAndC', BooleanType(), True),
-    StructField(
-        'categories',
-        ArrayType(
-            StructType([StructField('name', StringType(), True)])
-        ), True
-    ),
     StructField(
           'userRoleInformation',
           StructType([
@@ -265,14 +258,6 @@ projects_schema = StructType([
                   StructType([
                     StructField('board',ArrayType(StringType()), True)
                 ])
-             ),
-             StructField(
-                'organisations',ArrayType(
-                     StructType([
-                        StructField('organisationId', StringType(), True),
-                        StructField('orgName', StringType(), True),
-                        StructField('isSchool', BooleanType(), True)
-                     ]), True)
              ),
           StructField(
                 'profileUserTypes',ArrayType(
@@ -376,27 +361,6 @@ projects_df = projects_df.withColumn(
 )
 
 projects_df = projects_df.withColumn(
-    "project_title",
-    F.when(
-        projects_df["solutionInformation"]["name"].isNotNull() == True,
-        regexp_replace(projects_df["solutionInformation"]["name"], "\n|\"", "")
-    ).otherwise(regexp_replace(projects_df["title"], "\n|\"", ""))
-)
-
-projects_df = projects_df.withColumn(
-    "project_deleted_flag",
-    F.when(
-        (projects_df["isDeleted"].isNotNull() == True) & 
-        (projects_df["isDeleted"] == True),
-        "true"
-    ).when(
-        (projects_df["isDeleted"].isNotNull() == True) & 
-        (projects_df["isDeleted"] == False),
-        "false"
-    ).otherwise("false")
-)
-
-projects_df = projects_df.withColumn(
     "private_program",
     F.when(
         (projects_df["isAPrivateProgram"].isNotNull() == True) & 
@@ -410,41 +374,12 @@ projects_df = projects_df.withColumn(
 )
 
 projects_df = projects_df.withColumn(
-    "project_terms_and_condition",
-    F.when(
-        (projects_df["hasAcceptedTAndC"].isNotNull() == True) & 
-        (projects_df["hasAcceptedTAndC"] == True),
-        "true"
-    ).when(
-        (projects_df["hasAcceptedTAndC"].isNotNull() == True) & 
-        (projects_df["hasAcceptedTAndC"] == False),
-        "false"
-    ).otherwise("false")
-)
-
-projects_df = projects_df.withColumn(
                  "project_evidence_status",
                  F.when(
                       size(F.col("attachments"))>=1,True
                  ).otherwise(False)
 )
 
-projects_df = projects_df.withColumn(
-    "project_completed_date",
-    F.when(
-        projects_df["status"] == "submitted",
-        projects_df["updatedAt"]
-    ).otherwise(None)
-)
-projects_df = projects_df.withColumn(
-    "exploded_categories", F.explode_outer(F.col("categories"))
-)
-
-category_df = projects_df.groupby('_id').agg(collect_list('exploded_categories.name').alias("category_name"))
-category_df = category_df.withColumn("categories_name", concat_ws(", ", "category_name"))
-
-projects_df = projects_df.join(category_df, "_id", how = "left")
-category_df.unpersist()
 projects_df = projects_df.withColumn("parent_channel", F.lit("SHIKSHALOKAM"))
 
 projects_df = projects_df.withColumn(
@@ -516,18 +451,7 @@ projects_df = projects_df.withColumn(
             )
     ).otherwise(projects_df["exploded_taskarr"]["prj_evidence"])
 )
-
-successLogger.debug(
-        "Organisation logic start time  " + str(datetime.datetime.now())
-   )
-projects_df = projects_df.withColumn("orgData",orgInfo_udf(F.col("userProfile.organisations")))
-projects_df = projects_df.withColumn("exploded_orgInfo",F.explode_outer(F.col("orgData")))
-successLogger.debug(
-        "Organisation logic end time  " + str(datetime.datetime.now())
-   )
    
-projects_df = projects_df.withColumn("project_goal",regexp_replace(F.col("metaInformation.goal"), "\n|\"", ""))
-projects_df = projects_df.withColumn("area_of_improvement",F.when((F.col("categories_name").isNotNull()) & (F.col("categories_name")!=""),F.concat(F.lit("'"),regexp_replace(F.col("categories_name"), "\n|\"", ""),F.lit("'"))).otherwise(F.col("categories_name")))
 projects_df = projects_df.withColumn("tasks",F.when((F.col("exploded_taskarr.tasks").isNotNull()) & (F.col("exploded_taskarr.tasks")!=""),F.concat(F.lit("'"),regexp_replace(F.col("exploded_taskarr.tasks"), "\n|\"", ""),F.lit("'"))).otherwise(F.col("exploded_taskarr.tasks")))
 projects_df = projects_df.withColumn("sub_task",F.when((F.col("exploded_taskarr.sub_task").isNotNull()) & (F.col("exploded_taskarr.sub_task")!=""),F.concat(F.lit("'"),regexp_replace(F.col("exploded_taskarr.sub_task"), "\n|\"", ""),F.lit("'"))).otherwise(F.col("exploded_taskarr.sub_task")))	
 projects_df = projects_df.withColumn("program_name",regexp_replace(F.col("programInformation.name"), "\n|\"", ""))
@@ -551,13 +475,6 @@ prj_df_expl_ul = projects_df.withColumn(
    "exploded_userLocations",F.explode_outer(projects_df["userProfile"]["userLocations"])
 )
 
-projects_df = projects_df.withColumn(
-    "project_title_editable", F.when((F.col("title").isNotNull()) & (F.col("title")!=""),F.concat(F.lit("'"),regexp_replace(F.col("title"), "\n|\"", ""),F.lit("'"))).otherwise(F.col("title"))
-)
-projects_df = projects_df.withColumn(
-    "project_description", F.when((F.col("description").isNotNull()) & (F.col("description")!=""),F.concat(F.lit("'"),regexp_replace(F.col("description"), "\n|\"", ""),F.lit("'"))).otherwise(F.col("description"))
-)
-
 pattern = r'(?:.*)YEAR=(\d+).+?MONTH=(\d+).+?DAY_OF_MONTH=(\d+).+?HOUR=(\d+).+?MINUTE=(\d+).+?SECOND=(\d+).+'
 projects_df = projects_df.withColumn('certificate_issued_on', F.regexp_replace(F.col("certificate.issuedOn"), pattern, '$1-$2-$3 $4:$5:$6').cast('timestamp'))
 
@@ -566,76 +483,21 @@ projects_df = projects_df.withColumn('certificate_status_customised', F.when(((F
 projects_df_cols = projects_df.select(
     projects_df["_id"].alias("project_id"),
     projects_df["project_created_type"],
-    projects_df["project_title"],
-    projects_df["project_title_editable"],
     projects_df["programId"].alias("program_id"),
     projects_df["programExternalId"].alias("program_externalId"),
     projects_df["program_name"],
-    projects_df["metaInformation"]["duration"].alias("project_duration"),
-    projects_df["syncedAt"].alias("project_last_sync"),
-    projects_df["updatedAt"].alias("project_updated_date"),
-    projects_df["project_deleted_flag"],
-    projects_df["area_of_improvement"],
     projects_df["status"].alias("status_of_project"),
     projects_df["userId"].alias("createdBy"),
-    projects_df["project_description"],
-    projects_df["project_goal"],projects_df["project_evidence"],
     projects_df["parent_channel"],
-    projects_df["createdAt"].alias("project_created_date"),
-    projects_df["exploded_taskarr"]["_id"].alias("task_id"),
-    projects_df["tasks"],projects_df["project_remarks"],
-    projects_df["exploded_taskarr"]["assignee"].alias("task_assigned_to"),
-    projects_df["exploded_taskarr"]["startDate"].alias("task_start_date"),
-    projects_df["exploded_taskarr"]["endDate"].alias("task_end_date"),
-    projects_df["exploded_taskarr"]["syncedAt"].alias("tasks_date"),projects_df["exploded_taskarr"]["status"].alias("tasks_status"),
-    projects_df["task_evidence"],
-    projects_df["exploded_taskarr"]["task_evidence_status"].alias("task_evidence_status"),
-    projects_df["exploded_taskarr"]["sub_task_id"].alias("sub_task_id"),
-    projects_df["sub_task"],
-    projects_df["exploded_taskarr"]["sub_task_status"].alias("sub_task_status"),
-    projects_df["exploded_taskarr"]["sub_task_date"].alias("sub_task_date"),
-    projects_df["exploded_taskarr"]["sub_task_start_date"].alias("sub_task_start_date"),
-    projects_df["exploded_taskarr"]["sub_task_end_date"].alias("sub_task_end_date"),
     projects_df["private_program"],
-    projects_df["task_deleted_flag"],projects_df["sub_task_deleted_flag"],
-    projects_df["project_terms_and_condition"],
-    projects_df["task_remarks"],projects_df["exploded_taskarr"]["task_sequence"].alias("task_sequence"),
-    projects_df["project_completed_date"],
-    projects_df["solutionInformation"]["_id"].alias("solution_id"),
-    projects_df["userRoleInformation"]["role"].alias("designation"),
-    projects_df["userProfile"]["rootOrgId"].alias("channel"),
-    projects_df["exploded_orgInfo"]["orgId"].alias("organisation_id"),
-    projects_df["exploded_orgInfo"]["orgName"].alias("organisation_name"),
-    projects_df["certificate"]["osid"].alias("certificate_id"),	
-    projects_df["certificate"]["status"].alias("certificate_status"),
-    projects_df["certificate_status_customised"],		
-    projects_df["certificate_issued_on"],
-    projects_df["certificate"]["templateUrl"].alias("certificate_template_url"),
-    concat_ws(",",F.col("userProfile.framework.board")).alias("board_name"),
-    concat_ws(",",array_distinct(F.col("userProfile.profileUserTypes.type"))).alias("user_type"),
+    projects_df["certificate_status_customised"],
     projects_df["evidence_status"]    
 )
-
-projects_task_cnt = projects_df_cols.groupBy("project_id").agg(countDistinct(F.col("task_id")).alias("task_count"))
-
-projects_prj_evi= projects_df_cols.groupBy("project_id").agg(countDistinct("project_evidence").alias("project_evidence_count"))
-projects_dff = projects_task_cnt.join(projects_prj_evi,["project_id"],"left")
-
-
-projects_tsk_evi = projects_df_cols.groupBy("project_id").agg(countDistinct("task_evidence").alias("task_evidence_count"))
-
-projects_df_cols = projects_df_cols.join(projects_dff,["project_id"],"left")
-projects_df_cols = projects_df_cols.join(projects_tsk_evi,["project_id"],"left")
 
 successLogger.debug(
         "Flattening data end time  " + str(datetime.datetime.now())
    )
 projects_df.unpersist()
-projects_prj_evi.unpersist()
-projects_task_cnt.unpersist()
-projects_dff.unpersist()
-projects_task_cnt.unpersist()
-projects_tsk_evi.unpersist()
 projects_df_cols = projects_df_cols.dropDuplicates()
 
 successLogger.debug(
@@ -690,53 +552,66 @@ for miss_cols in necessary_columns:
 projects_df_final.unpersist()
 
 successLogger.debug(
-        "Json file generation start time  " + str(datetime.datetime.now())
-   )
-final_projects_df.coalesce(1).write.format("json").mode("overwrite").save(
-    config.get("OUTPUT_DIR", "project") + "/"
+        "Logic for submission distinct count by program level start time  " + str(datetime.datetime.now())
+)
+final_projects_tasks_distinctCnt_prgmlevel = final_projects_df.groupBy("program_name", "program_id","status_of_project", "state_name","state_externalId","private_program","project_created_type","parent_channel").agg(countDistinct(when(F.col("certificate_status_customised") == "Issued",True),F.col("project_id")).alias("no_of_certificate_issued"), countDistinct(F.col("project_id")).alias("unique_projects"),countDistinct(F.col("createdBy")).alias("unique_users"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status_of_project") == "submitted"),True),F.col("project_id")).alias("no_of_imp_with_evidence"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status_of_project") == "inProgress"),True),F.col("project_id")).alias("no_of_imp_with_evidence_inprogress"))
+
+# Add6.0 date fixer
+if not data_fixer:
+    final_projects_tasks_distinctCnt_prgmlevel = final_projects_tasks_distinctCnt_prgmlevel.withColumn("time_stamp", current_timestamp())
+else:
+    final_projects_tasks_distinctCnt_prgmlevel = final_projects_tasks_distinctCnt_prgmlevel.withColumn("time_stamp", lit(date_format(date_sub(current_timestamp(), 1), "yyyy-MM-dd HH:mm:ss.SSS")))
+
+final_projects_tasks_distinctCnt_prgmlevel = final_projects_tasks_distinctCnt_prgmlevel.dropDuplicates()
+final_projects_tasks_distinctCnt_prgmlevel.coalesce(1).write.format("json").mode("overwrite").save(
+config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/"
 )
 successLogger.debug(
-        "Json file generation end time  " + str(datetime.datetime.now())
-   )
+        "Logic for submission distinct count by program level end time  " + str(datetime.datetime.now())
+)
 
 final_projects_df.unpersist()
+final_projects_tasks_distinctCnt_prgmlevel.unpersist()
 
 
 successLogger.debug("Renaming file start time  " + str(datetime.datetime.now()))
 
-for filename in os.listdir(config.get("OUTPUT_DIR", "project")+"/"):
+#projects submission distinct count by program level
+for filename in os.listdir(config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel")+"/"):
     if filename.endswith(".json"):
-       if program_unique_id :  
+       if program_unique_id : 
         os.rename(
-           config.get("OUTPUT_DIR", "project") + "/" + filename,
-           config.get("OUTPUT_DIR", "project") + f"/sl_projects_{program_unique_id}.json"
+           config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/" + filename,
+           config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + f"/ml_projects_distinctCount_prgmlevel_{program_unique_id}.json"
         )
        else :
         os.rename(
-           config.get("OUTPUT_DIR", "project") + "/" + filename,
-           config.get("OUTPUT_DIR", "project") + "/sl_projects.json"
-        ) 
-
-
+           config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/" + filename,
+           config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/ml_projects_distinctCount_prgmlevel.json"
+        )
 
 successLogger.debug("Renaming file end time  " + str(datetime.datetime.now())) 
 successLogger.debug("Uploading to Azure start time  " + str(datetime.datetime.now()))
 
-local_path = config.get("OUTPUT_DIR", "project")
-blob_path = config.get("COMMON", "projects_blob_path")
 
-for files in os.listdir(local_path):
-    if "sl_projects.json" in files or f"sl_projects_{program_unique_id}.json" in files:
-        cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = files)
+#projects submission distinct count program level
+local_distinctCnt_prgmlevel_path = config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel")
+blob_distinctCnt_prgmlevel_path = config.get("COMMON", "projects_distinctCnt_prgmlevel_blob_path")
+
+for files in os.listdir(local_distinctCnt_prgmlevel_path):
+    if "ml_projects_distinctCount_prgmlevel.json" in files or f"ml_projects_distinctCount_prgmlevel_{program_unique_id}.json" in files:
+        cloud_init.upload_to_cloud(blob_Path = blob_distinctCnt_prgmlevel_path, local_Path = local_distinctCnt_prgmlevel_path, file_Name = files)
 
 successLogger.debug("Uploading to azure end time  " + str(datetime.datetime.now()))	
 successLogger.debug("Removing file start time  " + str(datetime.datetime.now()))
 
 if program_unique_id :
- os.remove(config.get("OUTPUT_DIR", "project") + f"/sl_projects_{program_unique_id}.json")
+ #projects submission distinct count program level
+ os.remove(config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + f"/ml_projects_distinctCount_prgmlevel_{program_unique_id}.json")
 else :
- os.remove(config.get("OUTPUT_DIR", "project") + "/sl_projects.json")
- 
+ #projects submission distinct count program level
+ os.remove(config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + "/ml_projects_distinctCount_prgmlevel.json")
+
 successLogger.debug("Removing file end time  " + str(datetime.datetime.now()))
 
 druid_batch_end_point = config.get("DRUID", "batch_url")
@@ -744,55 +619,33 @@ headers = {'Content-Type': 'application/json'}
 
 successLogger.debug("Ingestion start time  " + str(datetime.datetime.now()))
 
-dimensionsArr = []
-entitiesArr = ["state_externalId", "block_externalId", "district_externalId", "cluster_externalId", "school_externalId",\
-              "state_name","block_name","district_name","cluster_name","school_name","board_name","state_code", \
-              "block_code", "district_code", "cluster_code", "school_code"]
-dimensionsArr = list(set(entitiesArr))
-
-submissionReportColumnNamesArr = [
-    'project_title', 'project_goal', 'project_created_date', 'project_last_sync',
-    'area_of_improvement', 'status_of_project', 'tasks', 'tasks_date', 'tasks_status',
-    'sub_task', 'sub_task_status', 'sub_task_date', 'task_start_date', 'task_end_date',
-    'sub_task_start_date', 'sub_task_end_date', 'designation', 'project_deleted_flag',
-    'task_evidence', 'task_evidence_status', 'project_id', 'task_id', 'sub_task_id',
-    'project_created_type', 'task_assigned_to', 'channel', 'parent_channel', 'program_id',
-    'program_name', 'project_updated_date', 'createdBy', 'project_title_editable', 
-    'project_duration', 'program_externalId', 'private_program', 'task_deleted_flag',
-    'sub_task_deleted_flag', 'project_terms_and_condition','task_remarks',
-    'organisation_name','project_description','project_completed_date','solution_id',
-    'project_remarks','project_evidence','organisation_id','user_type', 'certificate_id', 
-    'certificate_status','certificate_issued_on','certificate_status_customised','certificate_template_url',{"type":"long","name":"task_count"},{"type":"long","name":"task_evidence_count"},{"type":"long","name":"project_evidence_count"},{"type":"long","name":"task_sequence"}
-]
-
-dimensionsArr.extend(submissionReportColumnNamesArr)
-
-payload = {}
-payload = json.loads(config.get("DRUID","project_injestion_spec"))
-if program_unique_id :
-    current_cloud = re.split("://+", payload["spec"]["ioConfig"]["inputSource"]["uris"][0])[0]
-    uri = re.split("://+", payload["spec"]["ioConfig"]["inputSource"]["uris"][0])[1]
+#projects submission distinct count program level
+ml_distinctCnt_prgmlevel_projects_spec = json.loads(config.get("DRUID","ml_distinctCnt_prglevel_projects_status_spec"))
+ml_distinctCnt_prgmlevel_projects_datasource = ml_distinctCnt_prgmlevel_projects_spec["spec"]["dataSchema"]["dataSource"]
+if program_unique_id:
+    current_cloud = re.split("://+", ml_distinctCnt_prgmlevel_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"][0])[0]
+    uri = re.split("://+", ml_distinctCnt_prgmlevel_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"][0])[1]
     edited_uri = re.split(".json", uri)[0]
-    payload["spec"]["ioConfig"]["inputSource"]["uris"][0] = f"{current_cloud}://{edited_uri}_{program_unique_id}.json"
-    payload['spec']['ioConfig'].update({"appendToExisting":True})  
-payload["spec"]["dataSchema"]["dimensionsSpec"]["dimensions"] = dimensionsArr
-datasources = [payload["spec"]["dataSchema"]["dataSource"]]
-ingestion_specs = [json.dumps(payload)]
+    ml_distinctCnt_prgmlevel_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"][0] = f"{current_cloud}://{edited_uri}_{program_unique_id}.json"
+    ml_distinctCnt_prgmlevel_projects_spec["spec"]["ioConfig"].update({"appendToExisting":True})
+distinctCnt_prgmlevel_projects_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_prgmlevel_projects_spec), headers=headers)
 
-for i, j in zip(datasources,ingestion_specs):
-    start_supervisor = requests.post(druid_batch_end_point, data=j, headers=headers)
-    successLogger.debug("--- INGEST DATA ---")
-    if start_supervisor.status_code == 200:        
-        infoLogger.info(f"Succesfully ingested the data in {i}")
-        successLogger.debug("started the batch ingestion task sucessfully for the datasource " + i)
-    else:
-        errorLogger.error("failed to start batch ingestion task" + i)
-        errorLogger.error("failed to start batch ingestion task " + str(start_supervisor.status_code))
-        errorLogger.error(start_supervisor.text)
-        infoLogger.info(f"Failed to ingested the data in {i}")
+new_row = {
+    "program_id": program_unique_id,
+    "datasource": ml_distinctCnt_prgmlevel_projects_datasource,
+    "task_id": distinctCnt_prgmlevel_projects_start_supervisor.json()["task"],
+    "task_created_date" : datetime.datetime.now().date()
+}
+with open(f'{config.get("COMMON","projects_tracker_path")}', 'a', newline='') as file:
+    writer = csv.DictWriter(file, fieldnames=["program_id", "datasource", "task_id", "task_created_date"])
+    writer.writerow(new_row)
 
-
-if program_unique_id :
- infoLogger.info(f"Ingested for {program_unique_id}")
-else :
- infoLogger.info(f"Succesfully ingested all program's data")
+if distinctCnt_prgmlevel_projects_start_supervisor.status_code == 200:
+    infoLogger.info("Successfully Ingested for {ml_distinctCnt_prgmlevel_projects_datasource}")
+    successLogger.debug("started the batch ingestion task sucessfully for the datasource " + ml_distinctCnt_prgmlevel_projects_datasource)
+else:
+    errorLogger.error(
+            "failed to start batch ingestion task of ml-project-programLevel-status " + str(distinctCnt_prgmlevel_projects_start_supervisor.status_code)
+    )
+    errorLogger.error(distinctCnt_prgmlevel_projects_start_supervisor.text)
+    
