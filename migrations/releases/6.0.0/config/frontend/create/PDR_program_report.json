@@ -34,7 +34,7 @@
                         ],
                         "dataSource": {
                             "ids": [
-                                "ml_no_of_users_joining_program_sl_pdr"
+                                "ml_no_of_users_joining_program_a_sl_pdr"
                             ],
                             "commonDimension": "Date"
                         }
@@ -42,8 +42,8 @@
                 ],
                 "dataSource": [
                     {
-                        "id": "ml_no_of_users_joining_program_sl_pdr",
-                        "path": "/reports/fetch/hawk-eye/ml_no_of_users_joining_program_sl_pdr.json"
+                        "id": "ml_no_of_users_joining_program_a_sl_pdr",
+                        "path": "/reports/fetch/hawk-eye/ml_no_of_users_joining_program_a_sl_pdr.json"
                     }
                 ],
                 "description": "The reports provides the big no. for user who joined program",
