@@ -16,15 +16,6 @@ echo "Gather Program IDs == Started"
 echo "Gather == Completed"
 echo "*************************************"
 
-# PROJECT: Deletion
-echo ""
-echo "$(date)"
-echo "====================================="
-echo "Daily Projects Batch Job Ingestion == Started"
-. /opt/sparkjobs/spark_venv/bin/activate && python /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_deletion_batch.py
-echo "Daily Projects Batch Job Ingestion == Completed"
-echo "*************************************"
-
 previous_date=$(date -d "$current_date - 1 day" +"%Y-%m-%d")
 echo $previous_date
 file="./checker.txt"
@@ -36,7 +27,7 @@ if [[ $last_ingestion_date != $previous_date ]]; then
    echo "$(date)"
    echo "====================================="
    echo "Daily Projects Batch Job Deletion == Started"
-   . /home/ashwini/my_env/bin/activate && python /home/ashwini/Downloads/ml-analytics-service_local-20230504T102955Z-001//ml-analytics-service_local/projects/pyspark_project_deletion_batch.py
+   . /opt/sparkjobs/spark_venv/bin/activate && python /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_deletion_batch.py
    echo "Daily Projects Batch Job Deletion == Completed"
    echo "*************************************"
 
@@ -45,7 +36,7 @@ if [[ $last_ingestion_date != $previous_date ]]; then
    echo "$(date)"
    echo "====================================="
    echo "Daily Projects Batch Job Ingestion == Started"
-   filename="/home/ashwini/Downloads/ml-analytics-service_local-20230504T102955Z-001//ml-analytics-service_local/projects/program_ids.txt"
+   filename="/opt/sparkjobs/ml-analytics-service/projects/program_ids.txt"
     while read line; do
  		echo $line 		
  		. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory ${driver_memory} --executor-memory ${executor_memory} /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_batch.py --program_id ${line/,}
