@@ -96,7 +96,7 @@ infoLogger.addHandler(debug_logBackuphandler)
 data_fixer = None
 datasource_name = json.loads(config.get("DRUID","ml_distinctCnt_obs_domain_spec"))["spec"]["dataSchema"]["dataSource"]
 try:
-    with open(f'{config.get("COMMON","obs_tracker_path")}', 'r', newline='') as file:
+    with open(f'{config.get("COMMON","obs_tracker_path_domain_batch")}', 'r', newline='') as file:
         reader = csv.DictReader(file)
         for row in reader:
             if row['datasource'] == datasource_name:
@@ -122,7 +122,7 @@ try:
 
 except FileNotFoundError:
     data =[["datasource", "task_id", "task_created_date"]]
-    with open(f'{config.get("COMMON","obs_tracker_path")}', 'w', newline='') as file:
+    with open(f'{config.get("COMMON","obs_tracker_path_domain_batch")}', 'w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(data[0])
 
@@ -636,9 +636,10 @@ new_row = {
     "task_id": distinctCnt_obs_domain_start_supervisor.json()["task"],
     "task_created_date" : datetime.datetime.now().date()
 }
-with open(f'{config.get("COMMON","obs_tracker_path")}', 'a', newline='') as file:
+with open(f'{config.get("COMMON","obs_tracker_path_domain_batch")}', 'a', newline='') as file:
     writer = csv.DictWriter(file, fieldnames=["datasource", "task_id", "task_created_date"])
     writer.writerow(new_row)
+new_row = {}
 
 if distinctCnt_obs_domain_start_supervisor.status_code == 200:
    successLogger.debug(

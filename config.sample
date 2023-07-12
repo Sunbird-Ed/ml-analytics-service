@@ -273,6 +273,12 @@ nvsk_imp_projects_state_data_local_path = {{ ml_analytics_nvsk_imp_projects_stat
 
 nvsk_imp_projects_state_data_blob_path = {{ ml_analytics_nvsk_imp_projects_state_data_blob_path }}
 
+obs_tracker_path_domain_batch = {{observation_tracker_path }}/obs_tracker_domain_batch.csv
+
+obs_tracker_path_status_batch = {{ observation_tracker_path }}/obs_tracker_status_batch.csv
+
+obs_tracker_path_domain_criteria_batch = {{ observation_tracker_path }}/obs_tracker_domain_criteria_batch.csv
+
 [API_CREDENTIALS]
 
 client_id = {{ ml_analytics_client_id }}
