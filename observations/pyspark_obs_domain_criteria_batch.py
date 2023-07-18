@@ -128,6 +128,7 @@ try:
             duplicate_checker = False
             data_fixer = True
 
+
 except FileNotFoundError:
     data =[["datasource", "task_id", "task_created_date"]]
     with open(f'{config.get("COMMON","obs_tracker_path_domain_criteria_batch")}', 'w', newline='') as file:

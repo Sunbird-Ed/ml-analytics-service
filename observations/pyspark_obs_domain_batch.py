@@ -456,7 +456,6 @@ obs_sub_df1 = obs_sub_df1.withColumn("parent_channel",F.lit("SHIKSHALOKAM"))
 obs_sub_expl_ul = obs_sub_df1.withColumn(
    "exploded_userLocations",F.explode_outer(obs_sub_df1["userProfile"]["userLocations"])
 )
-
 obs_sub_df = obs_sub_df1.select(
    "status", 
    obs_sub_df1["entityExternalId"].alias("entity_externalId"),

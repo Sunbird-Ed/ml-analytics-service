@@ -619,7 +619,6 @@ for files in os.listdir(local_distinctCount_path):
    if "ml_observation_distinctCount_status.json" in files:
       cloud_init.upload_to_cloud(blob_Path = blob_distinctCount_path, local_Path = local_distinctCount_path, file_Name = files)
 
-
 druid_batch_end_point = config.get("DRUID", "batch_url")
 headers = {'Content-Type': 'application/json'}
 

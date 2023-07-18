@@ -19,7 +19,6 @@ curr_datetime = datetime.now()
 
 
 def getLogs(query): 
-
     mydoc = log_collec.find_one(query)
     if mydoc:
        doc_count = 1
