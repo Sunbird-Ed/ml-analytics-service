@@ -7,7 +7,7 @@
 # -----------------------------------------------------------------
 
 import requests
-import json, csv, sys, os, time
+import json, csv, sys, os, time , re
 import datetime
 from datetime import date
 from configparser import ConfigParser, ExtendedInterpolation
@@ -28,6 +28,7 @@ from pyspark.sql.functions import element_at, split, col
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
+
 sys.path.append(config.get("COMMON", "cloud_module_path"))
 
 from cloud import MultiCloud
@@ -558,9 +559,10 @@ for filename in os.listdir(config.get("OUTPUT_DIR", "observation_status")+"/"):
 local_path = config.get("OUTPUT_DIR", "observation_status")
 blob_path = config.get("COMMON", "observation_blob_path")
 
-for files in os.listdir(local_path):
-   if "sl_observation_status.json" in files:
-      cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = files)
+# commented_out
+# for files in os.listdir(local_path):
+#    if "sl_observation_status.json" in files:
+#       cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = files)
 
 
 sl_status_spec = {}

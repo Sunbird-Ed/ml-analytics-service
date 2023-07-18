@@ -27,14 +27,19 @@ from pyspark.sql import DataFrame
 from typing import Iterable
 from pyspark.sql.functions import element_at, split, col
 
+sys.path.append("/Users/adithyadinesh/Documents/shikshalokam/Data_Engineering/Diksha/ml-analytics-service/")
+from lib.mongoLogs import insertLog , getLogs
+
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
+
 sys.path.append(config.get("COMMON", "cloud_module_path"))
 
 from cloud import MultiCloud
 
 cloud_init = MultiCloud()
+
 
 # date formating
 current_date = datetime.date.today()
@@ -97,35 +102,33 @@ duplicate_checker = None
 data_fixer = None
 datasource_name = json.loads(config.get("DRUID","ml_distinctCnt_obs_status_spec"))["spec"]["dataSchema"]["dataSource"]
 try:
-    with open(f'{config.get("COMMON","obs_tracker_path_status_batch")}', 'r', newline='') as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            if row['datasource'] == datasource_name:
-                if row['task_created_date'] != str(datetime.datetime.now().date()):
-                    # Check: Daily run - Date is not duplicate
-                    duplicate_checker = False
-                else: 
-                    druid_id = row['task_id']
-                    druid_status = requests.get(f'{config.get("DRUID", "batch_url")}/{druid_id}/status')
-                    druid_status.raise_for_status()
-                    ingest_status = druid_status.json()["status"]["status"]
-                    if ingest_status == 'SUCCESS':
-                        # Check: Date is duplicate
-                        duplicate_checker = True
-                        bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"ABORT: 'Duplicate-run' for {datasource_name}")
-                    else:
-                        # Check: Date duplicate but ingestion didn't get processed
-                        duplicate_checker = False
-                        data_fixer = True
-            else:
-                # Check: New task_id or No task_id
-                duplicate_checker = False
+    # construct query for log 
+    today = str(current_date)
+    query = {"dataSource" : datasource_name , "taskCreatedDate" : today}
+   
+    logCheck = getLogs(query)
+    if not logCheck['duplicateChecker']:
+      duplicate_checker = logCheck['duplicateChecker']
+    else:
+      duplicate_checker = logCheck['duplicateChecker']
+      if logCheck['dataFixer']:
+         data_fixer = True
+      else:
+         druid_id = logCheck['response']['taskId']
+         druid_status = requests.get(f'{config.get("DRUID", "batch_url")}/{druid_id}/status')
+         druid_status.raise_for_status()
+         ingest_status = druid_status.json()["status"]["status"]
+         if ingest_status == 'SUCCESS':
+             # Check: Date is duplicate
+             duplicate_checker = True
+             bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"ABORT: 'Duplicate-run' for {datasource_name}")
+         else:
+             # Check: Date duplicate but ingestion didn't get processed
+             duplicate_checker = False
+             data_fixer = True
 
 except FileNotFoundError:
-    data =[["datasource", "task_id", "task_created_date"]]
-    with open(f'{config.get("COMMON","obs_tracker_path_status_batch")}', 'w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(data[0])
+   pass
 
 # FOLLOW: Exit of dupliate run
 if duplicate_checker: 
@@ -626,15 +629,14 @@ ml_distinctCnt_obs_status_datasource = ml_distinctCnt_obs_status_spec["spec"]["d
 distinctCnt_obs_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_obs_status_spec), headers=headers)
 
 new_row = {
-    "datasource": ml_distinctCnt_obs_status_datasource,
-    "task_id": distinctCnt_obs_start_supervisor.json()["task"],
-    "task_created_date" : datetime.datetime.now().date()
+    "dataSource": ml_distinctCnt_obs_status_datasource,
+    "taskId": distinctCnt_obs_start_supervisor.json()["task"],
+    "taskCreatedDate" : str(datetime.datetime.now().date())
 }
-with open(f'{config.get("COMMON","obs_tracker_path_status_batch")}', 'a', newline='') as file:
-    writer = csv.DictWriter(file, fieldnames=["datasource", "task_id", "task_created_date"])
-    writer.writerow(new_row)
-new_row = {}
 
+new_row['statusCode'] = distinctCnt_obs_start_supervisor.status_code
+insertLog(new_row)
+new_row = {}
 if distinctCnt_obs_start_supervisor.status_code == 200:
    successLogger.debug(
         "started the batch ingestion task sucessfully for the datasource " + ml_distinctCnt_obs_status_datasource

@@ -7,7 +7,7 @@
 # -----------------------------------------------------------------
 
 import requests
-import json, csv, sys, os, time
+import json, csv, sys, os, time , re
 import datetime
 from datetime import date
 from configparser import ConfigParser, ExtendedInterpolation
@@ -19,6 +19,7 @@ import pyspark.sql.functions as F
 from pyspark.sql.types import *
 from pyspark.sql import Row
 from collections import OrderedDict, Counter
+
 from cassandra.cluster import Cluster
 from cassandra.query import SimpleStatement, ConsistencyLevel
 import logging
@@ -26,10 +27,15 @@ from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
 from pyspark.sql import DataFrame
 from typing import Iterable
 from pyspark.sql.functions import element_at, split, col
+root_path = "/opt/sparkjobs/ml-analytics-service/"
+sys.path.append(root_path)
+from lib.mongoLogs import insertLog , getLogs
+
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
+
 sys.path.append(config.get("COMMON", "cloud_module_path"))
 
 from cloud import MultiCloud
@@ -97,29 +103,30 @@ duplicate_checker = None
 data_fixer = None
 datasource_name = json.loads(config.get("DRUID","ml_distinctCnt_obs_domain_criteria_spec"))["spec"]["dataSchema"]["dataSource"]
 try:
-    with open(f'{config.get("COMMON","obs_tracker_path_domain_criteria_batch")}', 'r', newline='') as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            if row['datasource'] == datasource_name:
-                if row['task_created_date'] != str(datetime.datetime.now().date()):
-                    # Check: Daily run - Date is not duplicate
-                    duplicate_checker = False
-                else: 
-                    druid_id = row['task_id']
-                    druid_status = requests.get(f'{config.get("DRUID", "batch_url")}/{druid_id}/status')
-                    druid_status.raise_for_status()
-                    ingest_status = druid_status.json()["status"]["status"]
-                    if ingest_status == 'SUCCESS':
-                        # Check: Date is duplicate
-                        duplicate_checker = True
-                        bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"ABORT: 'Duplicate-run' for {datasource_name}")
-                    else:
-                        # Check: Date duplicate but ingestion didn't get processed
-                        duplicate_checker = False
-                        data_fixer = True
-            else:
-                # Check: New task_id or No task_id
-                duplicate_checker = False
+   # construct query for log 
+   today = str(current_date)
+   query = {"dataSource" : datasource_name , "taskCreatedDate" : today}
+   
+   logCheck = getLogs(query)
+   if not logCheck['duplicateChecker']:
+     duplicate_checker = logCheck['duplicateChecker']
+   else:
+     duplicate_checker = logCheck['duplicateChecker']
+     if logCheck['dataFixer']:
+        data_fixer = True
+     else:
+        druid_id = logCheck['response']['taskId']
+        druid_status = requests.get(f'{config.get("DRUID", "batch_url")}/{druid_id}/status')
+        druid_status.raise_for_status()
+        ingest_status = druid_status.json()["status"]["status"]
+        if ingest_status == 'SUCCESS':
+            # Check: Date is duplicate
+            duplicate_checker = True
+            bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"ABORT: 'Duplicate-run' for {datasource_name}")
+        else:
+            # Check: Date duplicate but ingestion didn't get processed
+            duplicate_checker = False
+            data_fixer = True
 
 except FileNotFoundError:
     data =[["datasource", "task_id", "task_created_date"]]
@@ -594,7 +601,6 @@ final_df_distinct_obs_domain = final_df_distinct_obs_domain.withColumn("exploded
                                .withColumn("criteria_id",F.when((F.col("exploded_domain_criteria.criteriaId")==F.col("exploded_criteria._id"))|(F.col("exploded_domain_criteria.criteriaId")==F.col("exploded_criteria.parentCriteriaId")),F.col("exploded_criteria._id")).otherwise(F.col("exploded_criteria._id")))
 
 final_df_distinct_obs_domain_criteria = final_df_distinct_obs_domain.groupBy("program_name","program_id","solution_name","solution_id","state_name","state_externalId","district_name","district_externalId","block_name","block_externalId","organisation_name","organisation_id","parent_channel","solution_type","private_program",F.col("exploded_domain.name").alias("domain_name"),F.col("exploded_domain.externalId").alias("domain_externalId"),F.col("exploded_domain.pointsBasedLevel").alias("domain_level"),F.col("criteria_name"),F.col("criteria_score"),F.col("criteria_id")).agg(countDistinct(F.col("submission_id")).alias("unique_submissions"),countDistinct(F.col("entity_id")).alias("unique_entities"),countDistinct(F.col("user_id")).alias("unique_users"),countDistinct(F.col("solution_id")).alias("unique_solution"))
-print(final_df_distinct_obs_domain_criteria.show())
 if not data_fixer:
     final_df_distinct_obs_domain_criteria = final_df_distinct_obs_domain_criteria.withColumn("time_stamp", current_timestamp())
 else:
@@ -619,9 +625,10 @@ for filename in os.listdir(config.get("OUTPUT_DIR", "observation_distinctCount_d
 local_distinctCount_domain_criteria_path = config.get("OUTPUT_DIR", "observation_distinctCount_domain_criteria")
 blob_distinctCount_domain_criteria_path = config.get("COMMON", "observation_distinctCount_domain_criteria_blob_path")
 
-for files in os.listdir(local_distinctCount_domain_criteria_path):
-   if "ml_observation_distinctCount_domain_criteria.json" in files:
-      cloud_init.upload_to_cloud(blob_Path = blob_distinctCount_domain_criteria_path, local_Path = local_distinctCount_domain_criteria_path, file_Name = files)
+# commented_out
+# for files in os.listdir(local_distinctCount_domain_criteria_path):
+#    if "ml_observation_distinctCount_domain_criteria.json" in files:
+#       cloud_init.upload_to_cloud(blob_Path = blob_distinctCount_domain_criteria_path, local_Path = local_distinctCount_domain_criteria_path, file_Name = files)
 
 
 
@@ -634,13 +641,14 @@ ml_distinctCnt_obs_domain_criteria_datasource = ml_distinctCnt_obs_domain_criter
 distinctCnt_obs_domain_criteria_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_obs_domain_criteria_spec), headers=headers)
 
 new_row = {
-    "datasource": ml_distinctCnt_obs_domain_criteria_datasource,
-    "task_id": distinctCnt_obs_domain_criteria_start_supervisor.json()["task"],
-    "task_created_date" : datetime.datetime.now().date()
+    "dataSource": ml_distinctCnt_obs_domain_criteria_datasource,
+    "taskId": distinctCnt_obs_domain_criteria_start_supervisor.json()["task"],
+    "taskCreatedDate" : str(datetime.datetime.now().date())
 }
-with open(f'{config.get("COMMON","obs_tracker_path_domain_criteria_batch")}', 'a', newline='') as file:
-    writer = csv.DictWriter(file, fieldnames=["datasource", "task_id", "task_created_date"])
-    writer.writerow(new_row)
+
+new_row['statusCode'] = distinctCnt_obs_domain_criteria_start_supervisor.status_code
+insertLog(new_row)
+
 new_row = {}
 
 if distinctCnt_obs_domain_criteria_start_supervisor.status_code == 200:
