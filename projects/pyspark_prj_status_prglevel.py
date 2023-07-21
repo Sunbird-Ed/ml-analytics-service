@@ -104,9 +104,9 @@ infoLogger.addHandler(debug_logBackuphandler)
 #Check for duplicate
 duplicate_checker = None
 data_fixer = None
-datasource_name = json.loads(config.get("DRUID","ml_distinctCnt_projects_status_spec"))["spec"]["dataSchema"]["dataSource"]
+datasource_name = json.loads(config.get("DRUID","ml_distinctCnt_prglevel_projects_status_spec"))["spec"]["dataSchema"]["dataSource"]
 try:
-    with open(f'{config.get("COMMON","projects_tracker_path")}', 'r', newline='') as file:
+    with open(f'{config.get("COMMON","projects_tracker_prglvl_path")}', 'r', newline='') as file:
         reader = csv.DictReader(file)
         for row in reader:
             if row['program_id'] == program_Id and row['datasource'] == datasource_name:
@@ -121,7 +121,7 @@ try:
                     if ingest_status == 'SUCCESS':
                         # Check: Date is duplicate
                         duplicate_checker = True
-                        bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"ABORT: 'Duplicate-run' {datasource_name} for {program_unique_id}")
+                        infoLogger.info(f"ABORT: 'Duplicate-run' {datasource_name} for {program_unique_id}")
                     else:
                         # Check: Date duplicate but ingestion didn't get processed
                         duplicate_checker = False
@@ -132,7 +132,7 @@ try:
 
 except FileNotFoundError:
     data =[["program_id", "datasource", "task_id", "task_created_date"]]
-    with open(f'{config.get("COMMON","projects_tracker_path")}', 'w', newline='') as file:
+    with open(f'{config.get("COMMON","projects_tracker_prglvl_path")}', 'w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(data[0])
 
@@ -636,7 +636,7 @@ new_row = {
     "task_id": distinctCnt_prgmlevel_projects_start_supervisor.json()["task"],
     "task_created_date" : datetime.datetime.now().date()
 }
-with open(f'{config.get("COMMON","projects_tracker_path")}', 'a', newline='') as file:
+with open(f'{config.get("COMMON","projects_tracker_prglvl_path")}', 'a', newline='') as file:
     writer = csv.DictWriter(file, fieldnames=["program_id", "datasource", "task_id", "task_created_date"])
     writer.writerow(new_row)
 
