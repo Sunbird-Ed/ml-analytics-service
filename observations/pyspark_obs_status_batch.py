@@ -26,8 +26,8 @@ from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
 from pyspark.sql import DataFrame
 from typing import Iterable
 from pyspark.sql.functions import element_at, split, col
-
-sys.path.append("/Users/adithyadinesh/Documents/shikshalokam/Data_Engineering/Diksha/ml-analytics-service/")
+root_path = "/opt/sparkjobs/ml-analytics-service/"
+sys.path.append(root_path)
 from lib.mongoLogs import insertLog , getLogs
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))

@@ -34,10 +34,10 @@ def getLogs(query):
               "taskId" : mydoc['taskId'],
               "taskCreatedDate" : mydoc['taskCreatedDate']
           }
-      if str(mydoc["statusCode"]) not in constants.success_status.split(","):
+      if mydoc["statusCode"] not in constants.success_status_1 or mydoc["statusCode"] not in constants.success_status_2:
         returnValue['duplicateChecker'] = True
         returnValue['dataFixer'] = True
-      elif str(mydoc["statusCode"]) in constants.success_status.split(","):
+      elif mydoc["statusCode"] in constants.success_status_1 or mydoc["statusCode"] in constants.success_status_2:
         returnValue['duplicateChecker'] = True
         returnValue['dataFixer'] = False
     else :
@@ -51,7 +51,7 @@ def insertLog(docMongo):
     docMongo["createdAt"] = curr_datetime
     docMongo["updatedAt"] = curr_datetime
 
-    if str(docMongo["statusCode"]) in constants.success_status.split(","):
+    if docMongo["statusCode"] in constants.success_status_1 or docMongo["statusCode"] in constants.success_status_2:
        docMongo["status"] = "Success"
     else:
        docMongo["status"] = "Failed"
