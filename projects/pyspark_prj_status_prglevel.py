@@ -28,9 +28,15 @@ from typing import Iterable
 from udf_func import *
 from pyspark.sql.functions import element_at, split, col
 
+root_path = "/opt/sparkjobs/ml-analytics-service/"
+sys.path.append(root_path)
+from lib.mongoLogs import insertLog , getLogs
+
+
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
+
 sys.path.append(config.get("COMMON", "cloud_module_path"))
 
 from cloud import MultiCloud
@@ -106,35 +112,38 @@ duplicate_checker = None
 data_fixer = None
 datasource_name = json.loads(config.get("DRUID","ml_distinctCnt_prglevel_projects_status_spec"))["spec"]["dataSchema"]["dataSource"]
 try:
-    with open(f'{config.get("COMMON","projects_tracker_prglvl_path")}', 'r', newline='') as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            if row['program_id'] == program_Id and row['datasource'] == datasource_name:
-                if row['task_created_date'] != str(datetime.datetime.now().date()):
-                    # Check: Daily run - Date is not duplicate
-                    duplicate_checker = False
-                else: 
-                    druid_id = row['task_id']
-                    druid_status = requests.get(f'{config.get("DRUID", "batch_url")}/{druid_id}/status')
-                    druid_status.raise_for_status()
-                    ingest_status = druid_status.json()["status"]["status"]
-                    if ingest_status == 'SUCCESS':
-                        # Check: Date is duplicate
-                        duplicate_checker = True
-                        infoLogger.info(f"ABORT: 'Duplicate-run' {datasource_name} for {program_unique_id}")
-                    else:
-                        # Check: Date duplicate but ingestion didn't get processed
-                        duplicate_checker = False
-                        data_fixer = True
-            else:
-                # Check: New task_id or No task_id
-                duplicate_checker = False
 
+    # construct query for log 
+    today = str(current_date)
+    query = { "dataSource" : datasource_name , "taskCreatedDate" : today , "programId" : program_Id }
+   
+    logCheck = getLogs(query)
+
+    if not logCheck['duplicateChecker']:
+    #   not a duplicate run 
+      duplicate_checker = logCheck['duplicateChecker']
+    else:
+    #   duplicate run 
+      duplicate_checker = logCheck['duplicateChecker']
+      infoLogger.info(f"ABORT: 'Duplicate-run' {datasource_name} for {program_unique_id}")
+    #   check if data fix required 
+      if logCheck['dataFixer']:
+         data_fixer = True
+      else:
+        druid_id = logCheck['response']['taskId']
+        druid_status = requests.get(f'{config.get("DRUID", "batch_url")}/{druid_id}/status')
+        druid_status.raise_for_status()
+        ingest_status = druid_status.json()["status"]["status"]
+        if ingest_status == 'SUCCESS':
+            # Check: Date is duplicate
+            duplicate_checker = True
+            bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"ABORT: 'Duplicate-run' for {datasource_name}")
+        else:
+            # Check: Date duplicate but ingestion didn't get processed
+            duplicate_checker = False
+            data_fixer = True
 except FileNotFoundError:
-    data =[["program_id", "datasource", "task_id", "task_created_date"]]
-    with open(f'{config.get("COMMON","projects_tracker_prglvl_path")}', 'w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(data[0])
+   pass
 
 # FOLLOW: Exit of dupliate run
 if duplicate_checker: 
@@ -598,12 +607,14 @@ successLogger.debug("Uploading to Azure start time  " + str(datetime.datetime.no
 local_distinctCnt_prgmlevel_path = config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel")
 blob_distinctCnt_prgmlevel_path = config.get("COMMON", "projects_distinctCnt_prgmlevel_blob_path")
 
+
 for files in os.listdir(local_distinctCnt_prgmlevel_path):
     if "ml_projects_distinctCount_prgmlevel.json" in files or f"ml_projects_distinctCount_prgmlevel_{program_unique_id}.json" in files:
         cloud_init.upload_to_cloud(blob_Path = blob_distinctCnt_prgmlevel_path, local_Path = local_distinctCnt_prgmlevel_path, file_Name = files)
 
 successLogger.debug("Uploading to azure end time  " + str(datetime.datetime.now()))	
 successLogger.debug("Removing file start time  " + str(datetime.datetime.now()))
+
 
 if program_unique_id :
  #projects submission distinct count program level
@@ -622,23 +633,30 @@ successLogger.debug("Ingestion start time  " + str(datetime.datetime.now()))
 #projects submission distinct count program level
 ml_distinctCnt_prgmlevel_projects_spec = json.loads(config.get("DRUID","ml_distinctCnt_prglevel_projects_status_spec"))
 ml_distinctCnt_prgmlevel_projects_datasource = ml_distinctCnt_prgmlevel_projects_spec["spec"]["dataSchema"]["dataSource"]
+
 if program_unique_id:
     current_cloud = re.split("://+", ml_distinctCnt_prgmlevel_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"][0])[0]
     uri = re.split("://+", ml_distinctCnt_prgmlevel_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"][0])[1]
     edited_uri = re.split(".json", uri)[0]
     ml_distinctCnt_prgmlevel_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"][0] = f"{current_cloud}://{edited_uri}_{program_unique_id}.json"
     ml_distinctCnt_prgmlevel_projects_spec["spec"]["ioConfig"].update({"appendToExisting":True})
+
 distinctCnt_prgmlevel_projects_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_prgmlevel_projects_spec), headers=headers)
 
 new_row = {
-    "program_id": program_unique_id,
-    "datasource": ml_distinctCnt_prgmlevel_projects_datasource,
-    "task_id": distinctCnt_prgmlevel_projects_start_supervisor.json()["task"],
-    "task_created_date" : datetime.datetime.now().date()
+    "programId" : program_Id ,
+    "dataSource": ml_distinctCnt_prgmlevel_projects_datasource,
+    "taskId": distinctCnt_prgmlevel_projects_start_supervisor.json()["task"],
+    "taskCreatedDate" : str(datetime.datetime.now().date())
 }
-with open(f'{config.get("COMMON","projects_tracker_prglvl_path")}', 'a', newline='') as file:
-    writer = csv.DictWriter(file, fieldnames=["program_id", "datasource", "task_id", "task_created_date"])
-    writer.writerow(new_row)
+
+new_row['statusCode'] = distinctCnt_prgmlevel_projects_start_supervisor.status_code
+
+insertLog(new_row)
+
+# with open(f'{config.get("COMMON","projects_tracker_prglvl_path")}', 'a', newline='') as file:
+#     writer = csv.DictWriter(file, fieldnames=["program_id", "datasource", "task_id", "task_created_date"])
+#     writer.writerow(new_row)
 
 if distinctCnt_prgmlevel_projects_start_supervisor.status_code == 200:
     infoLogger.info("Successfully Ingested for {ml_distinctCnt_prgmlevel_projects_datasource}")
