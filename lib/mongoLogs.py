@@ -6,10 +6,9 @@ from datetime import datetime
 import lib.constants as constants
 
 
-root_path = "/opt/sparkjobs/ml-analytics-service/"
-
+config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
-config.read(root_path + "config.ini")
+config.read(config_path[0] + "/config.ini")
 
 client = MongoClient(config.get('MONGO', 'url'))
 db = client[config.get('MONGO', 'database_name')]
@@ -34,10 +33,10 @@ def getLogs(query):
               "taskId" : mydoc['taskId'],
               "taskCreatedDate" : mydoc['taskCreatedDate']
           }
-      if mydoc["statusCode"] not in constants.success_status_1 or mydoc["statusCode"] not in constants.success_status_2:
+      if not mydoc["statusCode"] == constants.success_status_1 or not mydoc["statusCode"] == constants.success_status_2:
         returnValue['duplicateChecker'] = True
         returnValue['dataFixer'] = True
-      elif mydoc["statusCode"] in constants.success_status_1 or mydoc["statusCode"] in constants.success_status_2:
+      elif mydoc["statusCode"] == constants.success_status_1 or mydoc["statusCode"] == constants.success_status_2:
         returnValue['duplicateChecker'] = True
         returnValue['dataFixer'] = False
     else :
@@ -51,7 +50,7 @@ def insertLog(docMongo):
     docMongo["createdAt"] = curr_datetime
     docMongo["updatedAt"] = curr_datetime
 
-    if docMongo["statusCode"] in constants.success_status_1 or docMongo["statusCode"] in constants.success_status_2:
+    if docMongo["statusCode"] == constants.success_status_1 or docMongo["statusCode"] == constants.success_status_2:
        docMongo["status"] = "Success"
     else:
        docMongo["status"] = "Failed"

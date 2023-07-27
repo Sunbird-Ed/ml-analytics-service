@@ -559,10 +559,9 @@ for filename in os.listdir(config.get("OUTPUT_DIR", "observation_status")+"/"):
 local_path = config.get("OUTPUT_DIR", "observation_status")
 blob_path = config.get("COMMON", "observation_blob_path")
 
-# commented_out
-# for files in os.listdir(local_path):
-#    if "sl_observation_status.json" in files:
-#       cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = files)
+for files in os.listdir(local_path):
+   if "sl_observation_status.json" in files:
+      cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = files)
 
 
 sl_status_spec = {}

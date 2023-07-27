@@ -27,18 +27,18 @@ from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
 from pyspark.sql import DataFrame
 from typing import Iterable
 from pyspark.sql.functions import element_at, split, col
-root_path = "/opt/sparkjobs/ml-analytics-service/"
-sys.path.append(root_path)
-from lib.mongoLogs import insertLog , getLogs
 
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
 
-sys.path.append(config.get("COMMON", "cloud_module_path"))
 
-from cloud import MultiCloud
+root_path = config_path[0]
+sys.path.append(root_path)
+
+from lib.mongoLogs import insertLog , getLogs
+from cloud_storage.cloud import MultiCloud
 
 cloud_init = MultiCloud()
 
@@ -626,10 +626,9 @@ for filename in os.listdir(config.get("OUTPUT_DIR", "observation_distinctCount_d
 local_distinctCount_domain_criteria_path = config.get("OUTPUT_DIR", "observation_distinctCount_domain_criteria")
 blob_distinctCount_domain_criteria_path = config.get("COMMON", "observation_distinctCount_domain_criteria_blob_path")
 
-# commented_out
-# for files in os.listdir(local_distinctCount_domain_criteria_path):
-#    if "ml_observation_distinctCount_domain_criteria.json" in files:
-#       cloud_init.upload_to_cloud(blob_Path = blob_distinctCount_domain_criteria_path, local_Path = local_distinctCount_domain_criteria_path, file_Name = files)
+for files in os.listdir(local_distinctCount_domain_criteria_path):
+   if "ml_observation_distinctCount_domain_criteria.json" in files:
+      cloud_init.upload_to_cloud(blob_Path = blob_distinctCount_domain_criteria_path, local_Path = local_distinctCount_domain_criteria_path, file_Name = files)
 
 
 

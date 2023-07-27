@@ -28,17 +28,21 @@ from typing import Iterable
 from udf_func import *
 from pyspark.sql.functions import element_at, split, col
 
-root_path = "/opt/sparkjobs/ml-analytics-service/"
-sys.path.append(root_path)
-from lib.mongoLogs import insertLog , getLogs
+# fetching the root path 
+current_script_location = os.path.realpath(__file__)
+new_location = os.path.abspath(os.path.join(current_script_location, "../"))
+
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
 
-sys.path.append(config.get("COMMON", "cloud_module_path"))
 
-from cloud import MultiCloud
+root_path = config_path[0]
+sys.path.append(root_path)
+
+from lib.mongoLogs import insertLog , getLogs
+from cloud_storage.cloud import MultiCloud
 
 cloud_init = MultiCloud()
 
@@ -106,6 +110,20 @@ debug_logBackuphandler = TimedRotatingFileHandler(f"{file_name_for_debug_log}",w
 infoLogger.addHandler(debug_logHandler)
 infoLogger.addHandler(debug_logBackuphandler)
 
+spark = SparkSession.builder.appName("projects").config(
+    "spark.driver.memory", "50g"
+).config(
+    "spark.executor.memory", "100g"
+).config(
+    "spark.memory.offHeap.enabled", True
+).config(
+    "spark.memory.offHeap.size", "32g"
+).getOrCreate()
+
+sc = spark.sparkContext
+
+
+
 #Check for duplicate
 duplicate_checker = None
 data_fixer = None
@@ -136,7 +154,7 @@ try:
         if ingest_status == 'SUCCESS':
             # Check: Date is duplicate
             duplicate_checker = True
-            bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"ABORT: 'Duplicate-run' for {datasource_name}")
+            successLogger.debug("ABORT: 'Duplicate-run' for {datasource_name}")	
         else:
             # Check: Date duplicate but ingestion didn't get processed
             duplicate_checker = False
@@ -190,7 +208,8 @@ orgInfo_udf = udf(orgName,orgSchema)
 
 successLogger.debug(
         "Program started  " + str(datetime.datetime.now())
-   )	   
+   )	
+   
 infoLogger.info(f"START: {datasource_name} for {program_unique_id}\n")
 spark = SparkSession.builder.appName("projects").config(
     "spark.driver.memory", "50g"
@@ -203,7 +222,6 @@ spark = SparkSession.builder.appName("projects").config(
 ).getOrCreate()
 
 sc = spark.sparkContext
-
 successLogger.debug(
         "Mongo Query start time  " + str(datetime.datetime.now())
    )
@@ -661,12 +679,14 @@ successLogger.debug("Uploading to Azure start time  " + str(datetime.datetime.no
 local_distinctCnt_path = config.get("OUTPUT_DIR", "projects_distinctCount")
 blob_distinctCnt_path = config.get("COMMON", "projects_distinctCnt_blob_path")
 
+
 for files in os.listdir(local_distinctCnt_path):
     if "ml_projects_distinctCount.json" in files or f"ml_projects_distinctCount_{program_unique_id}.json" in files:
         cloud_init.upload_to_cloud(blob_Path = blob_distinctCnt_path, local_Path = local_distinctCnt_path, file_Name = files)
 
 successLogger.debug("Uploading to azure end time  " + str(datetime.datetime.now()))	
 successLogger.debug("Removing file start time  " + str(datetime.datetime.now()))
+
 
 if program_unique_id :
  os.remove(config.get("OUTPUT_DIR", "projects_distinctCount") + f"/ml_projects_distinctCount_{program_unique_id}.json")
@@ -689,7 +709,6 @@ if program_unique_id :
     edited_uri = re.split(".json", uri)[0]
     ml_distinctCnt_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"][0]  = f"{current_cloud}://{edited_uri}_{program_unique_id}.json"
     ml_distinctCnt_projects_spec['spec']['ioConfig'].update({"appendToExisting":True})
-    
 
 distinctCnt_projects_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_projects_spec), headers=headers)
 

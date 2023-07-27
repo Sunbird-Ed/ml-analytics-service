@@ -28,18 +28,17 @@ from typing import Iterable
 from udf_func import *
 from pyspark.sql.functions import element_at, split, col
 
-root_path = "/opt/sparkjobs/ml-analytics-service/"
-sys.path.append(root_path)
-from lib.mongoLogs import insertLog , getLogs
-
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
 
-sys.path.append(config.get("COMMON", "cloud_module_path"))
 
-from cloud import MultiCloud
+root_path = config_path[0]
+sys.path.append(root_path)
+
+from lib.mongoLogs import insertLog , getLogs
+from cloud_storage.cloud import MultiCloud
 
 cloud_init = MultiCloud()
 
@@ -607,14 +606,12 @@ successLogger.debug("Uploading to Azure start time  " + str(datetime.datetime.no
 local_distinctCnt_prgmlevel_path = config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel")
 blob_distinctCnt_prgmlevel_path = config.get("COMMON", "projects_distinctCnt_prgmlevel_blob_path")
 
-
 for files in os.listdir(local_distinctCnt_prgmlevel_path):
     if "ml_projects_distinctCount_prgmlevel.json" in files or f"ml_projects_distinctCount_prgmlevel_{program_unique_id}.json" in files:
         cloud_init.upload_to_cloud(blob_Path = blob_distinctCnt_prgmlevel_path, local_Path = local_distinctCnt_prgmlevel_path, file_Name = files)
 
 successLogger.debug("Uploading to azure end time  " + str(datetime.datetime.now()))	
 successLogger.debug("Removing file start time  " + str(datetime.datetime.now()))
-
 
 if program_unique_id :
  #projects submission distinct count program level
@@ -640,6 +637,7 @@ if program_unique_id:
     edited_uri = re.split(".json", uri)[0]
     ml_distinctCnt_prgmlevel_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"][0] = f"{current_cloud}://{edited_uri}_{program_unique_id}.json"
     ml_distinctCnt_prgmlevel_projects_spec["spec"]["ioConfig"].update({"appendToExisting":True})
+    
 
 distinctCnt_prgmlevel_projects_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_prgmlevel_projects_spec), headers=headers)
 

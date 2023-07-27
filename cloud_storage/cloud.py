@@ -1,8 +1,8 @@
 import os
-from aws import AWS
-from oracle import Oracle
-from ms_azure import MSAzure
-from gcp import GCP
+from .aws import AWS
+from .oracle import Oracle
+from .ms_azure import MSAzure
+from .gcp import GCP
 from configparser import ConfigParser,ExtendedInterpolation
 
 # Reading the config file
