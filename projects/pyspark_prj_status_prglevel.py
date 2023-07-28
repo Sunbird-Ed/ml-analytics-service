@@ -192,15 +192,7 @@ successLogger.debug(
         "Program started  " + str(datetime.datetime.now())
    )	   
 infoLogger.info(f"START: {datasource_name} for {program_unique_id}\n")
-spark = SparkSession.builder.appName("projects").config(
-    "spark.driver.memory", "50g"
-).config(
-    "spark.executor.memory", "100g"
-).config(
-    "spark.memory.offHeap.enabled", True
-).config(
-    "spark.memory.offHeap.size", "32g"
-).getOrCreate()
+spark = SparkSession.builder.appName("projects").getOrCreate()
 
 sc = spark.sparkContext
 

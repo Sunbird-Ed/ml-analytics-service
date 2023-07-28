@@ -342,17 +342,7 @@ obs_sub_schema = StructType(
    ]
 )
 
-spark = SparkSession.builder.appName(
-   "obs_sub_status"
-).config(
-   "spark.driver.memory", "50g"
-).config(
-   "spark.executor.memory", "100g"
-).config(
-   "spark.memory.offHeap.enabled", True
-).config(
-   "spark.memory.offHeap.size", "32g"
-).getOrCreate()
+spark = SparkSession.builder.appName("obs_sub_status").getOrCreate()
 
 sc=spark.sparkContext
 
