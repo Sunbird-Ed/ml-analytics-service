@@ -6,7 +6,7 @@ sys.path.append(dirPath)
 from aws import AWS
 from oracle import Oracle
 from ms_azure import MSAzure
-# from gcp import GCP
+from gcp import GCP
 from configparser import ConfigParser,ExtendedInterpolation
 
 # Reading the config file
