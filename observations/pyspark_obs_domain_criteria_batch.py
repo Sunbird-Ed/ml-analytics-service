@@ -122,7 +122,7 @@ try:
         if ingest_status == 'SUCCESS':
             # Check: Date is duplicate
             duplicate_checker = True
-            bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"ABORT: 'Duplicate-run' for {datasource_name}")
+            infoLogger.info(f"ABORT: 'Duplicate-run' for {datasource_name}")
         else:
             # Check: Date duplicate but ingestion didn't get processed
             duplicate_checker = False

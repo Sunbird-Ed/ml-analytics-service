@@ -28,10 +28,6 @@ from typing import Iterable
 from udf_func import *
 from pyspark.sql.functions import element_at, split, col
 
-# fetching the root path 
-current_script_location = os.path.realpath(__file__)
-new_location = os.path.abspath(os.path.join(current_script_location, "../"))
-
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
@@ -154,7 +150,7 @@ try:
         if ingest_status == 'SUCCESS':
             # Check: Date is duplicate
             duplicate_checker = True
-            successLogger.debug("ABORT: 'Duplicate-run' for {datasource_name}")	
+            infoLogger.info(f"ABORT: 'Duplicate-run' for {datasource_name}")	
         else:
             # Check: Date duplicate but ingestion didn't get processed
             duplicate_checker = False
