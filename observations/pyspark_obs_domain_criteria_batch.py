@@ -7,7 +7,7 @@
 # -----------------------------------------------------------------
 
 import requests
-import json, csv, sys, os, time, re
+import json, csv, sys, os, time , re
 import datetime
 from datetime import date
 from configparser import ConfigParser, ExtendedInterpolation
@@ -19,6 +19,7 @@ import pyspark.sql.functions as F
 from pyspark.sql.types import *
 from pyspark.sql import Row
 from collections import OrderedDict, Counter
+
 from cassandra.cluster import Cluster
 from cassandra.query import SimpleStatement, ConsistencyLevel
 import logging
@@ -26,6 +27,7 @@ from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
 from pyspark.sql import DataFrame
 from typing import Iterable
 from pyspark.sql.functions import element_at, split, col
+
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
@@ -39,7 +41,6 @@ from lib.mongoLogs import insertLog , getLogs
 from cloud_storage.cloud import MultiCloud
 
 cloud_init = MultiCloud()
-
 
 # date formating
 current_date = datetime.date.today()
@@ -100,40 +101,45 @@ infoLogger.addHandler(debug_logBackuphandler)
 #Check for duplicate
 duplicate_checker = None
 data_fixer = None
-datasource_name = json.loads(config.get("DRUID","ml_distinctCnt_obs_status_spec"))["spec"]["dataSchema"]["dataSource"]
+datasource_name = json.loads(config.get("DRUID","ml_distinctCnt_obs_domain_criteria_spec"))["spec"]["dataSchema"]["dataSource"]
 try:
-    # construct query for log 
-    today = str(current_date)
-    query = {"dataSource" : datasource_name , "taskCreatedDate" : today}
+   # construct query for log 
+   today = str(current_date)
+   query = {"dataSource" : datasource_name , "taskCreatedDate" : today}
    
-    logCheck = getLogs(query)
-    if not logCheck['duplicateChecker']:
-      duplicate_checker = logCheck['duplicateChecker']
-    else:
-      duplicate_checker = logCheck['duplicateChecker']
-      if logCheck['dataFixer']:
-         data_fixer = True
-      else:
-         druid_id = logCheck['response']['taskId']
-         druid_status = requests.get(f'{config.get("DRUID", "batch_url")}/{druid_id}/status')
-         druid_status.raise_for_status()
-         ingest_status = druid_status.json()["status"]["status"]
-         if ingest_status == 'SUCCESS':
-             # Check: Date is duplicate
-             duplicate_checker = True
-             infoLogger.info(f"ABORT: 'Duplicate-run' for {datasource_name}")
-         else:
-             # Check: Date duplicate but ingestion didn't get processed
-             duplicate_checker = False
-             data_fixer = True
+   logCheck = getLogs(query)
+   if not logCheck['duplicateChecker']:
+     duplicate_checker = logCheck['duplicateChecker']
+   else:
+     duplicate_checker = logCheck['duplicateChecker']
+     if logCheck['dataFixer']:
+        data_fixer = True
+     else:
+        druid_id = logCheck['response']['taskId']
+        druid_status = requests.get(f'{config.get("DRUID", "batch_url")}/{druid_id}/status')
+        druid_status.raise_for_status()
+        ingest_status = druid_status.json()["status"]["status"]
+        if ingest_status == 'SUCCESS':
+            # Check: Date is duplicate
+            duplicate_checker = True
+            infoLogger.info(f"ABORT: 'Duplicate-run' for {datasource_name}")
+        else:
+            # Check: Date duplicate but ingestion didn't get processed
+            duplicate_checker = False
+            data_fixer = True
+
 
 except FileNotFoundError:
-   pass
+    data =[["datasource", "task_id", "task_created_date"]]
+    with open(f'{config.get("COMMON","obs_tracker_path_domain_criteria_batch")}', 'w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(data[0])
 
 # FOLLOW: Exit of dupliate run
 if duplicate_checker: 
     errorLogger.error("Duplicate Run -- ABORT")
     sys.exit()
+
 
 try:
    def removeduplicate(it):
@@ -577,63 +583,71 @@ obs_sub_soln_df.unpersist()
 final_df = obs_sub_pgm_df.dropDuplicates()
 obs_sub_pgm_df.unpersist()
 
-#observation submission distinct count
-final_df_distinct_obs_status = final_df.groupBy("program_name","program_id","solution_name","solution_id","status","state_name","state_externalId","district_name","district_externalId","block_name","block_externalId","organisation_name","organisation_id","parent_channel","solution_type","private_program").agg(countDistinct(F.col("submission_id")).alias("unique_submissions"),countDistinct(F.col("entity_id")).alias("unique_entities"),countDistinct(F.col("user_id")).alias("unique_users"),countDistinct(F.col("solution_id")).alias("unique_solution"))
-if not data_fixer:
-    final_df_distinct_obs_status = final_df_distinct_obs_status.withColumn("time_stamp", current_timestamp())
-else:
-    final_df_distinct_obs_status = final_df_distinct_obs_status.withColumn("time_stamp", lit(date_format(date_sub(current_timestamp(), 1), "yyyy-MM-dd HH:mm:ss.SSS")))
+final_df_distinct_obs_domain = final_df.filter((F.col("status") == "completed") & (F.col("solution_type") == "observation_with_rubric"))
+final_df_distinct_obs_domain = final_df_distinct_obs_domain.withColumn("exploded_domain", F.explode_outer(F.col("themes")))\
+                               .withColumn("exploded_domain_criteria", F.explode_outer(F.col("exploded_domain.criteria")))\
+                               .withColumn("exploded_criteria", F.explode_outer(F.col("criteria")))\
+                               .withColumn("criteria_name",F.when((F.col("exploded_domain_criteria.criteriaId")==F.col("exploded_criteria._id"))|(F.col("exploded_domain_criteria.criteriaId")==F.col("exploded_criteria.parentCriteriaId")),F.col("exploded_criteria.name")).otherwise(F.col("exploded_criteria.name")))\
+                               .withColumn("criteria_score",F.when((F.col("exploded_domain_criteria.criteriaId")==F.col("exploded_criteria._id"))|(F.col("exploded_domain_criteria.criteriaId")==F.col("exploded_criteria.parentCriteriaId")),F.col("exploded_criteria.score")).otherwise(F.col("exploded_criteria.score")))\
+                               .withColumn("criteria_id",F.when((F.col("exploded_domain_criteria.criteriaId")==F.col("exploded_criteria._id"))|(F.col("exploded_domain_criteria.criteriaId")==F.col("exploded_criteria.parentCriteriaId")),F.col("exploded_criteria._id")).otherwise(F.col("exploded_criteria._id")))
 
-final_df_distinct_obs_status = final_df_distinct_obs_status.dropDuplicates()
-final_df_distinct_obs_status.coalesce(1).write.format("json").mode("overwrite").save(
-   config.get("OUTPUT_DIR","observation_distinctCount_status") + "/"
+final_df_distinct_obs_domain_criteria = final_df_distinct_obs_domain.groupBy("program_name","program_id","solution_name","solution_id","state_name","state_externalId","district_name","district_externalId","block_name","block_externalId","organisation_name","organisation_id","parent_channel","solution_type","private_program",F.col("exploded_domain.name").alias("domain_name"),F.col("exploded_domain.externalId").alias("domain_externalId"),F.col("exploded_domain.pointsBasedLevel").alias("domain_level"),F.col("criteria_name"),F.col("criteria_score"),F.col("criteria_id")).agg(countDistinct(F.col("submission_id")).alias("unique_submissions"),countDistinct(F.col("entity_id")).alias("unique_entities"),countDistinct(F.col("user_id")).alias("unique_users"),countDistinct(F.col("solution_id")).alias("unique_solution"))
+if not data_fixer:
+    final_df_distinct_obs_domain_criteria = final_df_distinct_obs_domain_criteria.withColumn("time_stamp", current_timestamp())
+else:
+    final_df_distinct_obs_domain_criteria = final_df_distinct_obs_domain_criteria.withColumn("time_stamp", lit(date_format(date_sub(current_timestamp(), 1), "yyyy-MM-dd HH:mm:ss.SSS")))
+
+final_df_distinct_obs_domain_criteria = final_df_distinct_obs_domain_criteria.dropDuplicates()
+final_df_distinct_obs_domain_criteria.coalesce(1).write.format("json").mode("overwrite").save(
+   config.get("OUTPUT_DIR","observation_distinctCount_domain_criteria") + "/"
 )
 
 final_df.unpersist()
-final_df_distinct_obs_status.unpersist()
+final_df_distinct_obs_domain_criteria.unpersist()
 
-#observation submission distinct count
-for filename in os.listdir(config.get("OUTPUT_DIR", "observation_distinctCount_status")+"/"):
+for filename in os.listdir(config.get("OUTPUT_DIR", "observation_distinctCount_domain_criteria")+"/"):
    if filename.endswith(".json"):
       os.rename(
-         config.get("OUTPUT_DIR", "observation_distinctCount_status") + "/" + filename,
-         config.get("OUTPUT_DIR", "observation_distinctCount_status") + "/ml_observation_distinctCount_status.json"
+         config.get("OUTPUT_DIR", "observation_distinctCount_domain_criteria") + "/" + filename,
+         config.get("OUTPUT_DIR", "observation_distinctCount_domain_criteria") + "/ml_observation_distinctCount_domain_criteria.json"
       )
 
 
-#observation submission distinct count
-local_distinctCount_path = config.get("OUTPUT_DIR", "observation_distinctCount_status")
-blob_distinctCount_path = config.get("COMMON", "observation_distinctCount_blob_path")
+local_distinctCount_domain_criteria_path = config.get("OUTPUT_DIR", "observation_distinctCount_domain_criteria")
+blob_distinctCount_domain_criteria_path = config.get("COMMON", "observation_distinctCount_domain_criteria_blob_path")
 
-for files in os.listdir(local_distinctCount_path):
-   if "ml_observation_distinctCount_status.json" in files:
-      cloud_init.upload_to_cloud(blob_Path = blob_distinctCount_path, local_Path = local_distinctCount_path, file_Name = files)
+for files in os.listdir(local_distinctCount_domain_criteria_path):
+   if "ml_observation_distinctCount_domain_criteria.json" in files:
+      cloud_init.upload_to_cloud(blob_Path = blob_distinctCount_domain_criteria_path, local_Path = local_distinctCount_domain_criteria_path, file_Name = files)
+
+
 
 druid_batch_end_point = config.get("DRUID", "batch_url")
 headers = {'Content-Type': 'application/json'}
 
-#observation submission distinct count
-ml_distinctCnt_obs_status_spec = json.loads(config.get("DRUID","ml_distinctCnt_obs_status_spec"))
-ml_distinctCnt_obs_status_datasource = ml_distinctCnt_obs_status_spec["spec"]["dataSchema"]["dataSource"]
-distinctCnt_obs_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_obs_status_spec), headers=headers)
+#observation domain distinct count
+ml_distinctCnt_obs_domain_criteria_spec = json.loads(config.get("DRUID","ml_distinctCnt_obs_domain_criteria_spec"))
+ml_distinctCnt_obs_domain_criteria_datasource = ml_distinctCnt_obs_domain_criteria_spec["spec"]["dataSchema"]["dataSource"]
+distinctCnt_obs_domain_criteria_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_obs_domain_criteria_spec), headers=headers)
 
 new_row = {
-    "dataSource": ml_distinctCnt_obs_status_datasource,
-    "taskId": distinctCnt_obs_start_supervisor.json()["task"],
+    "dataSource": ml_distinctCnt_obs_domain_criteria_datasource,
+    "taskId": distinctCnt_obs_domain_criteria_start_supervisor.json()["task"],
     "taskCreatedDate" : str(datetime.datetime.now().date())
 }
 
-new_row['statusCode'] = distinctCnt_obs_start_supervisor.status_code
+new_row['statusCode'] = distinctCnt_obs_domain_criteria_start_supervisor.status_code
 insertLog(new_row)
+
 new_row = {}
-if distinctCnt_obs_start_supervisor.status_code == 200:
+
+if distinctCnt_obs_domain_criteria_start_supervisor.status_code == 200:
    successLogger.debug(
-        "started the batch ingestion task sucessfully for the datasource " + ml_distinctCnt_obs_status_datasource
+        "started the batch ingestion task sucessfully for the datasource " + ml_distinctCnt_obs_domain_criteria_datasource
    )
    time.sleep(50)
 else:
    errorLogger.error(
-        "failed to start batch ingestion task of ml-obs-status " + str(distinctCnt_obs_start_supervisor.status_code)
+        "failed to start batch ingestion task of ml-obs-domain-criteria " + str(distinctCnt_obs_domain_criteria_start_supervisor.status_code)
    )
-   errorLogger.error(distinctCnt_obs_start_supervisor.text)
-   
+   errorLogger.error(distinctCnt_obs_domain_criteria_start_supervisor.text)

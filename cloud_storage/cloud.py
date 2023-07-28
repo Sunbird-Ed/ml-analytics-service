@@ -1,4 +1,8 @@
-import os
+import os,sys
+
+dirPath = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(dirPath)
+
 from aws import AWS
 from oracle import Oracle
 from ms_azure import MSAzure

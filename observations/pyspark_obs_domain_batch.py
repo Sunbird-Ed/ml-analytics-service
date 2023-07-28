@@ -30,9 +30,12 @@ from pyspark.sql.functions import element_at, split, col
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
-sys.path.append(config.get("COMMON", "cloud_module_path"))
 
-from cloud import MultiCloud
+root_path = config_path[0]
+sys.path.append(root_path)
+
+from lib.mongoLogs import insertLog , getLogs
+from cloud_storage.cloud import MultiCloud
 
 cloud_init = MultiCloud()
 
@@ -91,38 +94,39 @@ infoLogger.setLevel(logging.INFO)
 debug_logBackuphandler = TimedRotatingFileHandler(f"{file_name_for_debug_log}",when="w0",backupCount=1)
 infoLogger.addHandler(debug_logHandler)
 infoLogger.addHandler(debug_logBackuphandler)
-
+duplicate_checker = None
 #Check for duplicate
 data_fixer = None
 datasource_name = json.loads(config.get("DRUID","ml_distinctCnt_obs_domain_spec"))["spec"]["dataSchema"]["dataSource"]
 try:
-    with open(f'{config.get("COMMON","obs_tracker_path")}', 'r', newline='') as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            if row['datasource'] == datasource_name:
-                if row['task_created_date'] != str(datetime.datetime.now().date()):
-                    # Check: Daily run - Date is not duplicate
-                    duplicate_checker = False
-                else: 
-                    druid_id = row['task_id']
-                    druid_status = requests.get(f'{config.get("DRUID", "batch_url")}/{druid_id}/status')
-                    druid_status.raise_for_status()
-                    ingest_status = druid_status.json()["status"]["status"]
-                    if ingest_status == 'SUCCESS':
-                        # Check: Date is duplicate
-                        duplicate_checker = True
-                        bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"ABORT: 'Duplicate-run' for {datasource_name}")
-                    else:
-                        # Check: Date duplicate but ingestion didn't get processed
-                        duplicate_checker = False
-                        data_fixer = True
-            else:
-                # Check: New task_id or No task_id
-                duplicate_checker = False
+   # construct query for log 
+   today = str(current_date)
+   query = {"dataSource" : datasource_name , "taskCreatedDate" : today}
+
+   logCheck = getLogs(query)
+   if not logCheck['duplicateChecker']:
+     duplicate_checker = logCheck['duplicateChecker']
+   else:
+     duplicate_checker = logCheck['duplicateChecker']
+     if logCheck['dataFixer']:
+        data_fixer = True
+     else:
+        druid_id = logCheck['response']['taskId']
+        druid_status = requests.get(f'{config.get("DRUID", "batch_url")}/{druid_id}/status')
+        druid_status.raise_for_status()
+        ingest_status = druid_status.json()["status"]["status"]
+        if ingest_status == 'SUCCESS':
+            # Check: Date is duplicate
+            duplicate_checker = True
+            infoLogger.info(f"ABORT: 'Duplicate-run' for {datasource_name}")
+        else:
+            # Check: Date duplicate but ingestion didn't get processed
+            duplicate_checker = False
+            data_fixer = True
 
 except FileNotFoundError:
     data =[["datasource", "task_id", "task_created_date"]]
-    with open(f'{config.get("COMMON","obs_tracker_path")}', 'w', newline='') as file:
+    with open(f'{config.get("COMMON","obs_tracker_path_domain_batch")}', 'w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(data[0])
 
@@ -383,17 +387,7 @@ obs_sub_schema = StructType(
    ]
 )
 
-spark = SparkSession.builder.appName(
-   "obs_sub_status"
-).config(
-   "spark.driver.memory", "50g"
-).config(
-   "spark.executor.memory", "100g"
-).config(
-   "spark.memory.offHeap.enabled", True
-).config(
-   "spark.memory.offHeap.size", "32g"
-).getOrCreate()
+spark = SparkSession.builder.appName("obs_sub_status").getOrCreate()
 
 sc=spark.sparkContext
 
@@ -450,7 +444,6 @@ obs_sub_df1 = obs_sub_df1.withColumn("parent_channel",F.lit("SHIKSHALOKAM"))
 obs_sub_expl_ul = obs_sub_df1.withColumn(
    "exploded_userLocations",F.explode_outer(obs_sub_df1["userProfile"]["userLocations"])
 )
-
 obs_sub_df = obs_sub_df1.select(
    "status", 
    obs_sub_df1["entityExternalId"].alias("entity_externalId"),
@@ -632,13 +625,15 @@ ml_distinctCnt_obs_domain_datasource = ml_distinctCnt_obs_domain_spec["spec"]["d
 distinctCnt_obs_domain_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_obs_domain_spec), headers=headers)
 
 new_row = {
-    "datasource": ml_distinctCnt_obs_domain_datasource,
-    "task_id": distinctCnt_obs_domain_start_supervisor.json()["task"],
-    "task_created_date" : datetime.datetime.now().date()
+    "dataSource": ml_distinctCnt_obs_domain_datasource,
+    "taskId": distinctCnt_obs_domain_start_supervisor.json()["task"],
+    "taskCreatedDate" : str(datetime.datetime.now().date())
 }
-with open(f'{config.get("COMMON","obs_tracker_path")}', 'a', newline='') as file:
-    writer = csv.DictWriter(file, fieldnames=["datasource", "task_id", "task_created_date"])
-    writer.writerow(new_row)
+
+new_row['statusCode'] = distinctCnt_obs_domain_start_supervisor.status_code
+insertLog(new_row)
+
+new_row = {}
 
 if distinctCnt_obs_domain_start_supervisor.status_code == 200:
    successLogger.debug(

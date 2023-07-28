@@ -16,13 +16,13 @@ echo "Gather Program IDs == Started"
 echo "Gather == Completed"
 echo "*************************************"
 
-# PROJECT: Deletion
+#PROJECT: Deletion
 echo ""
 echo "$(date)"
 echo "====================================="
-echo "Daily Projects Batch Job Ingestion == Started"
+echo "Daily Projects Batch Job Deletion == Started"
 . /opt/sparkjobs/spark_venv/bin/activate && python /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_deletion_batch.py
-echo "Daily Projects Batch Job Ingestion == Completed"
+echo "Daily Projects Batch Job Deletion == Completed"
 echo "*************************************"
 
 # PROJECT: Ingestion Program-wise
@@ -30,14 +30,17 @@ echo ""
 echo "$(date)"
 echo "====================================="
 echo "Daily Projects Batch Job Ingestion == Started"
-filename=$projects_program_filename
-n=1
+filename="/opt/sparkjobs/ml-analytics-service/projects/program_ids.txt"
 while read line; do
+	echo $line 		
 	. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory ${driver_memory} --executor-memory ${executor_memory} /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_batch.py --program_id ${line/,}
+	. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory ${driver_memory} --executor-memory ${executor_memory} /opt/sparkjobs/ml-analytics-service/projects/pyspark_prj_status.py --program_id ${line/,}
+	. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory ${driver_memory} --executor-memory ${executor_memory} /opt/sparkjobs/ml-analytics-service/projects/pyspark_prj_status_prglevel.py --program_id ${line/,}
 n=$((n+1))
 done < $filename
 echo "Daily Projects Batch Job Ingestion == Completed"
 echo "*************************************"
+
 
 # OBSERVATION : Deletion and Ingestion
 echo ""
@@ -45,6 +48,9 @@ echo "$(date)"
 echo "====================================="
 echo "Daily Observation Status Batch Job Ingestion == Started"
 . /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory ${driver_memory} --executor-memory ${executor_memory} /opt/sparkjobs/ml-analytics-service/observations/pyspark_observation_status_batch.py
+. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory ${driver_memory} --executor-memory ${executor_memory} /opt/sparkjobs/ml-analytics-service/observations/pyspark_obs_status_batch.py
+. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory ${driver_memory} --executor-memory ${executor_memory} /opt/sparkjobs/ml-analytics-service/observations/pyspark_obs_domain_criteria_batch.py
+. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory ${driver_memory} --executor-memory ${executor_memory} /opt/sparkjobs/ml-analytics-service/observations/pyspark_obs_domain_batch.py
 echo "Daily Observation Status Batch Job Ingestion == Completed"
 echo "*************************************"
 
