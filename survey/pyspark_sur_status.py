@@ -1,9 +1,9 @@
 # -----------------------------------------------------------------
-# Name : pyspark_survey_batch.py
-# Author : Ashwini E
+# Name : pyspark_sur_status.py
+# Author : Sachin
 # Description : Extracts the Status of the survey submissions 
-#  either notStarted / In-Progress / Completed along with the users 
-#  entity information
+#  either notStarted / In-Progress / Completed 
+#  along distinctCnt data for Survey with the users and submissions. 
 # -----------------------------------------------------------------
 
 import requests
@@ -418,6 +418,7 @@ pgm_schema = StructType([
 ])
 
 pgm_rdd = spark.sparkContext.parallelize(list(pgm_cursorMongo))
+
 pgm_df = spark.createDataFrame(pgm_rdd,pgm_schema)
 pgm_rdd.unpersist()
 pgm_cursorMongo.close()
@@ -437,7 +438,6 @@ sub_pgm_df.unpersist()
 
 
 #survey submission distinct count DF
-
 final_df_distinct_survey_status = final_df.groupBy("program_name","program_id","survey_name","survey_id","submission_status","state_name","state_externalId","district_name","district_externalId","block_name","block_externalId","organisation_name","organisation_id","private_program","parent_channel").agg(countDistinct(F.col("user_id")).alias("unique_users"),countDistinct(F.col("survey_submission_id")).alias("unique_submissions"))
 
 #adding time_stamp to DF
@@ -448,7 +448,7 @@ else:
 
 final_df_distinct_survey_status = final_df_distinct_survey_status.dropDuplicates()
 
-
+#saving as file
 final_df_distinct_survey_status.coalesce(1).write.format("json").mode("overwrite").save(
    config.get("OUTPUT_DIR","survey_distinctCount_status") + "/"
 )
@@ -472,6 +472,8 @@ blob_distinctCount_path = config.get("COMMON", "survey_distinctCount_blob_path")
 for files in os.listdir(local_distinctCount_path):
    if "ml_survey_distinctCount_status.json" in files:
       cloud_init.upload_to_cloud(blob_Path = blob_distinctCount_path, local_Path = local_distinctCount_path, file_Name = files)
+
+time.sleep(3)
 
 #Druid INFO
 druid_batch_end_point = config.get("DRUID", "batch_url")
