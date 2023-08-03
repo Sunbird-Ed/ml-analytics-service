@@ -1,0 +1,143 @@
+{
+    "request": {
+        "reportId": "ml_no_of_surveys_in_started_status_currently_sl",
+        "config": {
+            "streamQuery": true,
+            "reportConfig": {
+                "id": "ml_no_of_surveys_in_started_status_currently_sl",
+                "mergeConfig": {
+                    "postContainer": "$postContainer",
+                    "container": "$container",
+                    "basePath": "/mount/data/analytics/tmp",
+                    "reportPath": "ml_no_of_surveys_in_started_status_currently_sl.csv",
+                    "rollup": 0
+                },
+                "labels": {
+                    "SUM(unique_users)": "total_content_plays_on_portal",
+                    "legend": "No of surveys in started status currently",
+                    "total_content_plays_on_portal": "No of surveys in started status currently",
+                    "organisation_name": "Organisation",
+                    "parent_channel": "parent_channel",
+                    "district_name": "District Name",
+                    "block_name": "Block name",
+                    "program_name": "Program Name",
+                    "state_name": "State Name"
+                },
+                "dateRange": {
+                    "staticInterval": "LastDay",
+                    "granularity": "all",
+                    "intervalSlider": 0
+                },
+                "metrics": [
+                    {
+                        "metric": "total_content_plays_on_portal",
+                        "label": "total_content_plays_on_portal",
+                        "druidQuery": {
+                            "dataSource": "ml-surveydistinctCount-status",
+                            "limitSpec": {
+                                "type": "default",
+                                "limit": 50000,
+                                "columns": [
+                                    {
+                                        "dimension": "SUM(unique_users)",
+                                        "direction": "descending"
+                                    }
+                                ]
+                            },
+                            "filters": [
+                                {
+                                    "dimension": "state_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "program_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "district_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "dimension": "block_name",
+                                    "type": "isnotnull"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "submission_status",
+                                    "value": "started"
+                                },
+                                {
+                                    "type": "equals",
+                                    "dimension": "private_program",
+                                    "value": "false"
+                                },
+                                {
+                                    "type": "regex",
+                                    "dimension": "program_name",
+                                    "value": "^((?!(?i)(test)).)*$"
+                                }
+                            ],
+                            "granularity": "all",
+                            "dimensions": [
+                                {
+                                    "fieldName": "program_name",
+                                    "aliasName": "Program Name"
+                                },
+                                {
+                                    "fieldName": "state_name",
+                                    "aliasName": "State Name"
+                                },
+                                {
+                                    "fieldName": "parent_channel",
+                                    "aliasName": "parent_channel"
+                                },
+                                {
+                                    "fieldName": "district_name",
+                                    "aliasName": "District Name"
+                                },
+                                {
+                                    "fieldName": "block_name",
+                                    "aliasName": "Block name"
+                                },
+                                {
+                                    "fieldName": "organisation_name",
+                                    "aliasName": "Organisation"
+                                }
+                            ],
+                            "aggregations": [
+                                {
+                                    "fieldName": "unique_users",
+                                    "type": "longSum",
+                                    "name": "total_content_plays_on_portal"
+                                }
+                            ],
+                            "queryType": "groupBy"
+                        }
+                    }
+                ],
+                "output": [
+                    {
+                        "type": "csv",
+                        "metrics": [
+                            "total_content_plays_on_portal"
+                        ],
+                        "dims": [
+                            "date"
+                        ],
+                        "fileParameters": [
+                            "id",
+                            "dims"
+                        ]
+                    }
+                ],
+                "queryType": "groupBy"
+            },
+            "container": "$container",
+            "store": "$store",
+            "key": "hawk-eye/"
+        },
+        "createdBy": "$createdBy",
+        "description": "Big Number will give an overall count on number of surveys in started status as of today",
+        "reportSchedule": "DAILY"
+    }
+}
