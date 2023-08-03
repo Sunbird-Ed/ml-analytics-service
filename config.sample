@@ -253,7 +253,7 @@ projects_distinctCnt_blob_path = {{ ml_analytics_projects_distinctCnt_azure_blob
 
 projects_distinctCnt_prgmlevel_blob_path = {{ ml_analytics_projects_distinctCnt_prglevel_azure_blob_path }}
 
-survey_distinctCount_blob_path = {{ ml_analytics_survey_distinctCnt_azure_blob_path}}
+survey_distinctCount_blob_path = {{ ml_analytics_survey_distinctCnt_azure_blob_path }}
 
 projects_rollup_blob_path = {{ ml_analytics_project_rollup_azure_blob_path }}
 
