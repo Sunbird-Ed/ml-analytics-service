@@ -39,7 +39,6 @@ sys.path.append(root_path)
 
 from lib.mongoLogs import insertLog , getLogs
 from cloud_storage.cloud import MultiCloud
-
 cloud_init = MultiCloud()
 
 # date formating
@@ -616,17 +615,45 @@ for filename in os.listdir(config.get("OUTPUT_DIR", "observation_distinctCount_d
 local_distinctCount_domain_criteria_path = config.get("OUTPUT_DIR", "observation_distinctCount_domain_criteria")
 blob_distinctCount_domain_criteria_path = config.get("COMMON", "observation_distinctCount_domain_criteria_blob_path")
 
+fileList = []
+
 for files in os.listdir(local_distinctCount_domain_criteria_path):
    if "ml_observation_distinctCount_domain_criteria.json" in files:
-      cloud_init.upload_to_cloud(blob_Path = blob_distinctCount_domain_criteria_path, local_Path = local_distinctCount_domain_criteria_path, file_Name = files)
+      fileList.append("ml_observation_distinctCount_domain_criteria.json")
 
 
+# Uploading local file to cloud by calling upload_to_cloud fun.
+uploadResponse = cloud_init.upload_to_cloud(filesList = fileList, folderPathName = blob_distinctCount_domain_criteria_path, local_Path = os.path.join(local_path , str("ml_observation_distinctCount_domain_criteria.json")))
+
+successLogger.debug(
+                    "cloud upload response : " + str(uploadResponse)
+                  )
+# if file uploading fails exiting the program
+if uploadResponse['success'] == False:
+   sys.exit() 
+
+
+ml_distinctCnt_obs_domain_criteria_spec = {}
+
+#get Druid spec from config
+ml_distinctCnt_obs_domain_criteria_spec = json.loads(config.get("DRUID","ml_distinctCnt_obs_domain_criteria_spec"))
+
+# updating Druid spec adding type and URI'S
+ml_distinctCnt_obs_domain_criteria_spec["spec"]["ioConfig"]["inputSource"]["type"] = str(uploadResponse['cloudStorage'])
+ml_distinctCnt_obs_domain_criteria_spec["spec"]["ioConfig"]["inputSource"]["uris"] = []
+ml_distinctCnt_obs_domain_criteria_spec["spec"]["ioConfig"]["inputSource"]["uris"].append(str(uploadResponse['cloudUri']))
+
+successLogger.debug(
+                    ml_distinctCnt_obs_domain_criteria_spec["spec"]["ioConfig"]["inputSource"]["type"] + "\n" +
+                    str(ml_distinctCnt_obs_domain_criteria_spec["spec"]["ioConfig"]["inputSource"]["uris"]) + "\n" +
+                    str(ml_distinctCnt_obs_domain_criteria_spec)
+                  )
 
 druid_batch_end_point = config.get("DRUID", "batch_url")
 headers = {'Content-Type': 'application/json'}
 
 #observation domain distinct count
-ml_distinctCnt_obs_domain_criteria_spec = json.loads(config.get("DRUID","ml_distinctCnt_obs_domain_criteria_spec"))
+# ml_distinctCnt_obs_domain_criteria_spec = json.loads(config.get("DRUID","ml_distinctCnt_obs_domain_criteria_spec"))
 ml_distinctCnt_obs_domain_criteria_datasource = ml_distinctCnt_obs_domain_criteria_spec["spec"]["dataSchema"]["dataSource"]
 distinctCnt_obs_domain_criteria_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_obs_domain_criteria_spec), headers=headers)
 
