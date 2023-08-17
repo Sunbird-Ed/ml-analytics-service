@@ -612,7 +612,7 @@ for files in os.listdir(local_distinctCount_path):
       fileList.append("ml_observation_distinctCount_status.json")
 
 # Uploading local file to cloud by calling upload_to_cloud fun.
-uploadResponse = cloud_init.upload_to_cloud(filesList = fileList, folderPathName = blob_distinctCount_path, local_Path = os.path.join(local_distinctCount_path , str("ml_observation_distinctCount_status.json")))
+uploadResponse = cloud_init.upload_to_cloud(filesList = fileList, folderPathName = "observation_distinctCount_blob_path", local_Path = os.path.join(local_distinctCount_path , str("ml_observation_distinctCount_status.json")))
 
 successLogger.debug(
                     "cloud upload response : " + str(uploadResponse)
@@ -627,9 +627,7 @@ ml_distinctCnt_obs_status_spec = {}
 ml_distinctCnt_obs_status_spec = json.loads(config.get("DRUID","ml_distinctCnt_obs_status_spec"))
 
 # updating Druid spec adding type and URI'S
-ml_distinctCnt_obs_status_spec["spec"]["ioConfig"]["inputSource"]["type"] = str(uploadResponse['cloudStorage'])
-ml_distinctCnt_obs_status_spec["spec"]["ioConfig"]["inputSource"]["uris"] = []
-ml_distinctCnt_obs_status_spec["spec"]["ioConfig"]["inputSource"]["uris"].append(str(uploadResponse['cloudUri']))
+ml_distinctCnt_obs_status_spec["spec"]["ioConfig"]["inputSource"] = uploadResponse['inputSource']
 
 successLogger.debug(
                     ml_distinctCnt_obs_status_spec["spec"]["ioConfig"]["inputSource"]["type"] + "\n" +
