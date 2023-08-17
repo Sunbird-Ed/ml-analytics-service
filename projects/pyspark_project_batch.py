@@ -31,9 +31,10 @@ from pyspark.sql.functions import element_at, split, col
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
-sys.path.append(config.get("COMMON", "cloud_module_path"))
 
-from cloud import MultiCloud
+# sys.path.append(config.get("COMMON", "cloud_module_path"))
+
+from cloud_storage.cloud import MultiCloud
 
 cloud_init = MultiCloud()
 
@@ -717,9 +718,26 @@ successLogger.debug("Uploading to Azure start time  " + str(datetime.datetime.no
 local_path = config.get("OUTPUT_DIR", "project")
 blob_path = config.get("COMMON", "projects_blob_path")
 
+fileList = []
 for files in os.listdir(local_path):
-    if "sl_projects.json" in files or f"sl_projects_{program_unique_id}.json" in files:
-        cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = files)
+    if "sl_projects.json" in files:
+        fileList.append("sl_projects.json")
+    elif f"sl_projects_{program_unique_id}.json" in files:
+        fileList.append(f"sl_projects_{program_unique_id}.json")
+
+if "sl_projects.json" in fileList:
+    fileName = "sl_projects.json"
+elif f"sl_projects_{program_unique_id}.json" in fileList:
+   fileName = f"sl_projects_{program_unique_id}.json"
+
+uploadResponse = cloud_init.upload_to_cloud(filesList = fileList,folderPathName = "projects_blob_path", local_Path = os.path.join(local_path , str(fileName)))
+
+successLogger.debug(
+                    "cloud upload response : " + str(uploadResponse)
+                  )
+if uploadResponse['success'] == False:
+   sys.exit()
+
 
 successLogger.debug("Uploading to azure end time  " + str(datetime.datetime.now()))	
 successLogger.debug("Removing file start time  " + str(datetime.datetime.now()))
@@ -761,12 +779,10 @@ dimensionsArr.extend(submissionReportColumnNamesArr)
 
 payload = {}
 payload = json.loads(config.get("DRUID","project_injestion_spec"))
-if program_unique_id :
-    current_cloud = re.split("://+", payload["spec"]["ioConfig"]["inputSource"]["uris"][0])[0]
-    uri = re.split("://+", payload["spec"]["ioConfig"]["inputSource"]["uris"][0])[1]
-    edited_uri = re.split(".json", uri)[0]
-    payload["spec"]["ioConfig"]["inputSource"]["uris"][0] = f"{current_cloud}://{edited_uri}_{program_unique_id}.json"
-    payload['spec']['ioConfig'].update({"appendToExisting":True})  
+payload["spec"]["ioConfig"]["inputSource"]["type"] = str(uploadResponse['cloudStorage'])
+payload["spec"]["ioConfig"]["inputSource"]["uris"] = []
+payload["spec"]["ioConfig"]["inputSource"]["uris"].append(str(uploadResponse['cloudUri']))
+payload['spec']['ioConfig'].update({"appendToExisting":True})
 payload["spec"]["dataSchema"]["dimensionsSpec"]["dimensions"] = dimensionsArr
 datasources = [payload["spec"]["dataSchema"]["dataSource"]]
 ingestion_specs = [json.dumps(payload)]

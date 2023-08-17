@@ -668,11 +668,27 @@ local_distinctCnt_path = config.get("OUTPUT_DIR", "projects_distinctCount")
 blob_distinctCnt_path = config.get("COMMON", "projects_distinctCnt_blob_path")
 
 
+fileList = []
 for files in os.listdir(local_distinctCnt_path):
-    if "ml_projects_distinctCount.json" in files or f"ml_projects_distinctCount_{program_unique_id}.json" in files:
-        cloud_init.upload_to_cloud(blob_Path = blob_distinctCnt_path, local_Path = local_distinctCnt_path, file_Name = files)
+    if "ml_projects_distinctCount.json" in files :
+       fileList.append("ml_projects_distinctCount.json")
+    elif f"ml_projects_distinctCount_{program_unique_id}.json" in files:
+        fileList.append(f"ml_projects_distinctCount_{program_unique_id}.json")
+if "ml_projects_distinctCount.json" in fileList:
+    fileName = "ml_projects_distinctCount.json"
+elif f"ml_projects_distinctCount_{program_unique_id}.json" in fileList:
+   fileName = f"ml_projects_distinctCount_{program_unique_id}.json"
 
-successLogger.debug("Uploading to azure end time  " + str(datetime.datetime.now()))	
+uploadResponse = cloud_init.upload_to_cloud(filesList = fileList,folderPathName = "projects_distinctCnt_blob_path", local_Path = os.path.join(local_distinctCnt_path , str(fileName)))
+
+successLogger.debug(
+                    "cloud upload response : " + str(uploadResponse)
+                  )
+if uploadResponse['success'] == False:
+   sys.exit()
+
+
+successLogger.debug("Uploading to cloud end time  " + str(datetime.datetime.now()))	
 successLogger.debug("Removing file start time  " + str(datetime.datetime.now()))
 
 
@@ -691,12 +707,10 @@ successLogger.debug("Ingestion start time  " + str(datetime.datetime.now()))
 ml_distinctCnt_projects_spec = json.loads(config.get("DRUID","ml_distinctCnt_projects_status_spec"))
 ml_distinctCnt_projects_datasource = ml_distinctCnt_projects_spec["spec"]["dataSchema"]["dataSource"]
 
-if program_unique_id :
-    current_cloud = re.split("://+", ml_distinctCnt_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"][0])[0]
-    uri = re.split("://+", ml_distinctCnt_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"][0])[1]
-    edited_uri = re.split(".json", uri)[0]
-    ml_distinctCnt_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"][0]  = f"{current_cloud}://{edited_uri}_{program_unique_id}.json"
-    ml_distinctCnt_projects_spec['spec']['ioConfig'].update({"appendToExisting":True})
+ml_distinctCnt_projects_spec["spec"]["ioConfig"]["inputSource"]["type"] = str(uploadResponse['cloudStorage'])
+ml_distinctCnt_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"] = []
+ml_distinctCnt_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"].append(str(uploadResponse['cloudUri']))
+ml_distinctCnt_projects_spec['spec']['ioConfig'].update({"appendToExisting":True})
 
 distinctCnt_projects_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_projects_spec), headers=headers)
 
