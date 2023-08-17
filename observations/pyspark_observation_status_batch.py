@@ -561,8 +561,7 @@ for files in os.listdir(local_path):
       fileList.append("sl_observation_status.json")
 
 # Uploading local file to cloud by calling upload_to_cloud fun.
-uploadResponse = cloud_init.upload_to_cloud(filesList = fileList,folderPathName = blob_path , local_Path = os.path.join(local_path , str("sl_observation_status.json")))
-
+uploadResponse = cloud_init.upload_to_cloud(filesList = fileList ,folderPathName = "observation_blob_path", local_Path = os.path.join(local_path , str("sl_observation_status.json")))
 successLogger.debug(
                     "cloud upload response : " + str(uploadResponse)
                   )
@@ -578,9 +577,7 @@ sl_status_spec = {}
 sl_status_spec = json.loads(config.get("DRUID","observation_status_injestion_spec"))
 
 # updating Druid spec adding type and URI'S
-sl_status_spec["spec"]["ioConfig"]["inputSource"]["type"] = str(uploadResponse['cloudStorage'])
-sl_status_spec["spec"]["ioConfig"]["inputSource"]["uris"] = []
-sl_status_spec["spec"]["ioConfig"]["inputSource"]["uris"].append(str(uploadResponse['cloudUri']))
+sl_status_spec["spec"]["ioConfig"]["inputSource"] = uploadResponse['inputSource']
 
 successLogger.debug(
                     sl_status_spec["spec"]["ioConfig"]["inputSource"]["type"] + "\n" +
