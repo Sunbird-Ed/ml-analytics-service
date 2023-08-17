@@ -623,7 +623,7 @@ for files in os.listdir(local_distinctCount_domain_criteria_path):
 
 
 # Uploading local file to cloud by calling upload_to_cloud fun.
-uploadResponse = cloud_init.upload_to_cloud(filesList = fileList, folderPathName = blob_distinctCount_domain_criteria_path, local_Path = os.path.join(local_path , str("ml_observation_distinctCount_domain_criteria.json")))
+uploadResponse = cloud_init.upload_to_cloud(filesList = fileList, folderPathName = blob_distinctCount_domain_criteria_path, local_Path = os.path.join(local_distinctCount_domain_criteria_path , str("ml_observation_distinctCount_domain_criteria.json")))
 
 successLogger.debug(
                     "cloud upload response : " + str(uploadResponse)
