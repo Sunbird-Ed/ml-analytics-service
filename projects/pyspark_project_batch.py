@@ -32,7 +32,8 @@ config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
 
-# sys.path.append(config.get("COMMON", "cloud_module_path"))
+root_path = config_path[0]
+sys.path.append(root_path)
 
 from cloud_storage.cloud import MultiCloud
 
@@ -713,7 +714,7 @@ for filename in os.listdir(config.get("OUTPUT_DIR", "project")+"/"):
 
 
 successLogger.debug("Renaming file end time  " + str(datetime.datetime.now())) 
-successLogger.debug("Uploading to Azure start time  " + str(datetime.datetime.now()))
+successLogger.debug("Uploading to Cloud start time  " + str(datetime.datetime.now()))
 
 local_path = config.get("OUTPUT_DIR", "project")
 blob_path = config.get("COMMON", "projects_blob_path")
@@ -735,11 +736,12 @@ uploadResponse = cloud_init.upload_to_cloud(filesList = fileList,folderPathName 
 successLogger.debug(
                     "cloud upload response : " + str(uploadResponse)
                   )
+
 if uploadResponse['success'] == False:
    sys.exit()
 
 
-successLogger.debug("Uploading to azure end time  " + str(datetime.datetime.now()))	
+successLogger.debug("Uploading to cloud end time  " + str(datetime.datetime.now()))	
 successLogger.debug("Removing file start time  " + str(datetime.datetime.now()))
 
 if program_unique_id :
@@ -779,9 +781,7 @@ dimensionsArr.extend(submissionReportColumnNamesArr)
 
 payload = {}
 payload = json.loads(config.get("DRUID","project_injestion_spec"))
-payload["spec"]["ioConfig"]["inputSource"]["type"] = str(uploadResponse['cloudStorage'])
-payload["spec"]["ioConfig"]["inputSource"]["uris"] = []
-payload["spec"]["ioConfig"]["inputSource"]["uris"].append(str(uploadResponse['cloudUri']))
+payload["spec"]["ioConfig"]["inputSource"] = uploadResponse['inputSource']
 payload['spec']['ioConfig'].update({"appendToExisting":True})
 payload["spec"]["dataSchema"]["dimensionsSpec"]["dimensions"] = dimensionsArr
 datasources = [payload["spec"]["dataSchema"]["dataSource"]]
