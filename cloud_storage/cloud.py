@@ -51,7 +51,7 @@ class MultiCloud:
 
         preSignedResponse = {}
 
-        if response.status_code in [constants.status_code_1 , constants.status_code_2]:
+        if response.status_code in constants.success_status_code:
             preSignedResponse['status_code'] = response.status_code
             response = response.json()
             preSignedResponse['success'] = True
@@ -82,7 +82,7 @@ class MultiCloud:
         response = {}
         response = requests.request("PUT", preSignedResponse['presigned'], headers=headers, data=payload)
 
-        if response.status_code in [constants.status_code_1 , constants.status_code_2]:
+        if response.status_code in constants.success_status_code :
             return preSignedResponse
         else:
             preSignedResponse['success'] = False

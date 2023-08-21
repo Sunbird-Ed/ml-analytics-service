@@ -1,6 +1,4 @@
-status_code_1 = 201
-
-status_code_2 = 200
+success_status_code = [ 201 , 200]
 
 expiry = 262500
 

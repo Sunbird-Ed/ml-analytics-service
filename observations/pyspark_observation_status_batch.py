@@ -29,7 +29,6 @@ config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
 
-# sys.path.append(config.get("COMMON", "cloud_module_path"))
 
 root_path = config_path[0]
 sys.path.append(root_path)
