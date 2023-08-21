@@ -36,7 +36,7 @@ class MultiCloud:
           }
           ,
           "action": "signedUrl",
-          "folderPath": str(config.get("CLOUD", folderPathName)),
+          "folderPath": str(config.get("COMMON", folderPathName)),
           "bucketName": str(config.get("CLOUD", "container_name")),
           "expiresIn": constants.expiry,
           "operation" : "write"
