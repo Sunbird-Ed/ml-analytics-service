@@ -593,8 +593,7 @@ headers = {'Content-Type': 'application/json'}
 
 for i,j in zip(datasources,ingestion_specs):
    druid_end_point = config.get("DRUID", "metadata_url") + i
-   #druid_batch_end_point = config.get("DRUID", "batch_url")
-   #headers = {'Content-Type': 'application/json'}
+   
    get_timestamp = requests.get(druid_end_point, headers=headers)
    successLogger.debug(get_timestamp)
    if get_timestamp.status_code == 200 :

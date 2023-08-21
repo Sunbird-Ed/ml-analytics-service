@@ -106,15 +106,7 @@ debug_logBackuphandler = TimedRotatingFileHandler(f"{file_name_for_debug_log}",w
 infoLogger.addHandler(debug_logHandler)
 infoLogger.addHandler(debug_logBackuphandler)
 
-spark = SparkSession.builder.appName("projects").config(
-    "spark.driver.memory", "50g"
-).config(
-    "spark.executor.memory", "100g"
-).config(
-    "spark.memory.offHeap.enabled", True
-).config(
-    "spark.memory.offHeap.size", "32g"
-).getOrCreate()
+spark = SparkSession.builder.appName("projects").getOrCreate()
 
 sc = spark.sparkContext
 
