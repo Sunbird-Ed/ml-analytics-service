@@ -55,7 +55,7 @@ class MultiCloud:
             preSignedResponse['status_code'] = response.status_code
             response = response.json()
             preSignedResponse['success'] = True
-            preSignedResponse['folderPathName'] = str(config.get("CLOUD", folderPathName))
+            preSignedResponse['folderPathName'] = str(config.get("COMMON", folderPathName))
             for index in response['result']['files']:
                 preSignedResponse['cloudStorage'] = index['cloudStorage'].lower()
                 preSignedResponse['inputSource'] = index['inputSource']
