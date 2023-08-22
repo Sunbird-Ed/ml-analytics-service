@@ -620,6 +620,7 @@ uploadResponse = cloud_init.upload_to_cloud(filesList = fileList, folderPathName
 successLogger.debug(
                     "cloud upload response " + str(uploadResponse)
                   )
+
 # if file uploading fails exiting the program
 if uploadResponse['success'] == False:
    sys.exit() 

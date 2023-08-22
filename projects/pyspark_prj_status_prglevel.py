@@ -613,7 +613,7 @@ elif f"ml_projects_distinctCount_prgmlevel_{program_unique_id}.json" in fileList
    fileName = f"ml_projects_distinctCount_prgmlevel_{program_unique_id}.json"
 
 
-uploadResponse = cloud_init.upload_to_cloud(filesList = fileList,folderPathName = "projects_distinctCnt_blob_path", local_Path = os.path.join(local_distinctCnt_prgmlevel_path , str(fileName)))
+uploadResponse = cloud_init.upload_to_cloud(filesList = fileList,folderPathName = "projects_distinctCnt_blob_path", local_Path = local_distinctCnt_prgmlevel_path )
 
 
 successLogger.debug("Uploading to azure end time  " + str(datetime.datetime.now()))	

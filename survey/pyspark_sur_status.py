@@ -466,7 +466,7 @@ for files in os.listdir(local_distinctCount_path):
       fileList.append("ml_survey_distinctCount_status.json")
 
 # Uploading local file to cloud by calling upload_to_cloud fun.
-uploadResponse = cloud_init.upload_to_cloud(filesList = fileList, folderPathName = "survey_distinctCount_blob_path", local_Path = os.path.join(local_distinctCount_path , str("ml_survey_distinctCount_status.json")))
+uploadResponse = cloud_init.upload_to_cloud(filesList = fileList, folderPathName = "survey_distinctCount_blob_path", local_Path = local_distinctCount_path )
 
 successLogger.debug(
                     "cloud upload response : " + str(uploadResponse)

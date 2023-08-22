@@ -731,7 +731,7 @@ if "sl_projects.json" in fileList:
 elif f"sl_projects_{program_unique_id}.json" in fileList:
    fileName = f"sl_projects_{program_unique_id}.json"
 
-uploadResponse = cloud_init.upload_to_cloud(filesList = fileList,folderPathName = "projects_blob_path", local_Path = os.path.join(local_path , str(fileName)))
+uploadResponse = cloud_init.upload_to_cloud(filesList = fileList,folderPathName = "projects_blob_path", local_Path = local_path )
 
 successLogger.debug(
                     "cloud upload response : " + str(uploadResponse)

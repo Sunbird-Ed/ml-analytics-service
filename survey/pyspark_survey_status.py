@@ -408,7 +408,7 @@ for files in os.listdir(local_path):
       fileList.append("sl_survey_status.json")
 
 # Uploading local file to cloud by calling upload_to_cloud fun.
-uploadResponse = cloud_init.upload_to_cloud(filesList = fileList, folderPathName = "survey_blob_path" , local_Path = os.path.join(local_path , str("sl_survey_status.json")))
+uploadResponse = cloud_init.upload_to_cloud(filesList = fileList, folderPathName = "survey_blob_path" , local_Path = local_path )
 
 successLogger.debug(
                     "cloud upload response : " + str(uploadResponse)
