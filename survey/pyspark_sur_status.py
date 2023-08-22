@@ -482,8 +482,9 @@ ml_distinctCnt_survey_status_spec = {}
 ml_distinctCnt_survey_status_spec = json.loads(config.get("DRUID","ml_distinctCnt_survey_status_spec"))
 
 # updating Druid spec adding type and URI'S
-ml_distinctCnt_survey_status_spec["spec"]["ioConfig"]["inputSource"] = uploadResponse['inputSource']
-
+for index in uploadResponse['files']:
+   if index['file'].split("/")[-1] in fileList:
+      ml_distinctCnt_survey_status_spec["spec"]["ioConfig"]["inputSource"] = index['inputSource']
 
 successLogger.debug(
                     ml_distinctCnt_survey_status_spec["spec"]["ioConfig"]["inputSource"]["type"] + "\n" +

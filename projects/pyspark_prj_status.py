@@ -697,7 +697,11 @@ headers = {'Content-Type': 'application/json'}
 successLogger.debug("Ingestion start time  " + str(datetime.datetime.now()))
 
 ml_distinctCnt_projects_spec = json.loads(config.get("DRUID","ml_distinctCnt_projects_status_spec"))
-ml_distinctCnt_projects_datasource = ml_distinctCnt_projects_spec["spec"]["dataSchema"]["dataSource"]
+
+# updating Druid spec adding type and URI'S
+for index in uploadResponse['files']:
+   if index['file'].split("/")[-1] in fileList:
+      ml_distinctCnt_projects_spec["spec"]["ioConfig"]["inputSource"] = index['inputSource']
 
 ml_distinctCnt_projects_spec["spec"]["ioConfig"]["inputSource"] = uploadResponse['inputSource']
 ml_distinctCnt_projects_spec['spec']['ioConfig'].update({"appendToExisting":True})

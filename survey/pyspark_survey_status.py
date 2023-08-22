@@ -424,7 +424,11 @@ ml_status_spec = {}
 ml_status_spec = json.loads(config.get("DRUID","survey_status_injestion_spec"))
 
 # updating Druid spec adding type and URI'S
-ml_status_spec["spec"]["ioConfig"]["inputSource"] = uploadResponse['inputSource']
+for index in uploadResponse['files']:
+   if index['file'].split("/")[-1] in fileList:
+      ml_status_spec["spec"]["ioConfig"]["inputSource"] = index['inputSource']
+
+
 
 successLogger.debug(
                     ml_status_spec["spec"]["ioConfig"]["inputSource"]["type"] + "\n" +

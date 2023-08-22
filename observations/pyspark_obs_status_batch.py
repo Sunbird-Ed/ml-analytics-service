@@ -630,9 +630,9 @@ ml_distinctCnt_obs_status_spec = {}
 #get Druid spec from config
 ml_distinctCnt_obs_status_spec = json.loads(config.get("DRUID","ml_distinctCnt_obs_status_spec"))
 
+# updating Druid spec adding type and URI'S
 for index in uploadResponse['files']:
    if index['file'].split("/")[-1] in fileList:
-      # updating Druid spec adding type and URI'S
       ml_distinctCnt_obs_status_spec["spec"]["ioConfig"]["inputSource"] = index['inputSource']
 
 successLogger.debug(

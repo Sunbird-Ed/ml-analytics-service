@@ -781,8 +781,14 @@ dimensionsArr.extend(submissionReportColumnNamesArr)
 
 payload = {}
 payload = json.loads(config.get("DRUID","project_injestion_spec"))
-payload["spec"]["ioConfig"]["inputSource"] = uploadResponse['inputSource']
+
+# updating Druid spec adding type and URI'S
+for index in uploadResponse['files']:
+   if index['file'].split("/")[-1] in fileList:
+      payload["spec"]["ioConfig"]["inputSource"] = index['inputSource']
+
 payload['spec']['ioConfig'].update({"appendToExisting":True})
+
 payload["spec"]["dataSchema"]["dimensionsSpec"]["dimensions"] = dimensionsArr
 datasources = [payload["spec"]["dataSchema"]["dataSource"]]
 ingestion_specs = [json.dumps(payload)]
