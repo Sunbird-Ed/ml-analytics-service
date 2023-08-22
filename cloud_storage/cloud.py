@@ -30,6 +30,8 @@ class MultiCloud:
 
         url = str(config.get("ML_CORE_SERVICE_URL", "url")) + str(constants.pre_signed_url)
 
+        print("URL : " + str(url))
+
         payload = json.dumps({
           "request": {
             "files": filesList   
@@ -41,6 +43,7 @@ class MultiCloud:
           "expiresIn": constants.expiry,
           "operation" : "write"
         })
+        print("URL : " + str(payload))
         headers = {
           'internal-access-token': str(config.get("API_HEADERS", "internal_access_token")),
           'Content-Type': 'application/json'
@@ -50,28 +53,19 @@ class MultiCloud:
 
 
         preSignedResponse = {}
+        preSignedResponse['files'] = []
 
         if response.status_code in constants.success_status_code:
             preSignedResponse['status_code'] = response.status_code
             response = response.json()
             preSignedResponse['success'] = True
             preSignedResponse['folderPathName'] = str(config.get("COMMON", folderPathName))
-            for index in response['result']['files']:
-                preSignedResponse['cloudStorage'] = index['cloudStorage'].lower()
-                preSignedResponse['inputSource'] = index['inputSource']
-                preSignedResponse['presigned'] = index['url']
+            preSignedResponse['files'] = response['result']['files']
             preSignedResponse['error'] = ""
         else:
             preSignedResponse['success'] = False
             preSignedResponse['error'] = response.text
             return preSignedResponse
-
-        json_path = local_Path
-        with open(json_path, 'rb') as json_file:
-            json_data = json_file.read()
-
-        payload = {}
-        payload = json_data
 
         headers = {}
 
@@ -80,12 +74,24 @@ class MultiCloud:
           'Content-Type': 'multipart/form-data'
         }
         response = {}
-        response = requests.request("PUT", preSignedResponse['presigned'], headers=headers, data=payload)
+        for index in range(len(preSignedResponse['files'])):
+          
+          if preSignedResponse['files'][index]['file'].split("/")[-1] in filesList:
+            
+            json_path = os.path.join(local_Path,preSignedResponse['files'][index]['file'].split("/")[-1])
 
-        if response.status_code in constants.success_status_code :
-            return preSignedResponse
-        else:
-            preSignedResponse['success'] = False
-            preSignedResponse['error'] = response.text
-            return preSignedResponse
+            with open(json_path, 'rb') as json_file:
+              json_data = json_file.read()
+
+            payload = {}
+            payload = json_data
+
+            response = requests.request("PUT", preSignedResponse['files'][index]['url'], headers=headers, data=payload)
+
+            if response.status_code in constants.success_status_code :
+                return preSignedResponse
+            else:
+                preSignedResponse['success'] = False
+                preSignedResponse['error'] = response.text
+                return preSignedResponse
 
