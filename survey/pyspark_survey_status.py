@@ -30,8 +30,11 @@ config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
 # bot = SlackClient(config.get("SLACK","token"))
 
-sys.path.append(config.get("COMMON","cloud_module_path"))
-from cloud import MultiCloud
+root_path = config_path[0]
+sys.path.append(root_path)
+
+# sys.path.append(config.get("COMMON","cloud_module_path"))
+from cloud_storage.cloud import MultiCloud
 cloud_init = MultiCloud()
 
 
@@ -232,17 +235,7 @@ survey_sub_schema = StructType(
 )
 
 
-spark = SparkSession.builder.appName(
-   "obs_sub_status"
-).config(
-   "spark.driver.memory", "50g"
-).config(
-   "spark.executor.memory", "100g"
-).config(
-   "spark.memory.offHeap.enabled", True
-).config(
-   "spark.memory.offHeap.size", "32g"
-).getOrCreate()
+spark = SparkSession.builder.appName("survey_sub_status").getOrCreate()
 
 sc=spark.sparkContext
 
@@ -408,12 +401,42 @@ for filename in os.listdir(config.get("OUTPUT_DIR", "survey_status")+"/"):
 local_path = config.get("OUTPUT_DIR", "survey_status")
 blob_path = config.get("COMMON", "survey_blob_path")
 
+fileList = []
+
 for files in os.listdir(local_path):
    if "sl_survey_status.json" in files:
-      cloud_init.upload_to_cloud(blob_path,local_path,"sl_survey_status.json")
+      fileList.append("sl_survey_status.json")
+
+# Uploading local file to cloud by calling upload_to_cloud fun.
+uploadResponse = cloud_init.upload_to_cloud(filesList = fileList, folderPathName = "survey_blob_path" , local_Path = local_path )
+
+successLogger.debug(
+                    "cloud upload response : " + str(uploadResponse)
+                  )
+
+# if file uploading fails exiting the program
+if uploadResponse['success'] == False:
+   sys.exit() 
 
 ml_status_spec = {}
+
+#get Druid spec from config
 ml_status_spec = json.loads(config.get("DRUID","survey_status_injestion_spec"))
+
+# updating Druid spec adding type and URI'S
+for index in uploadResponse['files']:
+   if index['file'].split("/")[-1] in fileList:
+      ml_status_spec["spec"]["ioConfig"]["inputSource"] = index['inputSource']
+
+
+
+successLogger.debug(
+                    ml_status_spec["spec"]["ioConfig"]["inputSource"]["type"] + "\n" +
+                    str(ml_status_spec["spec"]["ioConfig"]["inputSource"]["uris"]) + "\n" +
+                    str(ml_status_spec)
+                  )
+
+
 datasources = [ml_status_spec["spec"]["dataSchema"]["dataSource"]]
 ingestion_specs = [json.dumps(ml_status_spec)]
 

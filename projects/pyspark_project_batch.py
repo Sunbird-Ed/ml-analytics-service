@@ -31,9 +31,11 @@ from pyspark.sql.functions import element_at, split, col
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
-sys.path.append(config.get("COMMON", "cloud_module_path"))
 
-from cloud import MultiCloud
+root_path = config_path[0]
+sys.path.append(root_path)
+
+from cloud_storage.cloud import MultiCloud
 
 cloud_init = MultiCloud()
 
@@ -712,16 +714,34 @@ for filename in os.listdir(config.get("OUTPUT_DIR", "project")+"/"):
 
 
 successLogger.debug("Renaming file end time  " + str(datetime.datetime.now())) 
-successLogger.debug("Uploading to Azure start time  " + str(datetime.datetime.now()))
+successLogger.debug("Uploading to Cloud start time  " + str(datetime.datetime.now()))
 
 local_path = config.get("OUTPUT_DIR", "project")
 blob_path = config.get("COMMON", "projects_blob_path")
 
+fileList = []
 for files in os.listdir(local_path):
-    if "sl_projects.json" in files or f"sl_projects_{program_unique_id}.json" in files:
-        cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = files)
+    if "sl_projects.json" in files:
+        fileList.append("sl_projects.json")
+    elif f"sl_projects_{program_unique_id}.json" in files:
+        fileList.append(f"sl_projects_{program_unique_id}.json")
 
-successLogger.debug("Uploading to azure end time  " + str(datetime.datetime.now()))	
+if "sl_projects.json" in fileList:
+    fileName = "sl_projects.json"
+elif f"sl_projects_{program_unique_id}.json" in fileList:
+   fileName = f"sl_projects_{program_unique_id}.json"
+
+uploadResponse = cloud_init.upload_to_cloud(filesList = fileList,folderPathName = "projects_blob_path", local_Path = local_path )
+
+successLogger.debug(
+                    "cloud upload response : " + str(uploadResponse)
+                  )
+
+if uploadResponse['success'] == False:
+   sys.exit()
+
+
+successLogger.debug("Uploading to cloud end time  " + str(datetime.datetime.now()))	
 successLogger.debug("Removing file start time  " + str(datetime.datetime.now()))
 
 if program_unique_id :
@@ -761,12 +781,14 @@ dimensionsArr.extend(submissionReportColumnNamesArr)
 
 payload = {}
 payload = json.loads(config.get("DRUID","project_injestion_spec"))
-if program_unique_id :
-    current_cloud = re.split("://+", payload["spec"]["ioConfig"]["inputSource"]["uris"][0])[0]
-    uri = re.split("://+", payload["spec"]["ioConfig"]["inputSource"]["uris"][0])[1]
-    edited_uri = re.split(".json", uri)[0]
-    payload["spec"]["ioConfig"]["inputSource"]["uris"][0] = f"{current_cloud}://{edited_uri}_{program_unique_id}.json"
-    payload['spec']['ioConfig'].update({"appendToExisting":True})  
+
+# updating Druid spec adding type and URI'S
+for index in uploadResponse['files']:
+   if index['file'].split("/")[-1] in fileList:
+      payload["spec"]["ioConfig"]["inputSource"] = index['inputSource']
+
+payload['spec']['ioConfig'].update({"appendToExisting":True})
+
 payload["spec"]["dataSchema"]["dimensionsSpec"]["dimensions"] = dimensionsArr
 datasources = [payload["spec"]["dataSchema"]["dataSource"]]
 ingestion_specs = [json.dumps(payload)]

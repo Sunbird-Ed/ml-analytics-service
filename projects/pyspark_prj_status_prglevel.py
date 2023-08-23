@@ -598,10 +598,30 @@ successLogger.debug("Uploading to Azure start time  " + str(datetime.datetime.no
 local_distinctCnt_prgmlevel_path = config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel")
 blob_distinctCnt_prgmlevel_path = config.get("COMMON", "projects_distinctCnt_prgmlevel_blob_path")
 
-for files in os.listdir(local_distinctCnt_prgmlevel_path):
-    if "ml_projects_distinctCount_prgmlevel.json" in files or f"ml_projects_distinctCount_prgmlevel_{program_unique_id}.json" in files:
-        cloud_init.upload_to_cloud(blob_Path = blob_distinctCnt_prgmlevel_path, local_Path = local_distinctCnt_prgmlevel_path, file_Name = files)
 
+
+fileList = []
+for files in os.listdir(local_distinctCnt_prgmlevel_path):
+    if "ml_projects_distinctCount_prgmlevel.json" in files :
+       fileList.append("ml_projects_distinctCount_prgmlevel.json")
+    elif f"ml_projects_distinctCount_prgmlevel_{program_unique_id}.json" in files:
+        fileList.append(f"ml_projects_distinctCount_prgmlevel_{program_unique_id}.json")
+
+if "ml_projects_distinctCount_prgmlevel.json" in fileList:
+    fileName = "ml_projects_distinctCount_prgmlevel.json"
+elif f"ml_projects_distinctCount_prgmlevel_{program_unique_id}.json" in fileList:
+   fileName = f"ml_projects_distinctCount_prgmlevel_{program_unique_id}.json"
+
+successLogger.debug(
+                    "cloud upload Initiated "
+                  )
+
+
+uploadResponse = cloud_init.upload_to_cloud(filesList = fileList,folderPathName = "projects_distinctCnt_blob_path", local_Path = local_distinctCnt_prgmlevel_path )
+
+successLogger.debug(
+                    "cloud upload response : " + str(uploadResponse)
+                  )
 successLogger.debug("Uploading to azure end time  " + str(datetime.datetime.now()))	
 successLogger.debug("Removing file start time  " + str(datetime.datetime.now()))
 
@@ -621,16 +641,20 @@ successLogger.debug("Ingestion start time  " + str(datetime.datetime.now()))
 
 #projects submission distinct count program level
 ml_distinctCnt_prgmlevel_projects_spec = json.loads(config.get("DRUID","ml_distinctCnt_prglevel_projects_status_spec"))
+
 ml_distinctCnt_prgmlevel_projects_datasource = ml_distinctCnt_prgmlevel_projects_spec["spec"]["dataSchema"]["dataSource"]
 
-if program_unique_id:
-    current_cloud = re.split("://+", ml_distinctCnt_prgmlevel_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"][0])[0]
-    uri = re.split("://+", ml_distinctCnt_prgmlevel_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"][0])[1]
-    edited_uri = re.split(".json", uri)[0]
-    ml_distinctCnt_prgmlevel_projects_spec["spec"]["ioConfig"]["inputSource"]["uris"][0] = f"{current_cloud}://{edited_uri}_{program_unique_id}.json"
-    ml_distinctCnt_prgmlevel_projects_spec["spec"]["ioConfig"].update({"appendToExisting":True})
-    
+# updating Druid spec adding type and URI'S
+for index in uploadResponse['files']:
+   if index['file'].split("/")[-1] in fileList:
+      ml_distinctCnt_prgmlevel_projects_spec["spec"]["ioConfig"]["inputSource"] = index['inputSource']
 
+
+
+ml_distinctCnt_prgmlevel_projects_spec['spec']['ioConfig'].update({"appendToExisting":True})
+
+
+successLogger.debug("Ingestion Spec " + str(ml_distinctCnt_prgmlevel_projects_spec))
 distinctCnt_prgmlevel_projects_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_prgmlevel_projects_spec), headers=headers)
 
 new_row = {
@@ -643,10 +667,6 @@ new_row = {
 new_row['statusCode'] = distinctCnt_prgmlevel_projects_start_supervisor.status_code
 
 insertLog(new_row)
-
-# with open(f'{config.get("COMMON","projects_tracker_prglvl_path")}', 'a', newline='') as file:
-#     writer = csv.DictWriter(file, fieldnames=["program_id", "datasource", "task_id", "task_created_date"])
-#     writer.writerow(new_row)
 
 if distinctCnt_prgmlevel_projects_start_supervisor.status_code == 200:
     infoLogger.info("Successfully Ingested for {ml_distinctCnt_prgmlevel_projects_datasource}")

@@ -29,11 +29,14 @@ config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
 
-sys.path.append(config.get("COMMON", "cloud_module_path"))
 
-from cloud import MultiCloud
+root_path = config_path[0]
+sys.path.append(root_path)
 
+from cloud_storage.cloud import MultiCloud
 cloud_init = MultiCloud()
+
+
 
 # date formating
 current_date = datetime.date.today()
@@ -549,13 +552,45 @@ for filename in os.listdir(config.get("OUTPUT_DIR", "observation_status")+"/"):
 local_path = config.get("OUTPUT_DIR", "observation_status")
 blob_path = config.get("COMMON", "observation_blob_path")
 
+
+fileList = []
+
 for files in os.listdir(local_path):
    if "sl_observation_status.json" in files:
-      cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = files)
+      fileList.append("sl_observation_status.json")
+
+# Uploading local file to cloud by calling upload_to_cloud fun.
+uploadResponse = cloud_init.upload_to_cloud(filesList = fileList ,folderPathName = "observation_blob_path", local_Path = local_path )
+successLogger.debug(
+                    "cloud upload response : " + str(uploadResponse)
+                  )
+
+# if file uploading fails exiting the program
+if uploadResponse['success'] == False:
+   sys.exit() 
 
 
 sl_status_spec = {}
+
+#get Druid spec from config
 sl_status_spec = json.loads(config.get("DRUID","observation_status_injestion_spec"))
+
+
+# updating Druid spec adding type and URI'S
+for index in uploadResponse['files']:
+   if index['file'].split("/")[-1] in fileList:
+      # updating Druid spec adding type and URI'S
+      sl_status_spec["spec"]["ioConfig"]["inputSource"] = index['inputSource']
+
+
+
+successLogger.debug(
+                    sl_status_spec["spec"]["ioConfig"]["inputSource"]["type"] + "\n" +
+                    str(sl_status_spec["spec"]["ioConfig"]["inputSource"]["uris"]) + "\n" +
+                    str(sl_status_spec)
+                  )
+
+
 datasources = [sl_status_spec["spec"]["dataSchema"]["dataSource"]]
 ingestion_specs = [json.dumps(sl_status_spec)]
 
@@ -564,8 +599,7 @@ headers = {'Content-Type': 'application/json'}
 
 for i,j in zip(datasources,ingestion_specs):
    druid_end_point = config.get("DRUID", "metadata_url") + i
-   #druid_batch_end_point = config.get("DRUID", "batch_url")
-   #headers = {'Content-Type': 'application/json'}
+   
    get_timestamp = requests.get(druid_end_point, headers=headers)
    successLogger.debug(get_timestamp)
    if get_timestamp.status_code == 200 :

@@ -1,12 +1,4 @@
-import os,sys
-
-dirPath = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(dirPath)
-
-from aws import AWS
-from oracle import Oracle
-from ms_azure import MSAzure
-from gcp import GCP
+import os,requests,json , cloud_storage.constants as constants
 from configparser import ConfigParser,ExtendedInterpolation
 
 # Reading the config file
@@ -25,57 +17,78 @@ class MultiCloud:
         '''
         self.sections = config.sections()
 
-    def upload_to_cloud(self, blob_Path, local_Path, file_Name):
-        '''
-        Function to upload the file to respective cloud based on the available section in the config file
 
-        :param: blob_Path - The path where the file would be stored in the cloud 
-        :param: local_Path - The path where the file is in the local server
-        :param: file_Name - The name of the file that is being updated
+        
+    def upload_to_cloud(self, filesList ,folderPathName, local_Path):
         '''
-        for elements in self.sections:
-# AZURE
-            if elements == "AZURE":
-                accKey_exists=config.has_option("AZURE", "account_key")
-                sasToken_exists=config.has_option("AZURE", "sas_token")
-                if accKey_exists == True :
-                    azure_service = MSAzure(
-                     accountName = config.get("AZURE", "account_name"), 
-                     sasToken = None, 
-                     containerName = config.get("AZURE", "container_name"), 
-                     accountKey = config.get("AZURE", "account_key")
-                    )
-                if sasToken_exists == True :
-                   azure_service = MSAzure(
-                     accountName = config.get("AZURE", "account_name"), 
-                     sasToken = config.get("AZURE", "sas_token"), 
-                     containerName = config.get("AZURE", "container_name"), 
-                     accountKey = None
-                   )
-                azure_service.upload_files(blobPath = blob_Path, localPath = local_Path, fileName = file_Name)
-# GCP
-            elif elements == "GCP":
-                gcp_service = GCP(
-                    secret_data = config.get("GCP", "secret_data"), 
-                    bucketName = config.get("GCP", "bucket_name")
-                )
-                gcp_service.upload_files(blobPath  = blob_Path, localPath = local_Path, fileName = file_Name)
-# AWS            
-            elif elements == "AWS":
-                s3_service = AWS(
-                    accessKey = config.get("AWS", "access_key"),
-                    secretAccessKey = config.get("AWS", "secret_access_key"),
-                    regionName = config.get("AWS", "region_name"),
-                    bucketName = config.get("AWS", "bucket_name")
-                )
-                s3_service.upload_files(bucketPath = blob_Path, localPath = local_Path, fileName = file_Name)
-# Oracle            
-            elif elements == "ORACLE":
-                oracle_service = Oracle(
-                    regionName = config.get("ORACLE", "region_name"),
-                    accessKey = config.get("ORACLE", "access_key"),
-                    secretAccessKey = config.get("ORACLE", "secret_access_key"),
-                    endpoint_url = config.get("ORACLE", "endpoint_url"),
-                    bucketName = config.get("ORACLE", "bucket_name")
-                )
-                oracle_service.upload_files(bucketPath = blob_Path, localPath = local_Path, fileName = file_Name)
+        Function to upload the file to respective cloud using the core services
+        :param: filesList - List of file names
+        :param: folderPathName - Key in config file to fetch the cloud folder path
+        :param: local_Path - The path where the file is in the local server
+
+        '''
+
+        url = str(config.get("ML_CORE_SERVICE_URL", "url")) + str(constants.pre_signed_url)
+
+        payload = json.dumps({
+          "request": {
+            "files": filesList   
+          }
+          ,
+          "action": "signedUrl",
+          "folderPath": str(config.get("COMMON", folderPathName)),
+          "bucketName": str(config.get("CLOUD", "container_name")),
+          "expiresIn": constants.expiry,
+          "operation" : "write"
+        })
+        headers = {
+          'internal-access-token': str(config.get("API_HEADERS", "internal_access_token")),
+          'Content-Type': 'application/json'
+        }
+
+        response = requests.request("POST", url, headers=headers, data=payload)
+
+
+        preSignedResponse = {}
+        preSignedResponse['files'] = []
+
+        if response.status_code in constants.success_status_code:
+            preSignedResponse['status_code'] = response.status_code
+            response = response.json()
+            preSignedResponse['success'] = True
+            preSignedResponse['folderPathName'] = str(config.get("COMMON", folderPathName))
+            preSignedResponse['files'] = response['result']['files']
+            preSignedResponse['error'] = ""
+        else:
+            preSignedResponse['success'] = False
+            preSignedResponse['error'] = response.text
+            return preSignedResponse
+
+        headers = {}
+
+        headers = {
+          'x-ms-blob-type': 'BlockBlob',
+          'Content-Type': 'multipart/form-data'
+        }
+        response = {}
+        for index in range(len(preSignedResponse['files'])):
+          
+          if preSignedResponse['files'][index]['file'].split("/")[-1] in filesList:
+            
+            json_path = os.path.join(local_Path,preSignedResponse['files'][index]['file'].split("/")[-1])
+
+            with open(json_path, 'rb') as json_file:
+              json_data = json_file.read()
+
+            payload = {}
+            payload = json_data
+
+            response = requests.request("PUT", preSignedResponse['files'][index]['url'], headers=headers, data=payload)
+
+            if response.status_code in constants.success_status_code :
+                return preSignedResponse
+            else:
+                preSignedResponse['success'] = False
+                preSignedResponse['error'] = response.text
+                return preSignedResponse
+

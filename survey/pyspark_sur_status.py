@@ -34,7 +34,6 @@ sys.path.append(root_path)
 
 from lib.mongoLogs import insertLog , getLogs
 from cloud_storage.cloud import MultiCloud
-
 cloud_init = MultiCloud()
 
 # date formating
@@ -458,22 +457,50 @@ for filename in os.listdir(config.get("OUTPUT_DIR", "survey_distinctCount_status
 local_distinctCount_path = config.get("OUTPUT_DIR", "survey_distinctCount_status")
 blob_distinctCount_path = config.get("COMMON", "survey_distinctCount_blob_path")
 
+
+fileList = []
+
 #pusing JSON into Cloud
 for files in os.listdir(local_distinctCount_path):
    if "ml_survey_distinctCount_status.json" in files:
-      cloud_init.upload_to_cloud(blob_Path = blob_distinctCount_path, local_Path = local_distinctCount_path, file_Name = files)
+      fileList.append("ml_survey_distinctCount_status.json")
 
-time.sleep(3)
+# Uploading local file to cloud by calling upload_to_cloud fun.
+uploadResponse = cloud_init.upload_to_cloud(filesList = fileList, folderPathName = "survey_distinctCount_blob_path", local_Path = local_distinctCount_path )
+
+successLogger.debug(
+                    "cloud upload response : " + str(uploadResponse)
+                  )
+# if file uploading fails exiting the program
+if uploadResponse['success'] == False:
+   sys.exit() 
+
+# time.sleep(3)
+ml_distinctCnt_survey_status_spec = {}
+
+#get Druid spec from config
+ml_distinctCnt_survey_status_spec = json.loads(config.get("DRUID","ml_distinctCnt_survey_status_spec"))
+
+# updating Druid spec adding type and URI'S
+for index in uploadResponse['files']:
+   if index['file'].split("/")[-1] in fileList:
+      ml_distinctCnt_survey_status_spec["spec"]["ioConfig"]["inputSource"] = index['inputSource']
+# ml_distinctCnt_survey_status_spec['spec']['ioConfig'].update({"appendToExisting":True})
+successLogger.debug(
+                    ml_distinctCnt_survey_status_spec["spec"]["ioConfig"]["inputSource"]["type"] + "\n" +
+                    str(ml_distinctCnt_survey_status_spec["spec"]["ioConfig"]["inputSource"]["uris"]) + "\n" +
+                    str(ml_distinctCnt_survey_status_spec)
+                  )
+
 
 #Druid INFO
 druid_batch_end_point = config.get("DRUID", "batch_url")
 headers = {'Content-Type': 'application/json'}
 
-#Survey Spec Info
-ml_distinctCnt_survey_status_spec = json.loads(config.get("DRUID","ml_distinctCnt_survey_status_spec"))
 ml_distinctCnt_survey_status_datasource = ml_distinctCnt_survey_status_spec["spec"]["dataSchema"]["dataSource"]
 distinctCnt_survey_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_survey_status_spec), headers=headers)
-
+print("=--=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=--=-=-=-=-=-=-=--=-=")
+print(distinctCnt_survey_start_supervisor.text)
 new_row = {
     "dataSource": ml_distinctCnt_survey_status_datasource,
     "taskId": distinctCnt_survey_start_supervisor.json()["task"],
