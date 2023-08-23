@@ -30,8 +30,6 @@ class MultiCloud:
 
         url = str(config.get("ML_CORE_SERVICE_URL", "url")) + str(constants.pre_signed_url)
 
-        print("URL : " + str(url))
-
         payload = json.dumps({
           "request": {
             "files": filesList   
@@ -43,7 +41,6 @@ class MultiCloud:
           "expiresIn": constants.expiry,
           "operation" : "write"
         })
-        print("URL : " + str(payload))
         headers = {
           'internal-access-token': str(config.get("API_HEADERS", "internal_access_token")),
           'Content-Type': 'application/json'
