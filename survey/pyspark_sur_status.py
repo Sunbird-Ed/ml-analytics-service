@@ -469,7 +469,7 @@ ml_distinctCnt_survey_status_spec = json.loads(config.get("DRUID","ml_distinctCn
 for index in uploadResponse['files']:
    if index['file'].split("/")[-1] in fileList:
       ml_distinctCnt_survey_status_spec["spec"]["ioConfig"]["inputSource"] = index['inputSource']
-# ml_distinctCnt_survey_status_spec['spec']['ioConfig'].update({"appendToExisting":True})
+
 successLogger.debug(
                     ml_distinctCnt_survey_status_spec["spec"]["ioConfig"]["inputSource"]["type"] + "\n" +
                     str(ml_distinctCnt_survey_status_spec["spec"]["ioConfig"]["inputSource"]["uris"]) + "\n" +
@@ -483,8 +483,7 @@ headers = {'Content-Type': 'application/json'}
 
 ml_distinctCnt_survey_status_datasource = ml_distinctCnt_survey_status_spec["spec"]["dataSchema"]["dataSource"]
 distinctCnt_survey_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_survey_status_spec), headers=headers)
-print("=--=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=--=-=-=-=-=-=-=--=-=")
-print(distinctCnt_survey_start_supervisor.text)
+
 new_row = {
     "dataSource": ml_distinctCnt_survey_status_datasource,
     "taskId": distinctCnt_survey_start_supervisor.json()["task"],
