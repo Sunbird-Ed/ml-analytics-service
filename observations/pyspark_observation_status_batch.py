@@ -25,6 +25,7 @@ from pyspark.sql import DataFrame
 from typing import Iterable
 from pyspark.sql.functions import element_at, split, col
 
+
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
@@ -32,37 +33,18 @@ config.read(config_path[0] + "/config.ini")
 
 root_path = config_path[0]
 sys.path.append(root_path)
-
+from lib.database import Database
 from cloud_storage.cloud import MultiCloud
 cloud_init = MultiCloud()
+from lib.logsHandler import Logs
+dataBase = Database() 
 
+logHandler = Logs(config.get('LOGS', 'observation_status_success_error'))
 
+file_name_for_output_log = logHandler.constructOutputLogFile()
+file_name_for_debug_log = logHandler.constructDebugLogFile()
 
-# date formating
-current_date = datetime.date.today()
-formatted_current_date = current_date.strftime("%d-%B-%Y")
-number_of_days_logs_kept = current_date - datetime.timedelta(days=7)
-number_of_days_logs_kept = number_of_days_logs_kept.strftime("%d-%B-%Y")
-
-# file path for log
-file_path_for_output_and_debug_log = config.get('LOGS', 'observation_status_success_error')
-file_name_for_output_log = f"{file_path_for_output_and_debug_log}{formatted_current_date}-output.log"
-file_name_for_debug_log = f"{file_path_for_output_and_debug_log}{formatted_current_date}-debug.log"
-
-# Remove old log entries
-files_with_date_pattern = [file 
-for file in os.listdir(file_path_for_output_and_debug_log) 
-if re.match(r"\d{2}-\w+-\d{4}-*", 
-file)]
-
-for file_name in files_with_date_pattern:
-    file_path = os.path.join(file_path_for_output_and_debug_log, file_name)
-    if os.path.isfile(file_path):
-        file_date = file_name.split('.')[0]
-        date = file_date.split('-')[0] + '-' + file_date.split('-')[1] + '-' + file_date.split('-')[2]
-        if date < number_of_days_logs_kept:
-            os.remove(file_path)
-
+logHandler.flushLogs()
 
 formatter = logging.Formatter('%(asctime)s - %(levelname)s')
 
@@ -131,7 +113,10 @@ try:
     cols = id_vars + [
             col("_vars_and_vals")[x].alias(x) for x in [var_name, value_name]]
     return _tmp.select(*cols)
+ 
+ 
 except Exception as e:
+   
    errorLogger.error(e,exc_info=True)
 
 orgSchema = ArrayType(StructType([
@@ -187,8 +172,9 @@ entity_observed = udf(lambda x,y:observed_data(x,y), StructType([
 ]))
 
 
-clientProd = MongoClient(config.get('MONGO', 'url'))
-db = clientProd[config.get('MONGO', 'database_name')]
+db = dataBase.connection()
+
+
 obsSubmissionsCollec = db[config.get('MONGO', 'observation_sub_collection')]
 solutionCollec = db[config.get('MONGO', 'solutions_collection')]
 userRolesCollec = db[config.get("MONGO", 'user_roles_collection')]
@@ -196,6 +182,8 @@ programCollec = db[config.get("MONGO", 'programs_collection')]
 
 datasource_name = json.loads(config.get("DRUID","observation_status_injestion_spec"))["spec"]["dataSchema"]["dataSource"]	
 infoLogger.info(f"START: For {datasource_name} ")
+
+
 #observation submission dataframe
 obs_sub_cursorMongo = obsSubmissionsCollec.aggregate(
    [{"$match": {"$and":[{"isAPrivateProgram": False},{"deleted":False}]}},
@@ -242,6 +230,7 @@ obs_sub_cursorMongo = obsSubmissionsCollec.aggregate(
 )
 
 #schema for the observation submission dataframe
+
 obs_sub_schema = StructType(
    [
       StructField('status', StringType(), True),
@@ -348,6 +337,7 @@ obs_sub_schema = StructType(
 spark = SparkSession.builder.appName("obs_sub_status").getOrCreate()
 
 sc=spark.sparkContext
+
 
 obs_sub_rdd = spark.sparkContext.parallelize(list(obs_sub_cursorMongo))
 obs_sub_df1 = spark.createDataFrame(obs_sub_rdd,obs_sub_schema)
@@ -541,13 +531,14 @@ final_df.coalesce(1).write.format("json").mode("overwrite").save(
 
 final_df.unpersist()
 
+
+
 for filename in os.listdir(config.get("OUTPUT_DIR", "observation_status")+"/"):
    if filename.endswith(".json"):
       os.rename(
          config.get("OUTPUT_DIR", "observation_status") + "/" + filename, 
          config.get("OUTPUT_DIR", "observation_status") + "/sl_observation_status.json"
       )
-
 
 local_path = config.get("OUTPUT_DIR", "observation_status")
 blob_path = config.get("COMMON", "observation_blob_path")
@@ -558,6 +549,7 @@ fileList = []
 for files in os.listdir(local_path):
    if "sl_observation_status.json" in files:
       fileList.append("sl_observation_status.json")
+
 
 # Uploading local file to cloud by calling upload_to_cloud fun.
 uploadResponse = cloud_init.upload_to_cloud(filesList = fileList ,folderPathName = "observation_blob_path", local_Path = local_path )
@@ -572,30 +564,19 @@ if uploadResponse['success'] == False:
 
 sl_status_spec = {}
 
-#get Druid spec from config
-sl_status_spec = json.loads(config.get("DRUID","observation_status_injestion_spec"))
-
-
-# updating Druid spec adding type and URI'S
-for index in uploadResponse['files']:
-   if index['file'].split("/")[-1] in fileList:
-      # updating Druid spec adding type and URI'S
-      sl_status_spec["spec"]["ioConfig"]["inputSource"] = index['inputSource']
-
-
-
 successLogger.debug(
                     sl_status_spec["spec"]["ioConfig"]["inputSource"]["type"] + "\n" +
                     str(sl_status_spec["spec"]["ioConfig"]["inputSource"]["uris"]) + "\n" +
                     str(sl_status_spec)
                   )
 
+datasources = json.loads(config.get("DRUID","observation_status_injestion_spec"))["spec"]["dataSchema"]["dataSource"]
 
-datasources = [sl_status_spec["spec"]["dataSchema"]["dataSource"]]
-ingestion_specs = [json.dumps(sl_status_spec)]
+ingestion_specs = json.loads(config.get("DRUID","observation_status_injestion_spec"))
 
 druid_batch_end_point = config.get("DRUID", "batch_url")
 headers = {'Content-Type': 'application/json'}
+
 
 for i,j in zip(datasources,ingestion_specs):
    druid_end_point = config.get("DRUID", "metadata_url") + i
@@ -691,3 +672,4 @@ for i,j in zip(datasources,ingestion_specs):
                 "failed to get the timestamp of the datasource " + str(get_timestamp.status_code)
       )
       errorLogger.error(get_timestamp.text)
+

@@ -32,36 +32,22 @@ config.read(config_path[0] + "/config.ini")
 
 root_path = config_path[0]
 sys.path.append(root_path)
-
-# sys.path.append(config.get("COMMON","cloud_module_path"))
+from lib.mongoLogs import insertLog , getLogs
+from lib.database import Database
 from cloud_storage.cloud import MultiCloud
+
 cloud_init = MultiCloud()
 
+from lib.logsHandler import Logs
 
-# date formating
-current_date = datetime.date.today()
-formatted_current_date = current_date.strftime("%d-%B-%Y")
-number_of_days_logs_kept = current_date - datetime.timedelta(days=7)
-number_of_days_logs_kept = number_of_days_logs_kept.strftime("%d-%B-%Y")
 
-# file path for log
-file_path_for_output_and_debug_log = config.get('LOGS', 'survey_streaming_success_error')
-file_name_for_output_log = f"{file_path_for_output_and_debug_log}{formatted_current_date}-output.log"
-file_name_for_debug_log = f"{file_path_for_output_and_debug_log}{formatted_current_date}-debug.log"
 
-# Remove old log entries 
-files_with_date_pattern = [file 
-for file in os.listdir(file_path_for_output_and_debug_log) 
-if re.match(r"\d{2}-\w+-\d{4}-*", 
-file)]
+logHandler = Logs(config.get('LOGS', 'survey_streaming_success_error'))
 
-for file_name in files_with_date_pattern:
-    file_path = os.path.join(file_path_for_output_and_debug_log, file_name)
-    if os.path.isfile(file_path):
-        file_date = file_name.split('.')[0]
-        date = file_date.split('-')[0] + '-' + file_date.split('-')[1] + '-' + file_date.split('-')[2]
-        if date < number_of_days_logs_kept:
-            os.remove(file_path)
+file_name_for_output_log = logHandler.constructOutputLogFile()
+file_name_for_debug_log = logHandler.constructDebugLogFile()
+
+logHandler.flushLogs()
 
 # Add loggers
 formatter = logging.Formatter('%(asctime)s - %(levelname)s')
@@ -128,12 +114,10 @@ try:
     return _tmp.select(*cols)
 except Exception as e:
    print(e)
-
-# bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"*********** Survey Batch Ingestion STARTED AT: {datetime.datetime.now()} ***********\n")
 infoLogger.info(f"*********** Survey Batch Ingestion STARTED AT: {datetime.datetime.now()} ***********\n")
 
-clientProd = MongoClient(config.get('MONGO', 'url'))
-db = clientProd[config.get('MONGO', 'database_name')]
+dataBase = Database() 
+db = dataBase.connection()
 surveySubCollec = db[config.get('MONGO', 'survey_submissions_collection')]
 solutionCollec = db[config.get('MONGO', 'solutions_collection')]
 programCollec = db[config.get("MONGO", 'programs_collection')]
@@ -510,6 +494,5 @@ for i,j in zip(datasources,ingestion_specs):
          time.sleep(50)
       else:
          infoLogger.info(f"Failed to start batch ingestion task in {i}")
-         # bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Failed to start batch ingestion task in {i}")
-# bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"*********** Survey Batch Ingestion COMPLETED AT: {datetime.datetime.now()} ***********\n")	
+         
 infoLogger.info(f"*********** Survey Batch Ingestion COMPLETED AT: {datetime.datetime.now()} ***********\n")

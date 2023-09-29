@@ -33,37 +33,20 @@ config.read(config_path[0] + "/config.ini")
 
 root_path = config_path[0]
 sys.path.append(root_path)
-
 from lib.mongoLogs import insertLog , getLogs
+from lib.database import Database
 from cloud_storage.cloud import MultiCloud
 cloud_init = MultiCloud()
 
+from lib.logsHandler import Logs
 
-# date formating
-current_date = datetime.date.today()
-formatted_current_date = current_date.strftime("%d-%B-%Y")
-number_of_days_logs_kept = current_date - datetime.timedelta(days=7)
-number_of_days_logs_kept = number_of_days_logs_kept.strftime("%d-%B-%Y")
 
-# file path for log
-file_path_for_output_and_debug_log = config.get('LOGS', 'observation_status_success_error')
-file_name_for_output_log = f"{file_path_for_output_and_debug_log}{formatted_current_date}-output.log"
-file_name_for_debug_log = f"{file_path_for_output_and_debug_log}{formatted_current_date}-debug.log"
+logHandler = Logs(config.get('LOGS', 'observation_status_success_error'))
 
-# Remove old log entries
-files_with_date_pattern = [file 
-for file in os.listdir(file_path_for_output_and_debug_log) 
-if re.match(r"\d{2}-\w+-\d{4}-*", 
-file)]
+file_name_for_output_log = logHandler.constructOutputLogFile()
+file_name_for_debug_log = logHandler.constructDebugLogFile()
 
-for file_name in files_with_date_pattern:
-    file_path = os.path.join(file_path_for_output_and_debug_log, file_name)
-    if os.path.isfile(file_path):
-        file_date = file_name.split('.')[0]
-        date = file_date.split('-')[0] + '-' + file_date.split('-')[1] + '-' + file_date.split('-')[2]
-        if date < number_of_days_logs_kept:
-            os.remove(file_path)
-
+logHandler.flushLogs()
 
 formatter = logging.Formatter('%(asctime)s - %(levelname)s')
 
@@ -229,8 +212,8 @@ entity_observed = udf(lambda x,y:observed_data(x,y), StructType([
 ]))
 
 
-clientProd = MongoClient(config.get('MONGO', 'url'))
-db = clientProd[config.get('MONGO', 'database_name')]
+dataBase = Database() 
+db = dataBase.connection()
 obsSubmissionsCollec = db[config.get('MONGO', 'observation_sub_collection')]
 solutionCollec = db[config.get('MONGO', 'solutions_collection')]
 userRolesCollec = db[config.get("MONGO", 'user_roles_collection')]
@@ -674,3 +657,4 @@ else:
         "failed to start batch ingestion task of ml-obs-domain " + str(distinctCnt_obs_domain_start_supervisor.status_code)
    )
    errorLogger.error(distinctCnt_obs_domain_start_supervisor.text)
+

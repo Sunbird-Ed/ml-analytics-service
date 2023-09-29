@@ -22,10 +22,13 @@ from datetime import date
 from pyspark.sql import DataFrame
 from typing import Iterable
 from pyspark.sql.functions import element_at, split, col
-
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
+
+
+root_path = config_path[0]
+sys.path.append(root_path)
 
 # date formating
 current_date = datetime.date.today()
@@ -64,9 +67,3 @@ with open(config.get('OUTPUT_DIR', 'program_text_file'), mode='w') as file:
             file.write(f"{ids}\n")
 
 infoLogger.info(f"Gathered ProgramIDs: {datetime.datetime.now()}")
-
-
-
-
-
-

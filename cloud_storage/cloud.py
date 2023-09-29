@@ -8,7 +8,7 @@ config.read(f"{config_path[0]}/config.ini")
 
 class MultiCloud:
     '''
-    Class to initiate and store data in Cloud Service from AWS/GCP/AZURE/ORACLE
+    Class uses the ML CORE services to upload the files to respective cloud service.
     '''
 
     def __init__(self):
@@ -91,4 +91,3 @@ class MultiCloud:
                 preSignedResponse['success'] = False
                 preSignedResponse['error'] = response.text
                 return preSignedResponse
-

@@ -16,7 +16,7 @@ echo "Gather Program IDs == Started"
 echo "Gather == Completed"
 echo "*************************************"
 
-#PROJECT: Deletion
+# #PROJECT: Deletion
 echo ""
 echo "$(date)"
 echo "====================================="
@@ -24,23 +24,18 @@ echo "Daily Projects Batch Job Deletion == Started"
 . /opt/sparkjobs/spark_venv/bin/activate && python /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_deletion_batch.py
 echo "Daily Projects Batch Job Deletion == Completed"
 echo "*************************************"
+# start_time=$(date +"%Y-%m-%d %H:%M:%S")
 
-# PROJECT: Ingestion Program-wise
+# # PROJECT: Ingestion Program-wise
 echo ""
 echo "$(date)"
 echo "====================================="
 echo "Daily Projects Batch Job Ingestion == Started"
-filename="/opt/sparkjobs/ml-analytics-service/projects/program_ids.txt"
-while read line; do
-	echo $line 		
-	. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory ${driver_memory} --executor-memory ${executor_memory} /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_batch.py --program_id ${line/,}
-	. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory ${driver_memory} --executor-memory ${executor_memory} /opt/sparkjobs/ml-analytics-service/projects/pyspark_prj_status.py --program_id ${line/,}
-	. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory ${driver_memory} --executor-memory ${executor_memory} /opt/sparkjobs/ml-analytics-service/projects/pyspark_prj_status_prglevel.py --program_id ${line/,}
-n=$((n+1))
-done < $filename
+. /opt/sparkjobs/spark_venv/bin/activate  && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory ${driver_memory} --executor-memory ${executor_memory} /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_batch.py
+. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory ${driver_memory} --executor-memory ${executor_memory} /opt/sparkjobs/ml-analytics-service/projects/pyspark_prj_status.py
+. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory ${driver_memory} --executor-memory ${executor_memory} /opt/sparkjobs/ml-analytics-service/projects/pyspark_prj_status_prglevel.py 
 echo "Daily Projects Batch Job Ingestion == Completed"
 echo "*************************************"
-
 
 # OBSERVATION : Deletion and Ingestion
 echo ""
