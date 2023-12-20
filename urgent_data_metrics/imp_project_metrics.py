@@ -100,27 +100,6 @@ try:
 except Exception as e:
    errorLogger.error(e,exc_info=True)
 
-def searchEntities(url,body):
-    try:
-        headers = {
-          'Authorization': config.get('API_HEADERS', 'authorization_access_token'),
-          'content-Type': 'application/json'
-        }
-        response = requests.request("POST", url, headers=headers, data=body)
-
-        if response.status_code:
-            response = response.json()
-            data = response['result']['response']
-            entity_name_mapping = {}
-            for index in data:
-                entity_name_mapping[index['id']] = index['name']
-
-            return entity_name_mapping
-        else :
-            return False
-    except Exception as e:
-       errorLogger.error(e,exc_info=True)
-
 spark = SparkSession.builder.appName("nvsk").config(
     "spark.driver.memory", "50g"
 ).config(
@@ -190,6 +169,97 @@ projects_schema = StructType([
     ]), True),
 ])
 
+
+
+def searchEntities(url,ids_list):
+    try:
+        headers = {
+          'Authorization': config.get('API_HEADERS', 'authorization_access_token'),
+          'content-Type': 'application/json'
+        }
+        # prepare api body 
+        payload = json.dumps({
+          "request": {
+            "filters": {
+              "id": ids_list
+            }
+          }
+        })
+        response = requests.request("POST", url, headers=headers, data=payload)
+
+        if response.status_code == 200:
+            # convert the response to dictionary 
+            response = response.json()
+
+            data = response['result']['response']
+            
+            entity_name_mapping = {}
+            # prepare entity name - id mapping
+            for index in data:
+                entity_name_mapping[index['id']] = index['name']
+
+            # fetch the ids from the mapping 
+            ids_from_api = list(entity_name_mapping.keys())
+
+            # check with the input data to make sure there are no missing data from loc search 
+            delta_ids = list(set(ids_list) - set(ids_from_api))
+
+            # if there are missing data , fetch the data from mongo 
+            if len(delta_ids) > 0 :
+                # aggregate mongo query to fetch data from mongo 
+                delta_loc = projectsCollec.aggregate([
+                            {
+                              "$match": {
+                                "userProfile.userLocations": {
+                                  "$elemMatch": {
+                                    "id": {
+                                      "$in": delta_ids
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "$unwind": "$userProfile.userLocations"
+                            },
+                            {
+                              "$match": {
+                                "userProfile.userLocations.id": {
+                                  "$in": delta_ids
+                                }
+                              }
+                            },
+                            {
+                              "$sort": {
+                                "createdAt": -1
+                              }
+                            },
+                            {
+                              "$group": {
+                                "_id": "$userProfile.userLocations.id",
+                                "mostRecentDocument": { "$first": "$$ROOT" }
+                              }
+                            },
+                            {
+                              "$replaceRoot": { "newRoot": "$mostRecentDocument" }
+                            },
+                            {
+                              "$project": {
+                                "_id": 1,
+                                "userProfile.userLocations": 1
+                              }
+                            }
+                        ])
+
+                # add delta entities to master variable
+                for index in delta_loc:
+                    entity_name_mapping[index['userProfile']["userLocations"]['id']] = index['userProfile']["userLocations"]['name']
+            return entity_name_mapping
+        else :
+            return False
+    except Exception as e:
+       errorLogger.error(e,exc_info=True)
+
 projects_df = spark.createDataFrame(projects_cursorMongo,projects_schema)
 projects_df = projects_df.withColumn(
                  "project_evidence_status",
@@ -257,17 +327,10 @@ ids_list = list(set(district_to_list)) + list(set(state_to_list))
 # remove the None values from the list 
 ids_list = [value for value in ids_list if value is not None]
 
-# prepare api body 
-payload = json.dumps({
-  "request": {
-    "filters": {
-      "id": ids_list
-    }
-  }
-})
+
 
 # call function to get the entity from location master 
-response = searchEntities(config.get("API_ENDPOINTS", "base_url") + config.get("API_ENDPOINTS", "location_search"),payload)
+response = searchEntities(config.get("API_ENDPOINTS", "base_url") + config.get("API_ENDPOINTS", "location_search"),ids_list)
 
 if response :
     # Convert dictionary to list of tuples
@@ -305,7 +368,7 @@ if response :
     # Uploading file to Cloud
     cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = 'data.csv')
 
-    print("file got uploaded to AWS")
+    print("file got uploaded to Cloud.")
     print("DONE")
 
 else:
