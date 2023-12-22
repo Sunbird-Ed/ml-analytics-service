@@ -32,9 +32,9 @@ config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
 sys.path.append(config.get("COMMON", "cloud_module_path"))
 
-# from cloud import MultiCloud
+from cloud import MultiCloud
 
-# cloud_init = MultiCloud()
+cloud_init = MultiCloud()
 formatter = logging.Formatter('%(asctime)s - %(levelname)s')
 
 successLogger = logging.getLogger('success log')
@@ -188,6 +188,7 @@ def searchEntities(url,ids_list):
         response = requests.request("POST", url, headers=headers, data=payload)
         delta_ids = []
         entity_name_mapping = {}
+
         if response.status_code == 200:
             # convert the response to dictionary 
             response = response.json()
@@ -207,6 +208,7 @@ def searchEntities(url,ids_list):
         else :
             delta_ids = ids_list
         # if there are missing data , fetch the data from mongo 
+
         if len(delta_ids) > 0 :
           # aggregate mongo query to fetch data from mongo 
           delta_loc = projectsCollec.aggregate([
@@ -255,9 +257,8 @@ def searchEntities(url,ids_list):
               # add delta entities to master variable
           for index in delta_loc:
             entity_name_mapping[index['userProfile']["userLocations"]['id']] = index['userProfile']["userLocations"]['name']
-          return entity_name_mapping
-        else:
-            return False
+
+        return entity_name_mapping
         
     except Exception as e:
        errorLogger.error(e,exc_info=True)
@@ -368,7 +369,7 @@ if response :
     os.rename(f'{path}' + f'{result[0]}', f'{path}' + 'data.csv')
 
     # Uploading file to Cloud
-    # cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = 'data.csv')
+    cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = 'data.csv')
 
     print("file got uploaded to Cloud.")
     print("DONE")
