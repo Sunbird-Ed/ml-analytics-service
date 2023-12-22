@@ -15,6 +15,11 @@ authorization = {{ ml_analytics_api_authorization_key }}
 
 internal_access_token = {{ ml_analytics_api_access_token }}
 
+[API_ENDPOINTS]
+
+base_url = {{ ml_analytics_api_base_url }}
+
+location_search = api/data/v1/location/search
 
 [ML_SURVEY_SERVICE_URL]
 
