@@ -6,7 +6,7 @@
 #  entity information
 # -----------------------------------------------------------------
 
-import json, sys, re, time 
+import json, sys, re, time , constants
 from configparser import ConfigParser,ExtendedInterpolation
 from pymongo import MongoClient
 from bson.objectid import ObjectId
@@ -25,46 +25,34 @@ from pyspark.sql.functions import element_at, split, col
 import logging
 import logging.handlers
 from logging.handlers import  RotatingFileHandler, TimedRotatingFileHandler 
-import glob
+import glob,requests
 
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
-sys.path.append(config.get("COMMON", "cloud_module_path"))
 
-from cloud import MultiCloud
+root_path = config_path[0]
+sys.path.append(root_path)
+from cloud_storage.cloud import MultiCloud
 cloud_init = MultiCloud()
+from lib.database import Database
 
+from lib.logsHandler import Logs
 
-# Date formating
-current_date = datetime.date.today()
-formatted_current_date = current_date.strftime("%d-%B-%Y")
-number_of_days_logs_kept = current_date - datetime.timedelta(days=7)
-number_of_days_logs_kept = number_of_days_logs_kept.strftime("%d-%B-%Y")
+f = open(config.get('OUTPUT_DIR', 'program_text_file'), "r")
+projectId_list = f.read()
+projectId_list = projectId_list.split("\n")
 
-# Files path for logs
-file_path_for_output_and_debug_log = config.get('LOGS', 'project_success_error')
-file_name_for_output_log = f"{file_path_for_output_and_debug_log}{formatted_current_date}-output.log"
-file_name_for_debug_log = f"{file_path_for_output_and_debug_log}{formatted_current_date}-debug.log"
+logHandler = Logs(config.get('LOGS', 'project_success_error'))
 
-# Remove old log entries 
-files_with_date_pattern = [file 
-for file in os.listdir(file_path_for_output_and_debug_log) 
-if re.match(r"\d{2}-\w+-\d{4}-*", 
-file)]
+file_name_for_output_log = logHandler.constructOutputLogFile()
+file_name_for_debug_log = logHandler.constructDebugLogFile()
 
-for file_name in files_with_date_pattern:
-    file_path = os.path.join(file_path_for_output_and_debug_log, file_name)
-    if os.path.isfile(file_path):
-        file_date = file_name.split('.')[0]
-        date = file_date.split('-')[0] + '-' + file_date.split('-')[1] + '-' + file_date.split('-')[2]
-        if date < number_of_days_logs_kept:
-            os.remove(file_path)
+logHandler.flushLogs()
 
-# Add loggers
 formatter = logging.Formatter('%(asctime)s - %(levelname)s')
 
-# handler for output and debug Log
+# Handler for output and debug Log
 output_logHandler = RotatingFileHandler(f"{file_name_for_output_log}")
 output_logHandler.setFormatter(formatter)
 
@@ -137,8 +125,9 @@ spark = SparkSession.builder.appName("nvsk").config(
 
 sc = spark.sparkContext
 
-clientProd = MongoClient(config.get('MONGO', 'mongo_url'))
-db = clientProd[config.get('MONGO', 'database_name')]
+dataBase = Database()
+db = dataBase.connection()
+
 projectsCollec = db[config.get('MONGO', 'projects_collection')]
 
 projects_cursorMongo = projectsCollec.aggregate(
@@ -149,7 +138,8 @@ projects_cursorMongo = projectsCollec.aggregate(
             "status": 1,
             "attachments":1,
             "tasks": {"attachments":1,"_id": {"$toString": "$_id"}},
-            "userProfile": 1
+            "userProfile": 1,
+            "userRoleInformation" : {"district":1,"state": 1},
         }
     }]
 )
@@ -186,10 +176,62 @@ projects_schema = StructType([
                   ]),True)
           )
           ])
-    )
+    ),
+    StructField("userRoleInformation", StructType([
+        StructField("district", StringType(), True),
+        StructField("state", StringType(), True)
+    ]), True),
 ])
 
+def searchEntities(url,ids_list):
+    try:
+        returnData = {}
+        apiSuccessFlag = False
+        headers = {
+          'Authorization': config.get('API_HEADERS', 'authorization_access_token'),
+          'content-Type': 'application/json'
+        }
+        # prepare api body 
+        payload = json.dumps({
+          "request": {
+            "filters": {
+              "id": ids_list
+            }
+          }
+        })
+        response = requests.request("POST", url, headers=headers, data=payload)
+        delta_ids = []
+        entity_name_mapping = {}
+        
+        if response.status_code == 200:
+            # convert the response to dictionary 
+            response = response.json()
+
+            data = response['result']['response']
+            
+            entity_name_mapping = {}
+            # prepare entity name - id mapping
+            for index in data:
+                entity_name_mapping[index['id']] = index['name']
+
+            # fetch the ids from the mapping 
+            ids_from_api = list(entity_name_mapping.keys())
+
+            # check with the input data to make sure there are no missing data from loc search 
+            delta_ids = list(set(ids_list) - set(ids_from_api))
+            apiSuccessFlag = True
+        else :
+            delta_ids = ids_list
+        returnData['mapping'] = entity_name_mapping
+        returnData['apiSuccessFlag'] = apiSuccessFlag
+        returnData['delta'] = delta_ids
+        return returnData
+        
+    except Exception as e:
+       errorLogger.error(e,exc_info=True)
+
 projects_df = spark.createDataFrame(projects_cursorMongo,projects_schema)
+
 projects_df = projects_df.withColumn(
                  "project_evidence_status",
                  F.when(
@@ -215,87 +257,119 @@ projects_df = projects_df.withColumn(
 projects_df = projects_df.withColumn(
    "exploded_userLocations",F.explode_outer(projects_df["userProfile"]["userLocations"])
 )
+
 entities_df = melt(projects_df,
-        id_vars=["_id","exploded_userLocations.name","exploded_userLocations.type","exploded_userLocations.id"],
+        id_vars=["_id","exploded_userLocations.name","exploded_userLocations.type","exploded_userLocations.id","userRoleInformation.district","userRoleInformation.state"],
         value_vars=["exploded_userLocations.code"]
-    ).select("_id","name","value","type","id").dropDuplicates()
-entities_df = entities_df.withColumn("variable",F.concat(F.col("type"),F.lit("_externalId")))
-entities_df = entities_df.withColumn("variable1",F.concat(F.col("type"),F.lit("_name")))
-entities_df = entities_df.withColumn("variable2",F.concat(F.col("type"),F.lit("_code")))
+    ).select("_id","name","value","type","id","district","state").dropDuplicates()
 
-entities_df_id=entities_df.groupBy("_id").pivot("variable").agg(first("id"))
-
-entities_df_name=entities_df.groupBy("_id").pivot("variable1").agg(first("name"))
-
-entities_df_value=entities_df.groupBy("_id").pivot("variable2").agg(first("value"))
-
-entities_df_med=entities_df_id.join(entities_df_name,["_id"],how='outer')
-entities_df_res=entities_df_med.join(entities_df_value,["_id"],how='outer')
-entities_df_res=entities_df_res.drop('null')
-
-projects_df = projects_df.join(entities_df_res,projects_df["_id"]==entities_df_res["_id"],how='left')\
-        .drop(entities_df_res["_id"])
+projects_df = projects_df.join(entities_df,projects_df["_id"]==entities_df["_id"],how='left')\
+        .drop(entities_df["_id"])
 projects_df = projects_df.filter(F.col("status") != "null")
+
 entities_df.unpersist()
+
+
 projects_df_final = projects_df.select(
               projects_df["_id"].alias("project_id"),
               projects_df["status"],
               projects_df["evidence_status"],
-              projects_df["school_name"],
-              projects_df["school_externalId"],
-              projects_df["school_code"],
-              projects_df["block_name"],
-              projects_df["block_externalId"],
-              projects_df["block_code"],
-              projects_df["state_name"],
-              projects_df["state_externalId"],
-              projects_df["state_code"],
-              projects_df["district_name"],
-              projects_df["district_externalId"],
-              projects_df["district_code"]
+              projects_df["district"],
+              projects_df["state"],
            )
+# DataFrame for user locations values of State and Districts only 
+userLocations_df = melt(projects_df,
+        id_vars=["_id","exploded_userLocations.name","exploded_userLocations.type","exploded_userLocations.id"],
+        value_vars=["exploded_userLocations.code"]
+    ).select("_id","id","name","value","type").filter((col("type") == "state") | (col("type") == "district")).dropDuplicates()
+
+# Fetch only Latest Data of Locations from the DF 
+userLocations_df = userLocations_df.groupBy("id").agg(
+    first("_id", ignorenulls=True).alias("projectId"),
+    first("name", ignorenulls=True).alias("name"),
+    first("value", ignorenulls=True).alias("value"),
+    first("type", ignorenulls=True).alias("type")
+)
 projects_df_final = projects_df_final.dropDuplicates()
 
-district_final_df = projects_df_final.groupBy("state_name","district_name").agg(countDistinct(F.col("project_id")).alias("Total_Micro_Improvement_Projects"),countDistinct(when(F.col("status") == "started",True),F.col("project_id")).alias("Total_Micro_Improvement_Started"),countDistinct(when(F.col("status") == "inProgress",True),F.col("project_id")).alias("Total_Micro_Improvement_InProgress"),countDistinct(when(F.col("status") == "submitted",True),F.col("project_id")).alias("Total_Micro_Improvement_Submitted"),countDistinct(when((F.col("evidence_status") == True)&(F.col("status") == "submitted"),True),F.col("project_id")).alias("Total_Micro_Improvement_Submitted_With_Evidence")).sort("state_name","district_name")
+district_final_df = projects_df_final.groupBy("state","district")\
+    .agg(countDistinct(F.col("project_id")).alias("Total_Micro_Improvement_Projects"),countDistinct(when(F.col("status") == "started",True)\
+    ,F.col("project_id")).alias("Total_Micro_Improvement_Started"),countDistinct(when(F.col("status") == "inProgress",True),\
+    F.col("project_id")).alias("Total_Micro_Improvement_InProgress"),countDistinct(when(F.col("status") == "submitted",True),\
+    F.col("project_id")).alias("Total_Micro_Improvement_Submitted"),\
+    countDistinct(when((F.col("evidence_status") == True)&(F.col("status") == "submitted"),True),\
+    F.col("project_id")).alias("Total_Micro_Improvement_Submitted_With_Evidence")).sort("state","district")
 
-state_final_df = projects_df_final.groupBy("state_name").agg(countDistinct(F.col("project_id")).alias("Total_Micro_Improvement_Projects")).sort("state_name")
+# select only  district ids from the Dataframe 
+district_to_list = projects_df_final.select("district").rdd.flatMap(lambda x: x).collect()
+# select only  state ids from the Dataframe 
+state_to_list = projects_df_final.select("state").rdd.flatMap(lambda x: x).collect()
+
+# merge the list of district and state ids , remove the duplicates 
+ids_list = list(set(district_to_list)) + list(set(state_to_list))
+
+# remove the None values from the list 
+ids_list = [value for value in ids_list if value is not None]
 
 
+
+# call function to get the entity from location master 
+response = searchEntities(config.get("API_ENDPOINTS", "base_url") + str(constants.location_search) ,ids_list)
+
+data_tuples = [] #empty List for creating the DF
+
+# if Location search API is success get the mapping details from API
+if response['apiSuccessFlag']:
+  # Convert dictionary to list of tuples
+  data_tuples = list(response['mapping'].items())
+
+# if any delta ids found , fetch the details from DF 
+if response['delta']:
+      delta_ids_from_response = userLocations_df.filter(col("id").isin(response['delta']))
+      for row in delta_ids_from_response.collect() :
+          data_tuples.append((row['id'],row['name']))
+
+# Define the schema for State details
+state_schema = StructType([StructField("id", StringType(), True), StructField("state_name", StringType(), True)])
+
+# Define the schema for District details
+district_schema = StructType([StructField("id", StringType(), True), StructField("district_name", StringType(), True)])
+
+# Create a DataFrame for State 
+state_id_mapping = spark.createDataFrame(data_tuples, schema=state_schema)
+
+# Create a DataFrame for District
+district_id_mapping = spark.createDataFrame(data_tuples, schema=district_schema)
+
+# Join to get the State names from State ids 
+district_final_df = district_final_df.join(state_id_mapping, district_final_df["state"] == state_id_mapping["id"], "left")
+# Join to get the State names from District ids 
+district_final_df = district_final_df.join(district_id_mapping, district_final_df["district"] == district_id_mapping["id"], "left")
+# Select only relevant fields to prepare the final DF , Sort it wrt state names
+final_data_to_csv = district_final_df.select("state_name","district_name","Total_Micro_Improvement_Projects","Total_Micro_Improvement_Started","Total_Micro_Improvement_InProgress","Total_Micro_Improvement_Submitted","Total_Micro_Improvement_Submitted_With_Evidence").sort("state_name","district_name")
 # DF To file
 local_path = config.get("COMMON", "nvsk_imp_projects_data_local_path")
 blob_path = config.get("COMMON", "nvsk_imp_projects_data_blob_path")
-district_final_df.coalesce(1).write.format("csv").option("header",True).mode("overwrite").save(local_path)
-district_final_df.unpersist()
-
-
+final_data_to_csv.coalesce(1).write.format("csv").option("header",True).mode("overwrite").save(local_path)
+final_data_to_csv.unpersist()
 # Renaming a file
 path = local_path
 extension = 'csv'
 os.chdir(path)
 result = glob.glob(f'*.{extension}')
 os.rename(f'{path}' + f'{result[0]}', f'{path}' + 'data.csv')
-
-
 # Uploading file to Cloud
-cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = 'data.csv')
 
-# DF To file - State
-state_local_path = config.get("COMMON", "nvsk_imp_projects_state_data_local_path")
-state_blob_path = config.get("COMMON", "nvsk_imp_projects_state_data_blob_path")
-state_final_df.coalesce(1).write.format("csv").option("header",True).mode("overwrite").save(state_local_path)
-state_final_df.unpersist()
+fileList = ["data.json"]
 
+uploadResponse = cloud_init.upload_to_cloud(filesList = fileList,folderPathName = "nvsk_imp_projects_data_blob_path", local_Path = local_path )
+successLogger.debug("cloud upload response : " + str(uploadResponse))
 
-# Renaming a file - State
-state_path = state_local_path
-extension = 'csv'
-os.chdir(state_path)
-state_result = glob.glob(f'*.{extension}')
-os.rename(f'{state_path}' + f'{state_result[0]}', f'{state_path}' + 'state_data.csv')
-
-
-# Uploading file to Cloud - State
-cloud_init.upload_to_cloud(blob_Path = state_blob_path, local_Path = state_local_path, file_Name = 'state_data.csv')
-
-print("file got uploaded to AWS")
+if uploadResponse['success'] == False:
+  errorLogger.error("Cloud Upload Failed.", exc_info=True)
+  errorLogger.error("Cloud Upload Response : "+ str(uploadResponse), exc_info=True)
+  sys.exit()
+print("Cloud upload Success")
+# cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = 'data.csv')
+print("file got uploaded to Cloud.")
 print("DONE")

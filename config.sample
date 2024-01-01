@@ -17,6 +17,11 @@ internal_access_token = {{ ml_analytics_api_access_token }}
 
 authorization_access_token = {{ ml_analytics_authorization_access_token }}
 
+[API_ENDPOINTS]
+
+base_url = {{ ml_analytics_api_base_url }}
+
+location_search = api/data/v1/location/search
 
 [ML_SURVEY_SERVICE_URL]
 
@@ -32,6 +37,8 @@ evidence_base_url = {{ ml_analytics_evidence_base_url }}
 [MONGO]
 
 url = mongodb://{{ ml_analytics_mongodb_url }}
+
+mongo_url = mongodb://{{ ml_analytics_mongodb_url }}
 
 database_name = {{ ml_analytics_mongo_db_name }}
 
@@ -314,3 +321,8 @@ key = {{ ml_analytics_reports_key }}
 [REPORT_IDS]
 
 update_tag = {{ ml_analytics_update_tag }}
+
+
+[ML_CORE_SERVICE_URL]
+
+url = {{ ml_analytics_core_service }}
