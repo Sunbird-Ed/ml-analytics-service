@@ -6,7 +6,7 @@
 #  entity information
 # -----------------------------------------------------------------
 
-import json, sys, time
+import json, sys, time , csv
 from configparser import ConfigParser,ExtendedInterpolation
 from pymongo import MongoClient
 from bson.objectid import ObjectId
@@ -347,5 +347,32 @@ result = glob.glob(f'*.{extension}')
 os.rename(f'{path}' + f'{result[0]}', f'{path}' + 'data.csv')
 # Uploading file to Cloud
 cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = 'data.csv')
+
+json_keys = ["state_name","district_name","Total_Micro_Improvement_Projects","Total_Micro_Improvement_Started","Total_Micro_Improvement_InProgress","Total_Micro_Improvement_Submitted","Total_Micro_Improvement_Submitted_With_Evidence"]
+jsonTableData = []
+# Open the CSV file
+with open(os.path.join(local_path,'data.csv'), 'r') as file:
+    # Create a CSV reader object
+    csv_reader = csv.reader(file)
+
+    # Skip the header row
+    next(csv_reader)
+
+    for row in csv_reader:
+        jsonTableData.append(row)
+
+final_json = {
+    'keys' : json_keys,
+    'tableData' : jsonTableData
+}
+
+# Open the Json file
+with open(os.path.join(local_path,'json-data.json'), 'w') as json_file:
+    json.dump(final_json, json_file, indent=2) 
+
+# Uploading file to Cloud
+cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = 'json-data.csv')
+
+
 print("file got uploaded to Cloud.")
 print("DONE")
