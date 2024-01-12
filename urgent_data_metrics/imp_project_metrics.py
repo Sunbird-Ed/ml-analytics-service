@@ -371,11 +371,10 @@ with open(os.path.join(local_path,'micro_improvement.json'), 'w') as json_file:
     json.dump(final_json, json_file, indent=2) 
 
 os.rename(f'{path}' + f'{result[0]}', f'{path}' + 'micro_improvement.csv')
-customBucket = {'bucket_name' : 'dev-diksha-privatereports'}
 # Uploading file to Cloud
-cloud_init.upload_to_cloud(blob_Path = "Manage_Learn_Data/micro_improvement", local_Path = local_path, file_Name = 'micro_improvement.json',customBucket = customBucket)
+cloud_init.upload_to_NVSK_cloud(blob_Path = "Manage_Learn_Data/micro_improvement", local_Path = local_path, file_Name = 'micro_improvement.json')
 
-cloud_init.upload_to_cloud(blob_Path = "Manage_Learn_Data/micro_improvement", local_Path = local_path, file_Name = 'micro_improvement.csv',customBucket = customBucket)
+cloud_init.upload_to_NVSK_cloud(blob_Path = "Manage_Learn_Data/micro_improvement", local_Path = local_path, file_Name = 'micro_improvement.csv')
 
 
 print("file got uploaded to Cloud.")

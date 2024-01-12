@@ -21,7 +21,7 @@ class MultiCloud:
         '''
         self.sections = config.sections()
 
-    def upload_to_cloud(self, blob_Path, local_Path, file_Name,customBucket = False):
+    def upload_to_cloud(self, blob_Path, local_Path, file_Name):
         '''
         Function to upload the file to respective cloud based on the available section in the config file
 
@@ -74,12 +74,22 @@ class MultiCloud:
                     endpoint_url = config.get("ORACLE", "endpoint_url"),
                     bucketName = config.get("ORACLE", "bucket_name")
                 )
-                if customBucket:
-                    oracle_service = Oracle(
-                    regionName = config.get("ORACLE", "region_name"),
-                    accessKey = config.get("ORACLE", "access_key"),
-                    secretAccessKey = config.get("ORACLE", "secret_access_key"),
-                    endpoint_url = config.get("ORACLE", "endpoint_url"),
-                    bucketName = customBucket.bucket_name
-                )     
                 oracle_service.upload_files(bucketPath = blob_Path, localPath = local_Path, fileName = file_Name)
+
+    def upload_to_NVSK_cloud(self, blob_Path, local_Path, file_Name,customBucket = False):
+        '''
+        Function to upload the file to respective cloud based on the available section in the config file
+
+        :param: blob_Path - The path where the file would be stored in the cloud 
+        :param: local_Path - The path where the file is in the local server
+        :param: file_Name - The name of the file that is being updated
+        '''
+
+        oracle_service = Oracle(
+        regionName = config.get("ORACLE", "region_name"),
+        accessKey = config.get("ORACLE", "access_key"),
+        secretAccessKey = config.get("ORACLE", "secret_access_key"),
+        endpoint_url = config.get("ORACLE", "endpoint_url"),
+        bucketName = "dev-diksha-privatereports"
+                )     
+        oracle_service.upload_files(bucketPath = blob_Path, localPath = local_Path, fileName = file_Name)
