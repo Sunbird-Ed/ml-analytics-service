@@ -6,7 +6,7 @@
 #  entity information
 # -----------------------------------------------------------------
 
-import json, sys, re, time , constants
+import json, sys, re, time , constants,csv
 from configparser import ConfigParser,ExtendedInterpolation
 from pymongo import MongoClient
 from bson.objectid import ObjectId
@@ -324,8 +324,6 @@ ids_list = list(set(district_to_list)) + list(set(state_to_list))
 # remove the None values from the list 
 ids_list = [value for value in ids_list if value is not None]
 
-
-
 # call function to get the entity from location master 
 response = searchEntities(config.get("API_ENDPOINTS", "base_url") + str(constants.location_search) ,ids_list)
 
@@ -372,8 +370,33 @@ os.chdir(path)
 result = glob.glob(f'*.{extension}')
 os.rename(f'{path}' + f'{result[0]}', f'{path}' + 'data.csv')
 
-# Uploading file to Cloud
-fileList = ["data.json"]
+json_keys = ["state_name","district_name","Total_Micro_Improvement_Projects","Total_Micro_Improvement_Started","Total_Micro_Improvement_InProgress","Total_Micro_Improvement_Submitted","Total_Micro_Improvement_Submitted_With_Evidence"]
+jsonTableData = []
+
+# Open the CSV file
+with open(os.path.join(local_path,'data.csv'), 'r') as file:
+    # Create a CSV reader object
+    csv_reader = csv.reader(file)
+
+    # Skip the header row
+    next(csv_reader)
+
+    for row in csv_reader:
+        jsonTableData.append(row)
+
+final_json = {
+    'keys' : json_keys,
+    'tableData' : jsonTableData
+}
+
+# Open the Json file
+with open(os.path.join(local_path,'micro_improvement.json'), 'w') as json_file:
+    json.dump(final_json, json_file, indent=2) 
+
+os.rename(os.path.join(local_path,'data.csv'), f'{local_path}' + 'micro_improvement.csv')
+
+# Uploading file to Cloud 
+fileList = ["micro_improvement.csv","micro_improvement.json"]
 
 uploadResponse = cloud_init.upload_to_cloud(filesList = fileList,folderPathName = "nvsk_imp_projects_data_blob_path", local_Path = local_path )
 successLogger.debug("cloud upload response : " + str(uploadResponse))
@@ -382,6 +405,7 @@ if uploadResponse['success'] == False:
   errorLogger.error("Cloud Upload Failed.", exc_info=True)
   errorLogger.error("Cloud Upload Response : "+ str(uploadResponse), exc_info=True)
   sys.exit()
+
 print("Cloud upload Success")
 print("file got uploaded to Cloud.")
 print("DONE")
