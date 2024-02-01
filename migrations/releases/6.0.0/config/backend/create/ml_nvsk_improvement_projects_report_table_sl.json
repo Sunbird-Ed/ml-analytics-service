@@ -1,0 +1,382 @@
+{
+    "request": {
+      "reportId": "ml_nvsk_improvement_projects_report_table_sl",
+      "config": {
+        "streamQuery": true,
+        "reportConfig": {
+          "id": "ml_nvsk_improvement_projects_report_table_sl",
+          "mergeConfig": {
+            "postContainer": "$postContainer",
+            "container": "$container",
+            "basePath": "/mount/data/analytics/tmp",
+            "reportPath": "ml_nvsk_improvement_projects_report_table_sl.csv",
+            "rollup": 0
+          },
+          "labels": {
+            "state_name": "State Name",
+            "district_name": "District Name",
+            "total_content_plays_on_portal": "Total Micro Improvement Projects",
+            "total_scans_on_portal": "Total Micro Improvement Started",
+            "total_content_plays_on_desktop": "Total Micro Improvement InProgress",
+            "total_content_plays_on_app": "Total Micro Improvement Submitted",
+            "legend": "Improvement projects status by district",
+            "SUM(no_of_imp_with_evidence)": "total_content_plays",
+            "total_content_plays": "Total Micro Improvement Submitted With Evidence"
+          },
+          "dateRange": {
+            "staticInterval": "LastDay",
+            "granularity": "all",
+            "intervalSlider": 0
+          },
+          "metrics": [
+            {
+              "metric": "total_content_plays_on_portal",
+              "label": "total_content_plays_on_portal",
+              "druidQuery": {
+                "dataSource": "ml-project-status",
+                "limitSpec": {
+                  "type": "default",
+                  "limit": 50000,
+                  "columns": [
+                    {
+                      "dimension": "SUM(unique_projects)",
+                      "direction": "descending"
+                    }
+                  ]
+                },
+                "filters": [
+                  {
+                    "dimension": "state_name",
+                    "type": "isnotnull"
+                  },
+                  {
+                    "dimension": "district_name",
+                    "type": "isnotnull"
+                  },
+                  {
+                    "type": "equals",
+                    "dimension": "private_program",
+                    "value": "false"
+                  },
+                  {
+                    "type": "regex",
+                    "dimension": "program_name",
+                    "value": "^((?!(?i)(test)).)*$"
+                  }
+                ],
+                "granularity": "all",
+                "dimensions": [
+                  {
+                    "fieldName": "state_name",
+                    "aliasName": "State Name"
+                  },
+                  {
+                    "fieldName": "program_name",
+                    "aliasName": "Program Name"
+                  },
+                  {
+                    "fieldName": "district_name",
+                    "aliasName": "District Name"
+                  }
+                ],
+                "aggregations": [
+                  {
+                    "fieldName": "unique_projects",
+                    "type": "longSum",
+                    "name": "total_content_plays_on_portal"
+                  }
+                ],
+                "queryType": "groupBy"
+              }
+            },
+            {
+              "metric": "total_scans_on_portal",
+              "label": "Total Micro Improvement Started",
+              "druidQuery": {
+                "dataSource": "ml-project-status",
+                "limitSpec": {
+                  "type": "default",
+                  "limit": 50000,
+                  "columns": [
+                    {
+                      "dimension": "SUM(unique_users)",
+                      "direction": "descending"
+                    }
+                  ]
+                },
+                "filters": [
+                  {
+                    "type": "equals",
+                    "dimension": "status_of_project",
+                    "value": "started"
+                  },
+                  {
+                    "dimension": "state_name",
+                    "type": "isnotnull"
+                  },
+                  {
+                    "dimension": "district_name",
+                    "type": "isnotnull"
+                  },
+                  {
+                    "type": "equals",
+                    "dimension": "private_program",
+                    "value": "false"
+                  },
+                  {
+                    "type": "regex",
+                    "dimension": "program_name",
+                    "value": "^((?!(?i)(test)).)*$"
+                  }
+                ],
+                "granularity": "all",
+                "dimensions": [
+                  {
+                    "fieldName": "state_name",
+                    "aliasName": "State Name"
+                  },
+                  {
+                    "fieldName": "program_name",
+                    "aliasName": "Program Name"
+                  },
+                  {
+                    "fieldName": "district_name",
+                    "aliasName": "District Name"
+                  }
+                ],
+                "aggregations": [
+                  {
+                    "fieldName": "unique_users",
+                    "type": "longSum",
+                    "name": "total_scans_on_portal"
+                  }
+                ],
+                "queryType": "groupBy"
+              }
+            },
+            {
+              "metric": "total_content_plays_on_desktop",
+              "label": "Total Micro Improvement InProgress",
+              "druidQuery": {
+                "dataSource": "ml-project-status",
+                "limitSpec": {
+                  "type": "default",
+                  "limit": 50000,
+                  "columns": [
+                    {
+                      "dimension": "SUM(unique_users)",
+                      "direction": "descending"
+                    }
+                  ]
+                },
+                "filters": [
+                  {
+                    "type": "equals",
+                    "dimension": "status_of_project",
+                    "value": "inProgress"
+                  },
+                  {
+                    "dimension": "state_name",
+                    "type": "isnotnull"
+                  },
+                  {
+                    "dimension": "district_name",
+                    "type": "isnotnull"
+                  },
+                  {
+                    "type": "equals",
+                    "dimension": "private_program",
+                    "value": "false"
+                  },
+                  {
+                    "type": "regex",
+                    "dimension": "program_name",
+                    "value": "^((?!(?i)(test)).)*$"
+                  }
+                ],
+                "granularity": "all",
+                "dimensions": [
+                  {
+                    "fieldName": "state_name",
+                    "aliasName": "State Name"
+                  },
+                  {
+                    "fieldName": "program_name",
+                    "aliasName": "Program Name"
+                  },
+                  {
+                    "fieldName": "district_name",
+                    "aliasName": "District Name"
+                  }
+                ],
+                "aggregations": [
+                  {
+                    "fieldName": "unique_users",
+                    "type": "longSum",
+                    "name": "total_content_plays_on_desktop"
+                  }
+                ],
+                "queryType": "groupBy"
+              }
+            },
+            {
+              "metric": "total_content_plays_on_app",
+              "label": "Total Micro Improvement Submitted",
+              "druidQuery": {
+                "dataSource": "ml-project-status",
+                "limitSpec": {
+                  "type": "default",
+                  "limit": 50000,
+                  "columns": [
+                    {
+                      "dimension": "SUM(unique_users)",
+                      "direction": "descending"
+                    }
+                  ]
+                },
+                "filters": [
+                  {
+                    "type": "equals",
+                    "dimension": "status_of_project",
+                    "value": "submitted"
+                  },
+                  {
+                    "dimension": "state_name",
+                    "type": "isnotnull"
+                  },
+                  {
+                    "dimension": "district_name",
+                    "type": "isnotnull"
+                  },
+                  {
+                    "type": "equals",
+                    "dimension": "private_program",
+                    "value": "false"
+                  },
+                  {
+                    "type": "regex",
+                    "dimension": "program_name",
+                    "value": "^((?!(?i)(test)).)*$"
+                  }
+                ],
+                "granularity": "all",
+                "dimensions": [
+                  {
+                    "fieldName": "state_name",
+                    "aliasName": "State Name"
+                  },
+                  {
+                    "fieldName": "program_name",
+                    "aliasName": "Program Name"
+                  },
+                  {
+                    "fieldName": "district_name",
+                    "aliasName": "District Name"
+                  }
+                ],
+                "aggregations": [
+                  {
+                    "fieldName": "unique_users",
+                    "type": "longSum",
+                    "name": "total_content_plays_on_app"
+                  }
+                ],
+                "queryType": "groupBy"
+              }
+            },
+            {
+              "metric": "total_content_plays",
+              "label": "Total Micro Improvement Submitted With Evidence",
+              "druidQuery": {
+                "dataSource": "ml-project-status",
+                "limitSpec": {
+                  "type": "default",
+                  "limit": 50000,
+                  "columns": [
+                    {
+                      "dimension": "SUM(no_of_imp_with_evidence)",
+                      "direction": "descending"
+                    }
+                  ]
+                },
+                "filters": [
+                  {
+                    "type": "equals",
+                    "dimension": "status_of_project",
+                    "value": "submitted"
+                  },
+                  {
+                    "dimension": "state_name",
+                    "type": "isnotnull"
+                  },
+                  {
+                    "dimension": "district_name",
+                    "type": "isnotnull"
+                  },
+                  {
+                    "type": "equals",
+                    "dimension": "private_program",
+                    "value": "false"
+                  },
+                  {
+                    "type": "regex",
+                    "dimension": "program_name",
+                    "value": "^((?!(?i)(test)).)*$"
+                  }
+                ],
+                "granularity": "all",
+                "dimensions": [
+                  {
+                    "fieldName": "state_name",
+                    "aliasName": "State Name"
+                  },
+                  {
+                    "fieldName": "program_name",
+                    "aliasName": "Program Name"
+                  },
+                  {
+                    "fieldName": "district_name",
+                    "aliasName": "District Name"
+                  }
+                ],
+                "aggregations": [
+                  {
+                    "fieldName": "no_of_imp_with_evidence",
+                    "type": "longSum",
+                    "name": "total_content_plays"
+                  }
+                ],
+                "queryType": "groupBy"
+              }
+            }
+          ],
+          "output": [
+            {
+              "type": "csv",
+              "metrics": [
+                "total_content_plays_on_portal",
+                "total_scans_on_portal",
+                "total_content_plays_on_desktop",
+                "total_content_plays_on_app",
+                "total_content_plays"
+              ],
+              "dims": [
+                "date"
+              ],
+              "fileParameters": [
+                "id",
+                "dims"
+              ]
+            }
+          ],
+          "queryType": "groupBy"
+        },
+        "container": "$container",
+        "store": "$store",
+        "key": "hawk-eye/"
+      },
+      "createdBy": "$createdBy",
+      "description": "The table will show no. of improvements started, in progress, submitted and submitted with evidence state, district  wise",
+      "reportSchedule": "DAILY"
+    }
+  }

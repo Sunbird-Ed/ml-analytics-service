@@ -1,0 +1,109 @@
+{
+    "request": {
+      "report":
+        {
+          "title": "NVSK Improvement Projects Report",
+          "description": "This report will track the no. of improvements based on State & District",
+          "authorizedroles": [
+            "REPORT_ADMIN",
+            "REPORT_VIEWER"
+          ],
+          "status": "draft",
+          "type": "public",
+          "createdby": "$createdby",
+          "reportconfig": {
+            "label": "NVSK Improvement Projects Report",
+            "table": [
+              {
+                "id": "ml_nvsk_improvement_projects_report_table_sl",
+                "name": "Improvement projects status by State/District",
+                "config": {
+                  "paging": true,
+                  "filters": [
+                    {
+                      "label": "State Name",
+                      "reference": "State Name",
+                      "searchable": true,
+                      "controlType": "multi-select",
+                      "displayName": "District",
+                      "placeholder": "Select State"
+                    },
+                    {
+                      "label": "District Name",
+                      "reference": "District Name",
+                      "searchable": true,
+                      "controlType": "multi-select",
+                      "displayName": "District2",
+                      "placeholder": "Select District"
+                    }
+                  ],
+                  "lengthMenu": [
+                    25,
+                    50,
+                    75,
+                    100
+                  ],
+                  "searchable": true,
+                  "columnConfig": [
+                    {
+                      "data": "State Name",
+                      "title": "State Name"
+                    },
+                    {
+                      "data": "District Name",
+                      "title": "District Name"
+                    },
+                    {
+                      "data": "Total Micro Improvement Projects",
+                      "title": "Total Micro Improvement Projects"
+                    },
+                    {
+                      "data": "Total Micro Improvement Started",
+                      "title": "Total Micro Improvement Started"
+                    },
+                    {
+                      "data": "Total Micro Improvement InProgress",
+                      "title": "Total Micro Improvement InProgress"
+                    },
+                    {
+                      "data": "Total Micro Improvement Submitted",
+                      "title": "Total Micro Improvement Submitted"
+                    },
+                    {
+                      "data": "Total Micro Improvement Submitted With Evidence",
+                      "title": "Total Micro Improvement Submitted With Evidence"
+                    }
+                  ],
+                  "bLengthChange": true
+                },
+                "valuesExpr": "tableData",
+                "columnsExpr": "keys",
+                "downloadUrl": "/reports/fetch/hawk-eye/ml_nvsk_improvement_projects_report_table_sl.csv"
+              }
+            ],
+            "dataSource": [
+              {
+                "id": "ml_nvsk_improvement_projects_report_table_sl",
+                "path": "/reports/fetch/hawk-eye/ml_nvsk_improvement_projects_report_table_sl.json"
+              }
+            ],
+            "description": "This report will track the no. of improvements based on State & District",
+            "downloadUrl": ""
+          },
+          "slug": "hawk-eye",
+          "reportgenerateddate": "2024-01-29T00:00:00.000Z",
+          "reportduration": {
+            "enddate": "12-02-2020",
+            "startdate": "12-02-2020"
+          },
+          "tags": [
+            "NVSK_Improvement_Projects_Report"
+          ],
+          "updatefrequency": "DAILY",
+          "parameters": [
+            "$slug"
+          ],
+          "report_type": "report"
+        }
+    }
+  }
