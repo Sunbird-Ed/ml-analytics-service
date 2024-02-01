@@ -6,8 +6,8 @@
         "reportConfig": {
           "id": "ml_nvsk_improvement_projects_report_table_sl",
           "mergeConfig": {
-            "postContainer": "reports",
-            "container": "reports",
+            "postContainer": "$postContainer",
+            "container": "$container",
             "basePath": "/mount/data/analytics/tmp",
             "reportPath": "ml_nvsk_improvement_projects_report_table_sl.csv",
             "rollup": 0
@@ -371,11 +371,11 @@
           ],
           "queryType": "groupBy"
         },
-        "container": "reports",
-        "store": "azure",
+        "container": "$container",
+        "store": "$store",
         "key": "hawk-eye/"
       },
-      "createdBy": "fca2925f-1eee-4654-9177-fece3fd6afc9",
+      "createdBy": "$createdBy",
       "description": "The table will show no. of improvements started, in progress, submitted and submitted with evidence state, district  wise",
       "reportSchedule": "DAILY"
     }

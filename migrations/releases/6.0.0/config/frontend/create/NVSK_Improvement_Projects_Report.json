@@ -3,14 +3,14 @@
       "report":
         {
           "title": "NVSK Improvement Projects Report",
-          "description": "This Report Is Created For Testing Purpose",
+          "description": "This report will track the no. of improvements based on State & District",
           "authorizedroles": [
             "REPORT_ADMIN",
             "REPORT_VIEWER"
           ],
           "status": "draft",
           "type": "public",
-          "createdby": "fca2925f-1eee-4654-9177-fece3fd6afc9",
+          "createdby": "$createdby",
           "reportconfig": {
             "label": "NVSK Improvement Projects Report",
             "table": [
@@ -87,7 +87,7 @@
                 "path": "/reports/fetch/hawk-eye/ml_nvsk_improvement_projects_report_table_sl.json"
               }
             ],
-            "description": "This Report Is Created For Testing Purpose",
+            "description": "This report will track the no. of improvements based on State & District",
             "downloadUrl": ""
           },
           "slug": "hawk-eye",
