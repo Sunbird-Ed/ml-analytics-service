@@ -159,7 +159,6 @@ class FinalWorker:
 
     def run(self):
         if len(self.orgArr) >0:
-            print(self.orgArr)
             for org in range(len(self.orgArr)):
                 finalObj = {}
                 finalObj =  self.creatingObj(self.answer,self.quesexternalId,self.ans_val,self.instNum,self.responseLabel)
@@ -543,7 +542,6 @@ try:
                         producer.send((config.get("KAFKA", "survey_meta_druid_topic")), json.dumps(surveySubQuestionsObj).encode('utf-8'))  
                         producer.flush()
                         successLogger.debug(f"Data with submission_id ({_id}) is being inserted into the sl_survey_meta datasource.")
-                        print(surveySubQuestionsObj)  
         except Exception as e :
             # Log any errors that occur during data ingestion
             errorLogger.error("======An error was found during data ingestion in the sl_survey_meta datasource========")
@@ -565,7 +563,6 @@ try:
                         producer.send((config.get("KAFKA", "survey_started_druid_topic")), json.dumps(survey_status).encode('utf-8'))
                         producer.flush()
                         successLogger.debug(f"Data with submission_id ({_id}) is being inserted into the sl_survey_status_started datasource.")
-                        print(survey_status)
             except Exception as e :
                 # Log any errors that occur during data ingestion
                 errorLogger.error("======An error was found during data ingestion in the sl_survey_status_started datasource========")
@@ -586,7 +583,6 @@ try:
                         producer.send((config.get("KAFKA", "survey_inprogress_druid_topic")), json.dumps(survey_status).encode('utf-8'))
                         producer.flush()
                         successLogger.debug(f"Data with submission_id ({_id}) is being inserted into the sl_survey_status_inprogress datasource.")
-                        print(survey_status)
             except Exception as e:
                 # Log any errors that occur during data ingestion
                 errorLogger.error("======An error was found during data ingestion in the sl_survey_status_inprogress datasource========")
@@ -607,7 +603,6 @@ try:
                         producer.send((config.get("KAFKA", "survey_completed_druid_topic")), json.dumps(survey_status).encode('utf-8'))
                         producer.flush()
                         successLogger.debug(f"Data with submission_id ({_id}) is being inserted into the sl_survey_status_completed datasource.")
-                        print(survey_status)
             except Exception as e :
                 # Log any errors that occur during data ingestion
                 errorLogger.error("======An error was found during data ingestion in the sl_survey_status_completed datasource========")
