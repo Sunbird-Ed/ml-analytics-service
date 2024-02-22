@@ -17,6 +17,7 @@ RUN useradd -m -s /bin/bash analytics
 RUN mkdir -p /opt/sparkjobs/ml-analytics-service/logs/observation/status
 RUN mkdir -p /opt/sparkjobs/ml-analytics-service/logs/observation/evidence
 RUN mkdir -p /opt/sparkjobs/ml-analytics-service/logs/project
+RUN mkdir -p /opt/sparkjobs/ml-analytics-service/logs/project/suurvey
 RUN mkdir -p /opt/sparkjobs/ml-analytics-service/logs/survey
 RUN mkdir -p /opt/sparkjobs/ml-analytics-service/logs/survey/evidence && chown -R analytics:analytics /opt/sparkjobs/ml-analytics-service
 USER analytics
