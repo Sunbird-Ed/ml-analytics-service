@@ -20,11 +20,12 @@ RUN mkdir -p /opt/sparkjobs/ml-analytics-service/logs/project
 RUN mkdir -p /opt/sparkjobs/ml-analytics-service/logs/project/evidence
 RUN mkdir -p /opt/sparkjobs/ml-analytics-service/logs/survey
 RUN mkdir -p /opt/sparkjobs/ml-analytics-service/logs/survey/evidence && chown -R analytics:analytics /opt/sparkjobs/ml-analytics-service
-RUN chmod a+rwx -R /opt/sparkjobs
+RUN chmod +rwx -R /opt/sparkjobs/ml-analytics-service/
 USER analytics
 WORKDIR /opt/sparkjobs/ml-analytics-service
 COPY . /opt/sparkjobs/ml-analytics-service/
 COPY faust.sh /opt/sparkjobs/faust_as_service/faust.sh
+RUN chown -R analytics:analytics /opt/sparkjobs/ml-analytics-service
 RUN virtualenv spark_venv
 RUN /opt/sparkjobs/ml-analytics-service/spark_venv/bin/pip install --upgrade -r /opt/sparkjobs/ml-analytics-service/requirements.txt
 COPY start-services.sh .
