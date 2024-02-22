@@ -23,4 +23,5 @@ RUN /opt/sparkjobs/ml-analytics-service/spark_venv/bin/pip install --upgrade -r 
 COPY faust.sh /opt/sparkjobs/faust_as_service/faust.sh
 WORKDIR /opt/sparkjobs
 COPY start-services.sh .
+RUN chmod +x start-services.sh
 CMD ./start-services.sh
