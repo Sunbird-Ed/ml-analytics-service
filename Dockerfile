@@ -20,6 +20,7 @@ RUN mkdir -p /opt/sparkjobs/ml-analytics-service/logs/project
 RUN mkdir -p /opt/sparkjobs/ml-analytics-service/logs/project/evidence
 RUN mkdir -p /opt/sparkjobs/ml-analytics-service/logs/survey
 RUN mkdir -p /opt/sparkjobs/ml-analytics-service/logs/survey/evidence && chown -R analytics:analytics /opt/sparkjobs/ml-analytics-service
+RUN chmod a+rwx -R /opt/sparkjobs
 USER analytics
 WORKDIR /opt/sparkjobs/ml-analytics-service
 COPY . /opt/sparkjobs/ml-analytics-service/
