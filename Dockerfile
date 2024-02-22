@@ -14,13 +14,17 @@ RUN apt-get update && \
     acl
 #Create the User
 RUN useradd -m -s /bin/bash analytics
-RUN mkdir -p /opt/sparkjobs/ml-analytics-service && chown analytics:analytics /opt/sparkjobs/ml-analytics-service
+RUN mkdir -p /opt/sparkjobs/logs/observation/status
+RUN mkdir -p /opt/sparkjobs/logs/observation/evidence
+RUN mkdir -p /opt/sparkjobs/logs/project
+RUN mkdir -p /opt/sparkjobs/logs/survey
+RUN mkdir -p /opt/sparkjobs/logs/survey/evidence && chown -R analytics:analytics /opt/sparkjobs/logs
+RUN mkdir -p /opt/sparkjobs/ml-analytics-service && chown -R analytics:analytics /opt/sparkjobs/ml-analytics-service
 USER analytics
 WORKDIR /opt/sparkjobs/ml-analytics-service
-RUN virtualenv spark_venv
 COPY . /opt/sparkjobs/ml-analytics-service/
-RUN /opt/sparkjobs/ml-analytics-service/spark_venv/bin/pip install --upgrade -r /opt/sparkjobs/ml-analytics-service/requirements.txt
 COPY faust.sh /opt/sparkjobs/faust_as_service/faust.sh
-WORKDIR /opt/sparkjobs
+RUN virtualenv spark_venv
+RUN /opt/sparkjobs/ml-analytics-service/spark_venv/bin/pip install --upgrade -r /opt/sparkjobs/ml-analytics-service/requirements.txt
 COPY start-services.sh .
 CMD ./start-services.sh
