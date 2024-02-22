@@ -14,12 +14,11 @@ RUN apt-get update && \
     acl
 #Create the User
 RUN useradd -m -s /bin/bash analytics
-RUN mkdir -p /opt/sparkjobs/logs/observation/status
-RUN mkdir -p /opt/sparkjobs/logs/observation/evidence
-RUN mkdir -p /opt/sparkjobs/logs/project
-RUN mkdir -p /opt/sparkjobs/logs/survey
-RUN mkdir -p /opt/sparkjobs/logs/survey/evidence && chown -R analytics:analytics /opt/sparkjobs/logs
-RUN mkdir -p /opt/sparkjobs/ml-analytics-service && chown -R analytics:analytics /opt/sparkjobs/ml-analytics-service
+RUN mkdir -p /opt/sparkjobs/ml-analytics-service/logs/observation/status
+RUN mkdir -p /opt/sparkjobs/ml-analytics-service/logs/observation/evidence
+RUN mkdir -p /opt/sparkjobs/ml-analytics-service/logs/project
+RUN mkdir -p /opt/sparkjobs/ml-analytics-service/logs/survey
+RUN mkdir -p /opt/sparkjobs/ml-analytics-service/logs/survey/evidence && chown -R analytics:analytics /opt/sparkjobs/ml-analytics-service
 USER analytics
 WORKDIR /opt/sparkjobs/ml-analytics-service
 COPY . /opt/sparkjobs/ml-analytics-service/
