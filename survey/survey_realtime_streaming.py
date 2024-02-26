@@ -183,294 +183,297 @@ try:
 
         # Debug log for survey submission ID
         successLogger.debug(f"Survey Submission Id : {obSub['_id']}")
+        survey_submission_id =  str(obSub['_id'])
+        if check_survey_submission_id_exist(survey_submission_id,"surveySubmissionId","sl-survey"):
+            successLogger.debug(f"survey_Submission_id {survey_submission_id} is exists in sl-survey datasource.")
+            pass
+        else : 
+            # Check if survey status is completed
+            if obSub['status'] == 'completed':
+                # Initialize variables for data extraction
+                surveySubQuestionsArr = []
+                completedDate = str(obSub['completedDate'])
+                createdAt = str(obSub['createdAt'])
+                updatedAt = str(obSub['updatedAt'])
+                evidencesArr = [v for v in obSub['evidences'].values()]
+                evidence_sub_count = 0
+                rootOrgId = None
 
-        # Check if survey status is completed
-        if obSub['status'] == 'completed':
+                # Extract root organization ID from user profile if available
+                try:
+                    if obSub["userProfile"]:
+                        if "rootOrgId" in obSub["userProfile"] and obSub["userProfile"]["rootOrgId"]:
+                            rootOrgId = obSub["userProfile"]["rootOrgId"]
+                except KeyError:
+                    pass
 
-            # Initialize variables for data extraction
-            surveySubQuestionsArr = []
-            completedDate = str(obSub['completedDate'])
-            createdAt = str(obSub['createdAt'])
-            updatedAt = str(obSub['updatedAt'])
-            evidencesArr = [v for v in obSub['evidences'].values()]
-            evidence_sub_count = 0
-            rootOrgId = None
+                # Check if 'answers' key exists in submission data
+                if 'answers' in obSub.keys():
+                    answersArr = [v for v in obSub['answers'].values()]
 
-            # Extract root organization ID from user profile if available
-            try:
-                if obSub["userProfile"]:
-                    if "rootOrgId" in obSub["userProfile"] and obSub["userProfile"]["rootOrgId"]:
-                        rootOrgId = obSub["userProfile"]["rootOrgId"]
-            except KeyError:
-                pass
+                    # Extract data for each answer
+                    for ans in answersArr:
 
-            # Check if 'answers' key exists in submission data
-            if 'answers' in obSub.keys():
-                answersArr = [v for v in obSub['answers'].values()]
+                        # Function to get sequence number
+                        def sequenceNumber(externalId,answer):
+                            if 'solutions' in obSub.keys():
+                                solutionsArr = [v for v in obSub['solutions'].values()]
+                                for solu in solutionsArr:
+                                    section = [k for k in solu['sections'].keys()]
+                                try:
+                                    for num in range(
+                                        len(solu['questionSequenceByEcm'][answer['evidenceMethod']][section[0]])
+                                    ):
+                                        if solu['questionSequenceByEcm'][answer['evidenceMethod']][section[0]][num] == externalId:
+                                            return num + 1
+                                except KeyError:
+                                    pass
 
-                # Extract data for each answer
-                for ans in answersArr:
+                        # Function to create object for each answer
+                        def creatingObj(answer,quesexternalId,ans_val,instNumber,responseLabel):
+                            surveySubQuestionsObj = {}
 
-                    # Function to get sequence number
-                    def sequenceNumber(externalId,answer):
-                        if 'solutions' in obSub.keys():
-                            solutionsArr = [v for v in obSub['solutions'].values()]
-                            for solu in solutionsArr:
-                                section = [k for k in solu['sections'].keys()]
+                            # Extracting various attributes from submission object
                             try:
-                                for num in range(
-                                    len(solu['questionSequenceByEcm'][answer['evidenceMethod']][section[0]])
-                                ):
-                                    if solu['questionSequenceByEcm'][answer['evidenceMethod']][section[0]][num] == externalId:
-                                        return num + 1
+                                surveySubQuestionsObj['appName'] = obSub["appInformation"]["appName"].lower()
+                            except KeyError :
+                                surveySubQuestionsObj['appName'] = config.get("ML_APP_NAME", "survey_app")
+
+                            surveySubQuestionsObj['surveySubmissionId'] = str(obSub['_id'])
+                            surveySubQuestionsObj['createdBy'] = obSub['createdBy']
+
+                            # Check if 'isAPrivateProgram' key exists
+                            try:
+                                surveySubQuestionsObj['isAPrivateProgram'] = obSub['isAPrivateProgram']
                             except KeyError:
-                                pass
+                                surveySubQuestionsObj['isAPrivateProgram'] = True
 
-                    # Function to create object for each answer
-                    def creatingObj(answer,quesexternalId,ans_val,instNumber,responseLabel):
-                        surveySubQuestionsObj = {}
-
-                        # Extracting various attributes from submission object
-                        try:
-                            surveySubQuestionsObj['appName'] = obSub["appInformation"]["appName"].lower()
-                        except KeyError :
-                            surveySubQuestionsObj['appName'] = config.get("ML_APP_NAME", "survey_app")
-
-                        surveySubQuestionsObj['surveySubmissionId'] = str(obSub['_id'])
-                        surveySubQuestionsObj['createdBy'] = obSub['createdBy']
-
-                        # Check if 'isAPrivateProgram' key exists
-                        try:
-                            surveySubQuestionsObj['isAPrivateProgram'] = obSub['isAPrivateProgram']
-                        except KeyError:
-                            surveySubQuestionsObj['isAPrivateProgram'] = True
-
-                        # Extract program related information
-                        try:
-                            surveySubQuestionsObj['programExternalId'] = obSub['programExternalId']
-                        except KeyError :
-                            surveySubQuestionsObj['programExternalId'] = None
-                        try:
-                            surveySubQuestionsObj['programId'] = str(obSub['programId'])
-                        except KeyError :
-                            surveySubQuestionsObj['programId'] = None
-                        try:
-                            if 'programInfo' in obSub:
-                                surveySubQuestionsObj['programName'] = obSub['programInfo']['name']
-                            else:
-                                surveySubQuestionsObj['programName'] = ''
-                        except KeyError:
-                            surveySubQuestionsObj['programName'] = ''
-
-                        # Extract solution related information
-                        surveySubQuestionsObj['solutionExternalId'] = obSub['solutionExternalId']
-                        surveySubQuestionsObj['surveyId'] = str(obSub['surveyId'])
-                        surveySubQuestionsObj['solutionId'] = str(obSub["solutionId"])
-                        try:
-                            if 'solutionInfo' in obSub:
-                                surveySubQuestionsObj['solutionName'] = obSub['solutionInfo']['name']
-                            else:
-                                surveySubQuestionsObj['solutionName'] = ''
-                        except KeyError:
-                            surveySubQuestionsObj['solutionName'] = ''
-
-                        # Extract section information
-                        try:
-                            section = [k for k in obSub['solutionInfo']['sections'].keys()]
-                            surveySubQuestionsObj['section'] = section[0]
-                        except KeyError:
-                            surveySubQuestionsObj['section'] = ''
-
-                        # Get sequence number for the question
-                        surveySubQuestionsObj['questionSequenceByEcm'] = sequenceNumber(quesexternalId, answer)
-
-                        # Extract scoring related information
-                        try:
-                            if obSub['solutionInformation']['scoringSystem'] == 'pointsBasedScoring':
-                                try:
-                                    surveySubQuestionsObj['totalScore'] = obSub['pointsBasedMaxScore']
-                                except KeyError :
-                                    surveySubQuestionsObj['totalScore'] = ''
-                                try:
-                                    surveySubQuestionsObj['scoreAchieved'] = obSub['pointsBasedScoreAchieved']
-                                except KeyError :
-                                    surveySubQuestionsObj['scoreAchieved'] = ''
-                                try:
-                                    surveySubQuestionsObj['totalpercentage'] = obSub['pointsBasedPercentageScore']
-                                except KeyError :
-                                    surveySubQuestionsObj['totalpercentage'] = ''
-                                try:
-                                    surveySubQuestionsObj['maxScore'] = answer['maxScore']
-                                except KeyError :
-                                    surveySubQuestionsObj['maxScore'] = ''
-                                try:
-                                    surveySubQuestionsObj['minScore'] = answer['scoreAchieved']
-                                except KeyError :
-                                    surveySubQuestionsObj['minScore'] = ''
-                                try:
-                                    surveySubQuestionsObj['percentageScore'] = answer['percentageScore']
-                                except KeyError :
-                                    surveySubQuestionsObj['percentageScore'] = ''
-                                try:
-                                    surveySubQuestionsObj['pointsBasedScoreInParent'] = answer['pointsBasedScoreInParent']
-                                except KeyError :
-                                    surveySubQuestionsObj['pointsBasedScoreInParent'] = ''
-                        except KeyError:
-                            surveySubQuestionsObj['totalScore'] = ''
-                            surveySubQuestionsObj['scoreAchieved'] = ''
-                            surveySubQuestionsObj['totalpercentage'] = ''
-                            surveySubQuestionsObj['maxScore'] = ''
-                            surveySubQuestionsObj['minScore'] = ''
-                            surveySubQuestionsObj['percentageScore'] = ''
-                            surveySubQuestionsObj['pointsBasedScoreInParent'] = ''
-
-                        # Extract survey name
-                        if 'surveyInformation' in obSub :
-                            if 'name' in obSub['surveyInformation']:
-                                surveySubQuestionsObj['surveyName'] = obSub['surveyInformation']['name']
-                            else:
-                                surveySubQuestionsObj['surveyName'] = ''
-
-                        # Extract question related information
-                        surveySubQuestionsObj['questionId'] = str(answer['qid'])
-                        surveySubQuestionsObj['questionAnswer'] = ans_val
-                        surveySubQuestionsObj['questionResponseType'] = answer['responseType']
-
-                        # Extract response label for number response type
-                        if answer['responseType'] == 'number':
-                            if responseLabel:
-                                surveySubQuestionsObj['questionResponseLabel_number'] = responseLabel
-                            else:
-                                surveySubQuestionsObj['questionResponseLabel_number'] = 0
-
-                        # Extract response label for other response types
-                        try:
-                            if responseLabel:
-                                if answer['responseType'] == 'text':
-                                    surveySubQuestionsObj['questionResponseLabel'] = "'"+ re.sub("\n|\"","",responseLabel) +"'"
+                            # Extract program related information
+                            try:
+                                surveySubQuestionsObj['programExternalId'] = obSub['programExternalId']
+                            except KeyError :
+                                surveySubQuestionsObj['programExternalId'] = None
+                            try:
+                                surveySubQuestionsObj['programId'] = str(obSub['programId'])
+                            except KeyError :
+                                surveySubQuestionsObj['programId'] = None
+                            try:
+                                if 'programInfo' in obSub:
+                                    surveySubQuestionsObj['programName'] = obSub['programInfo']['name']
                                 else:
-                                    surveySubQuestionsObj['questionResponseLabel'] = responseLabel
-                            else:
+                                    surveySubQuestionsObj['programName'] = ''
+                            except KeyError:
+                                surveySubQuestionsObj['programName'] = ''
+
+                            # Extract solution related information
+                            surveySubQuestionsObj['solutionExternalId'] = obSub['solutionExternalId']
+                            surveySubQuestionsObj['surveyId'] = str(obSub['surveyId'])
+                            surveySubQuestionsObj['solutionId'] = str(obSub["solutionId"])
+                            try:
+                                if 'solutionInfo' in obSub:
+                                    surveySubQuestionsObj['solutionName'] = obSub['solutionInfo']['name']
+                                else:
+                                    surveySubQuestionsObj['solutionName'] = ''
+                            except KeyError:
+                                surveySubQuestionsObj['solutionName'] = ''
+
+                            # Extract section information
+                            try:
+                                section = [k for k in obSub['solutionInfo']['sections'].keys()]
+                                surveySubQuestionsObj['section'] = section[0]
+                            except KeyError:
+                                surveySubQuestionsObj['section'] = ''
+
+                            # Get sequence number for the question
+                            surveySubQuestionsObj['questionSequenceByEcm'] = sequenceNumber(quesexternalId, answer)
+
+                            # Extract scoring related information
+                            try:
+                                if obSub['solutionInformation']['scoringSystem'] == 'pointsBasedScoring':
+                                    try:
+                                        surveySubQuestionsObj['totalScore'] = obSub['pointsBasedMaxScore']
+                                    except KeyError :
+                                        surveySubQuestionsObj['totalScore'] = ''
+                                    try:
+                                        surveySubQuestionsObj['scoreAchieved'] = obSub['pointsBasedScoreAchieved']
+                                    except KeyError :
+                                        surveySubQuestionsObj['scoreAchieved'] = ''
+                                    try:
+                                        surveySubQuestionsObj['totalpercentage'] = obSub['pointsBasedPercentageScore']
+                                    except KeyError :
+                                        surveySubQuestionsObj['totalpercentage'] = ''
+                                    try:
+                                        surveySubQuestionsObj['maxScore'] = answer['maxScore']
+                                    except KeyError :
+                                        surveySubQuestionsObj['maxScore'] = ''
+                                    try:
+                                        surveySubQuestionsObj['minScore'] = answer['scoreAchieved']
+                                    except KeyError :
+                                        surveySubQuestionsObj['minScore'] = ''
+                                    try:
+                                        surveySubQuestionsObj['percentageScore'] = answer['percentageScore']
+                                    except KeyError :
+                                        surveySubQuestionsObj['percentageScore'] = ''
+                                    try:
+                                        surveySubQuestionsObj['pointsBasedScoreInParent'] = answer['pointsBasedScoreInParent']
+                                    except KeyError :
+                                        surveySubQuestionsObj['pointsBasedScoreInParent'] = ''
+                            except KeyError:
+                                surveySubQuestionsObj['totalScore'] = ''
+                                surveySubQuestionsObj['scoreAchieved'] = ''
+                                surveySubQuestionsObj['totalpercentage'] = ''
+                                surveySubQuestionsObj['maxScore'] = ''
+                                surveySubQuestionsObj['minScore'] = ''
+                                surveySubQuestionsObj['percentageScore'] = ''
+                                surveySubQuestionsObj['pointsBasedScoreInParent'] = ''
+
+                            # Extract survey name
+                            if 'surveyInformation' in obSub :
+                                if 'name' in obSub['surveyInformation']:
+                                    surveySubQuestionsObj['surveyName'] = obSub['surveyInformation']['name']
+                                else:
+                                    surveySubQuestionsObj['surveyName'] = ''
+
+                            # Extract question related information
+                            surveySubQuestionsObj['questionId'] = str(answer['qid'])
+                            surveySubQuestionsObj['questionAnswer'] = ans_val
+                            surveySubQuestionsObj['questionResponseType'] = answer['responseType']
+
+                            # Extract response label for number response type
+                            if answer['responseType'] == 'number':
+                                if responseLabel:
+                                    surveySubQuestionsObj['questionResponseLabel_number'] = responseLabel
+                                else:
+                                    surveySubQuestionsObj['questionResponseLabel_number'] = 0
+
+                            # Extract response label for other response types
+                            try:
+                                if responseLabel:
+                                    if answer['responseType'] == 'text':
+                                        surveySubQuestionsObj['questionResponseLabel'] = "'"+ re.sub("\n|\"","",responseLabel) +"'"
+                                    else:
+                                        surveySubQuestionsObj['questionResponseLabel'] = responseLabel
+                                else:
+                                    surveySubQuestionsObj['questionResponseLabel'] = ''
+                            except KeyError :
                                 surveySubQuestionsObj['questionResponseLabel'] = ''
-                        except KeyError :
-                            surveySubQuestionsObj['questionResponseLabel'] = ''
 
-                        # Extract question details
-                        surveySubQuestionsObj['questionExternalId'] = quesexternalId
-                        surveySubQuestionsObj['questionName'] = answer['question'][0]
-                        surveySubQuestionsObj['questionECM'] = answer['evidenceMethod']
-                        surveySubQuestionsObj['criteriaId'] = str(answer['criteriaId'])
+                            # Extract question details
+                            surveySubQuestionsObj['questionExternalId'] = quesexternalId
+                            surveySubQuestionsObj['questionName'] = answer['question'][0]
+                            surveySubQuestionsObj['questionECM'] = answer['evidenceMethod']
+                            surveySubQuestionsObj['criteriaId'] = str(answer['criteriaId'])
 
-                        # Extract criteria details
-                        try:
-                            if 'criteria' in obSub.keys():
-                                for criteria in obSub['criteria']:
-                                    surveySubQuestionsObj['criteriaExternalId'] = criteria['externalId']
-                                    surveySubQuestionsObj['criteriaName'] = criteria['name']
-                            else:
+                            # Extract criteria details
+                            try:
+                                if 'criteria' in obSub.keys():
+                                    for criteria in obSub['criteria']:
+                                        surveySubQuestionsObj['criteriaExternalId'] = criteria['externalId']
+                                        surveySubQuestionsObj['criteriaName'] = criteria['name']
+                                else:
+                                    surveySubQuestionsObj['criteriaExternalId'] = ''
+                                    surveySubQuestionsObj['criteriaName'] = ''
+
+                            except KeyError:
                                 surveySubQuestionsObj['criteriaExternalId'] = ''
                                 surveySubQuestionsObj['criteriaName'] = ''
 
-                        except KeyError:
-                            surveySubQuestionsObj['criteriaExternalId'] = ''
-                            surveySubQuestionsObj['criteriaName'] = ''
+                            # Extract completion dates
+                            surveySubQuestionsObj['completedDate'] = completedDate
+                            surveySubQuestionsObj['createdAt'] = createdAt
+                            surveySubQuestionsObj['updatedAt'] = updatedAt
 
-                        # Extract completion dates
-                        surveySubQuestionsObj['completedDate'] = completedDate
-                        surveySubQuestionsObj['createdAt'] = createdAt
-                        surveySubQuestionsObj['updatedAt'] = updatedAt
+                            # Extract remarks and evidence details
+                            if answer['remarks'] :
+                                surveySubQuestionsObj['remarks'] = "'"+ re.sub("\n|\"","",answer['remarks']) +"'"
+                            else :
+                                surveySubQuestionsObj['remarks'] = None
+                            if len(answer['fileName']):
+                                multipleFiles = None
+                                fileCnt = 1
+                                for filedetail in answer['fileName']:
+                                    if fileCnt == 1:
+                                        multipleFiles = filedetail['sourcePath']
+                                        fileCnt = fileCnt + 1
+                                    else:
+                                        multipleFiles = multipleFiles + ' , ' + filedetail['sourcePath']
+                                surveySubQuestionsObj['evidences'] = multipleFiles                                  
+                                surveySubQuestionsObj['evidence_count'] = len(answer['fileName'])
+                            surveySubQuestionsObj['total_evidences'] = evidence_sub_count
 
-                        # Extract remarks and evidence details
-                        if answer['remarks'] :
-                            surveySubQuestionsObj['remarks'] = "'"+ re.sub("\n|\"","",answer['remarks']) +"'"
-                        else :
-                            surveySubQuestionsObj['remarks'] = None
-                        if len(answer['fileName']):
-                            multipleFiles = None
-                            fileCnt = 1
-                            for filedetail in answer['fileName']:
-                                if fileCnt == 1:
-                                    multipleFiles = filedetail['sourcePath']
-                                    fileCnt = fileCnt + 1
-                                else:
-                                    multipleFiles = multipleFiles + ' , ' + filedetail['sourcePath']
-                            surveySubQuestionsObj['evidences'] = multipleFiles                                  
-                            surveySubQuestionsObj['evidence_count'] = len(answer['fileName'])
-                        surveySubQuestionsObj['total_evidences'] = evidence_sub_count
-
-                        # Extract parent question details for matrix response type
-                        if ans['responseType']=='matrix':
-                            surveySubQuestionsObj['instanceParentQuestion'] = ans['question'][0]
-                            surveySubQuestionsObj['instanceParentId'] = ans['qid']
-                            surveySubQuestionsObj['instanceParentResponsetype'] =ans['responseType']
-                            surveySubQuestionsObj['instanceParentCriteriaId'] =ans['criteriaId']
-                            surveySubQuestionsObj['instanceParentCriteriaExternalId'] = ans['criteriaId']
-                            surveySubQuestionsObj['instanceParentCriteriaName'] = None
-                            surveySubQuestionsObj['instanceId'] = instNumber
-                            surveySubQuestionsObj['instanceParentExternalId'] = quesexternalId
-                            surveySubQuestionsObj['instanceParentEcmSequence']= sequenceNumber(
-                                surveySubQuestionsObj['instanceParentExternalId'], answer
-                            )
-                        else:
-                            surveySubQuestionsObj['instanceParentQuestion'] = ''
-                            surveySubQuestionsObj['instanceParentId'] = ''
-                            surveySubQuestionsObj['instanceParentResponsetype'] =''
-                            surveySubQuestionsObj['instanceId'] = instNumber
-                            surveySubQuestionsObj['instanceParentExternalId'] = ''
-                            surveySubQuestionsObj['instanceParentEcmSequence'] = '' 
-
-                        # Extract channel and parent channel
-                        surveySubQuestionsObj['channel'] = rootOrgId 
-                        surveySubQuestionsObj['parent_channel'] = "SHIKSHALOKAM"
-
-                        # Update object with additional user data
-                        surveySubQuestionsObj.update(userDataCollector(obSub))
-                        return surveySubQuestionsObj
-
-                    # Function to fetch question details
-                    def fetchingQuestiondetails(ansFn,instNumber):        
-                        try:
-                            if (len(ansFn['options']) == 0) or (('options' in ansFn.keys()) == False):
-                                try:
-                                    orgArr = orgCreator(obSub["userProfile"]["organisations"])
-                                    final_worker = FinalWorker(ansFn,ansFn['externalId'], ansFn['value'], instNumber, ansFn['value'], orgArr, creatingObj)
-                                    final_worker.run()
-                                except KeyError :
-                                    pass 
+                            # Extract parent question details for matrix response type
+                            if ans['responseType']=='matrix':
+                                surveySubQuestionsObj['instanceParentQuestion'] = ans['question'][0]
+                                surveySubQuestionsObj['instanceParentId'] = ans['qid']
+                                surveySubQuestionsObj['instanceParentResponsetype'] =ans['responseType']
+                                surveySubQuestionsObj['instanceParentCriteriaId'] =ans['criteriaId']
+                                surveySubQuestionsObj['instanceParentCriteriaExternalId'] = ans['criteriaId']
+                                surveySubQuestionsObj['instanceParentCriteriaName'] = None
+                                surveySubQuestionsObj['instanceId'] = instNumber
+                                surveySubQuestionsObj['instanceParentExternalId'] = quesexternalId
+                                surveySubQuestionsObj['instanceParentEcmSequence']= sequenceNumber(
+                                    surveySubQuestionsObj['instanceParentExternalId'], answer
+                                )
                             else:
-                                labelIndex = 0
-                                for quesOpt in ansFn['options']:
-                                    try:
-                                        if type(ansFn['value']) == str or type(ansFn['value']) == int:
-                                            if quesOpt['value'] == ansFn['value'] :
-                                                orgArr = orgCreator(obSub["userProfile"]["organisations"])
-                                                final_worker = FinalWorker(ansFn,ansFn['externalId'], ansFn['value'], instNumber, quesOpt['label'], orgArr, creatingObj)
-                                                final_worker.run()
-                                        elif type(ansFn['value']) == list:
-                                            for ansArr in ansFn['value']:
-                                                if quesOpt['value'] == ansArr:
-                                                    orgArr = orgCreator(obSub["userProfile"]["organisations"])
-                                                    final_worker = FinalWorker(ansFn,ansFn['externalId'], ansArr, instNumber, quesOpt['label'], orgArr, creatingObj)
-                                                    final_worker.run()
-                                    except KeyError:
-                                        pass
-                        except KeyError:
-                            pass
+                                surveySubQuestionsObj['instanceParentQuestion'] = ''
+                                surveySubQuestionsObj['instanceParentId'] = ''
+                                surveySubQuestionsObj['instanceParentResponsetype'] =''
+                                surveySubQuestionsObj['instanceId'] = instNumber
+                                surveySubQuestionsObj['instanceParentExternalId'] = ''
+                                surveySubQuestionsObj['instanceParentEcmSequence'] = '' 
 
-                    # Check response type and call function to fetch question details
-                    if (
-                        ans['responseType'] == 'text' or ans['responseType'] == 'radio' or 
-                        ans['responseType'] == 'multiselect' or ans['responseType'] == 'slider' or 
-                        ans['responseType'] == 'number' or ans['responseType'] == 'date'
-                    ):   
-                        inst_cnt = ''
-                        fetchingQuestiondetails(ans, inst_cnt)
-                    elif ans['responseType'] == 'matrix' and len(ans['value']) > 0:
-                        inst_cnt =0
-                        for instances in ans['value']:
-                            inst_cnt = inst_cnt + 1
-                            for instance in instances.values():
-                                fetchingQuestiondetails(instance,inst_cnt)
+                            # Extract channel and parent channel
+                            surveySubQuestionsObj['channel'] = rootOrgId 
+                            surveySubQuestionsObj['parent_channel'] = "SHIKSHALOKAM"
+
+                            # Update object with additional user data
+                            surveySubQuestionsObj.update(userDataCollector(obSub))
+                            return surveySubQuestionsObj
+
+                        # Function to fetch question details
+                        def fetchingQuestiondetails(ansFn,instNumber):        
+                            try:
+                                if (len(ansFn['options']) == 0) or (('options' in ansFn.keys()) == False):
+                                    try:
+                                        orgArr = orgCreator(obSub["userProfile"]["organisations"])
+                                        final_worker = FinalWorker(ansFn,ansFn['externalId'], ansFn['value'], instNumber, ansFn['value'], orgArr, creatingObj)
+                                        final_worker.run()
+                                    except KeyError :
+                                        pass 
+                                else:
+                                    labelIndex = 0
+                                    for quesOpt in ansFn['options']:
+                                        try:
+                                            if type(ansFn['value']) == str or type(ansFn['value']) == int:
+                                                if quesOpt['value'] == ansFn['value'] :
+                                                    orgArr = orgCreator(obSub["userProfile"]["organisations"])
+                                                    final_worker = FinalWorker(ansFn,ansFn['externalId'], ansFn['value'], instNumber, quesOpt['label'], orgArr, creatingObj)
+                                                    final_worker.run()
+                                            elif type(ansFn['value']) == list:
+                                                for ansArr in ansFn['value']:
+                                                    if quesOpt['value'] == ansArr:
+                                                        orgArr = orgCreator(obSub["userProfile"]["organisations"])
+                                                        final_worker = FinalWorker(ansFn,ansFn['externalId'], ansArr, instNumber, quesOpt['label'], orgArr, creatingObj)
+                                                        final_worker.run()
+                                        except KeyError:
+                                            pass
+                            except KeyError:
+                                pass
+
+                        # Check response type and call function to fetch question details
+                        if (
+                            ans['responseType'] == 'text' or ans['responseType'] == 'radio' or 
+                            ans['responseType'] == 'multiselect' or ans['responseType'] == 'slider' or 
+                            ans['responseType'] == 'number' or ans['responseType'] == 'date'
+                        ):   
+                            inst_cnt = ''
+                            fetchingQuestiondetails(ans, inst_cnt)
+                        elif ans['responseType'] == 'matrix' and len(ans['value']) > 0:
+                            inst_cnt =0
+                            for instances in ans['value']:
+                                inst_cnt = inst_cnt + 1
+                                for instance in instances.values():
+                                    fetchingQuestiondetails(instance,inst_cnt)
                             
 except Exception as e:
     infoLogger.error(e,exc_info=True)
@@ -484,7 +487,11 @@ try:
     def check_survey_submission_id_exist(key,column_name,table_name):
         try:
             # Establish connection to Druid
-            conn = connect(host='localhost', port=8082, path='/druid/v2/sql/', scheme='http')
+            url = config.get("DRUID","url")
+            url = str(url)
+            host, port = url.split(":")
+            port = int(port)  # Convert port to integer
+            conn = connect(host=host, port=port, path='/druid/v2/sql/', scheme='http')
             cur = conn.cursor()
             # Query to check existence of survey submission Id in Druid table
             query = f"SELECT COUNT(*) FROM \"{table_name}\" WHERE \"{column_name}\" = '{key}'"
