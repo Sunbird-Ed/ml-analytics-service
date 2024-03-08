@@ -28,5 +28,7 @@ USER analytics
 WORKDIR /opt/sparkjobs/ml-analytics-service
 RUN virtualenv spark_venv
 RUN /opt/sparkjobs/ml-analytics-service/spark_venv/bin/pip install --upgrade -r /opt/sparkjobs/ml-analytics-service/requirements.txt
-COPY start-services.sh .
-CMD ./start-services.sh
+#COPY start-services.sh .
+#CMD ./start-services.sh
+COPY start-faust-services.sh .
+CMD ./start-faust-services.sh
