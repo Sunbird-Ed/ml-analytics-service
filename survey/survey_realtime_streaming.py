@@ -474,7 +474,8 @@ try:
                                     surveySubQuestionsObj['parent_channel'] = "SHIKSHALOKAM"
 
                                     # Update object with additional user data
-                                    surveySubQuestionsObj.update(userDataCollector(obSub))
+                                    # Commented the bellow line as we don't need userRoleInso in KB
+                                    # surveySubQuestionsObj.update(userDataCollector(obSub))
                                     return surveySubQuestionsObj
 
                                 # Function to fetch question details
