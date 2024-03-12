@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------
 # Name : survey_realtime_streaming.py
-# Author :prashanth@shikshalokam.org
+# Author : Prashanth, Vivek 
 # Description : Program to read data from one kafka topic and 
 # produce it to another kafka topic
 # -----------------------------------------------------------------
@@ -13,6 +13,7 @@ import kafka
 import faust
 import logging
 import time, re
+import requests
 from kafka import KafkaConsumer, KafkaProducer
 from kafka.admin import KafkaAdminClient, NewTopic
 from configparser import ConfigParser,ExtendedInterpolation
@@ -146,6 +147,53 @@ def orgCreator(val):
                 orgarr.append(orgObj)
     return orgarr
 
+# # Define function to check if survey submission Id exists in Druid
+def check_survey_submission_id_existance(key,column_name,table_name):
+        try:
+            # Establish connection to Druid
+            url = config.get("DRUID","sql_url")
+            url = str(url)
+            parsed_url = urlparse(url)
+
+            host = parsed_url.hostname
+            port = int(parsed_url.port)
+            path = parsed_url.path
+            scheme = parsed_url.scheme
+
+            conn = connect(host=host, port=port, path=path, scheme=scheme)
+            cur = conn.cursor()
+            response = check_datasource_existence(table_name)
+            if response == True:
+                # Query to check existence of survey submission Id in Druid table
+                query = f"SELECT COUNT(*) FROM \"{table_name}\" WHERE \"{column_name}\" = '{key}'"
+                cur.execute(query)
+                result = cur.fetchone()
+                count = result[0]
+                infoLogger.info(f"Found {count} entires in {table_name}")
+                if count == 0:
+                    return True
+                else:
+                    return False
+            else:
+                # Since the table doesn't exist, return True to allow data insertion initially 
+                return True             
+        except Exception as e:
+            # Log any errors that occur during Druid query execution
+            errorLogger.error(f"Error checking survey_submission_id existence in Druid: {e}")
+   
+def check_datasource_existence(datasource_name):
+    host = config.get('DRUID', 'datasource_url')
+    try : 
+        response = requests.get(host)
+        if response.status_code == 200:
+            datasources = response.json()
+        if datasource_name in datasources : 
+            return True
+        else : 
+            return False
+    except requests.RequestException as e:
+        errorLogger.error(f"Error fetching datasources: {e}")
+
 # Worker class to send data to Kafka
 class FinalWorker:
     '''Class that takes necessary inputs and sends the correct object into Kafka'''
@@ -168,7 +216,7 @@ class FinalWorker:
                 question_id = finalObj["questionId"]
                 producer.send((config.get("KAFKA", "survey_druid_topic")), json.dumps(finalObj).encode('utf-8'))
                 producer.flush()
-                successLogger.debug(f"data for surveyId ({survey_id}) and questionId ({question_id}) inserted into sl_survey datasource")
+                infoLogger.info(f"Data for surveyId ({survey_id}) and questionId ({question_id}) inserted into sl-survey datasource")
         else:
             finalObj = {}
             finalObj =  self.creatingObj(self.answer,self.quesexternalId,self.ans_val,self.instNum,self.responseLabel)
@@ -176,21 +224,19 @@ class FinalWorker:
             question_id = finalObj["questionId"]
             producer.send((config.get("KAFKA", "survey_druid_topic")), json.dumps(finalObj).encode('utf-8'))
             producer.flush()
-            successLogger.debug(f"data for surveyId ({survey_id}) and questionId ({question_id}) inserted into sl_survey datasource")
+            infoLogger.info(f"Data for surveyId ({survey_id}) and questionId ({question_id}) inserted into sl-survey datasource")
 
 try:
     def obj_creation(obSub):
         '''Function to process survey submission data before sending it to Kafka'''
         try:
-                # Debug log for survey submission ID
-                successLogger.debug(f"Survey Submission Id : {obSub['_id']}")
-                survey_submission_id =  str(obSub['_id'])
-                if check_survey_submission_id_existance(survey_submission_id,"surveySubmissionId","sl-survey"):
-                    # successLogger.debug(f"survey_Submission_id {survey_submission_id} is exists in sl-survey datasource.")
-                    # pass
-                    # Check if survey status is completed
-                    if obSub['status'] == 'completed':
-                        # Initialize variables for data extraction
+            # Debug log for survey submission ID
+            infoLogger.info(f"Started to process kafka event for the Survey Submission Id : {obSub['_id']}. For Survey Question report")
+            survey_submission_id =  str(obSub['_id'])
+            if check_survey_submission_id_existance(survey_submission_id,"surveySubmissionId","sl-survey"):
+                infoLogger.info(f"No data duplection for the Submission ID : {survey_submission_id} in sl-survey ")
+                if obSub['status'] == 'completed':   
+                    if 'isAPrivateProgram' in obSub :
                         surveySubQuestionsArr = []
                         completedDate = str(obSub['completedDate'])
                         createdAt = str(obSub['createdAt'])
@@ -206,20 +252,21 @@ try:
                                     rootOrgId = obSub["userProfile"]["rootOrgId"]
                         except KeyError:
                             pass
-
-                        # Check if 'answers' key exists in submission data
-                        if 'answers' in obSub.keys():
+                        if 'answers' in obSub.keys() :  
                             answersArr = [v for v in obSub['answers'].values()]
-
-                            # Extract data for each answer
                             for ans in answersArr:
-
-                                # Function to get sequence number
+                                try:
+                                    if len(ans['fileName']):
+                                        evidence_sub_count = evidence_sub_count + len(ans['fileName'])
+                                except KeyError:
+                                    pass
+                            for ans in answersArr:
                                 def sequenceNumber(externalId,answer):
                                     if 'solutions' in obSub.keys():
                                         solutionsArr = [v for v in obSub['solutions'].values()]
                                         for solu in solutionsArr:
                                             section = [k for k in solu['sections'].keys()]
+                                        # parsing through questionSequencebyecm to get the sequence number
                                         try:
                                             for num in range(
                                                 len(solu['questionSequenceByEcm'][answer['evidenceMethod']][section[0]])
@@ -433,7 +480,8 @@ try:
                                 # Function to fetch question details
                                 def fetchingQuestiondetails(ansFn,instNumber):        
                                     try:
-                                        if (len(ansFn['options']) == 0) or (('options' in ansFn.keys()) == False):
+                                        # if (len(ansFn['options']) == 0) or (('options' in ansFn.keys()) == False):
+                                        if (len(ansFn['options']) == 0) or (('options' not in ansFn.keys())):
                                             try:
                                                 orgArr = orgCreator(obSub["userProfile"]["organisations"])
                                                 final_worker = FinalWorker(ansFn,ansFn['externalId'], ansFn['value'], instNumber, ansFn['value'], orgArr, creatingObj)
@@ -474,8 +522,13 @@ try:
                                         inst_cnt = inst_cnt + 1
                                         for instance in instances.values():
                                             fetchingQuestiondetails(instance,inst_cnt)
-                else:
-                    successLogger.debug(f"survey_Submission_id {survey_submission_id} is already exists in the sl-survey datasource or the datasource is down.")                    
+                else:                        
+                    infoLogger.info(f"Survey Submission is not in completed status" )
+            else:
+                infoLogger.info(f"survey_Submission_id {survey_submission_id} is already exists in the sl-survey datasource.")    
+
+            infoLogger.info(f"Completed processing kafka event for the Survey Submission Id : {obSub['_id']}. For Survey Question report ")              
+        
         except Exception as e:
             # Log any errors that occur during processing
             errorLogger.error(e, exc_info=True)
@@ -485,132 +538,134 @@ except Exception as e:
 
 # Main data extraction function
 try:
-    # Define function to check if survey submission Id exists in Druid
-    def check_survey_submission_id_existance(key,column_name,table_name):
-        try:
-            # Establish connection to Druid
-            url = config.get("DRUID","sql_url")
-            url = str(url)
-            parsed_url = urlparse(url)
-
-            host = parsed_url.hostname
-            port = int(parsed_url.port)
-            path = parsed_url.path
-            scheme = parsed_url.scheme
-
-            conn = connect(host=host, port=port, path=path, scheme=scheme)
-            cur = conn.cursor()
-            # Query to check existence of survey submission Id in Druid table
-            query = f"SELECT COUNT(*) FROM \"{table_name}\" WHERE \"{column_name}\" = '{key}'"
-            infoLogger.info(query)
-            cur.execute(query)
-            result = cur.fetchone()
-            count = result[0]
-            infoLogger.info(f"count:{count}")
-            if count == 0 :
-                return True
-            else :
-                return False
-        except Exception as e:
-            # Log any errors that occur during Druid query execution
-            errorLogger.error(f"Error checking survey_submission_id existence in Druid: {e}")
-
     def main_data_extraction(obSub):
-        '''Function to extract main data from survey submission and upload it to Druid'''
-        
-        # Initialize dictionary for storing survey submission data
-        surveySubQuestionsObj = {}
-        survey_status = {}
-        
-        # Extract various attributes from survey submission object
-        surveySubQuestionsObj['surveyId'] = str(obSub.get('surveyId', ''))
-        surveySubQuestionsObj['survey_name'] = str(obSub.get('surveyInformation', {}).get('name', ''))
-        surveySubQuestionsObj['survey_submission_id'] = obSub.get('_id', '')
-        surveySubQuestionsObj['UUID'] = obSub.get('createdBy', '')
-        surveySubQuestionsObj['programId'] = obSub.get('programInfo', {}).get('_id', '')
-        surveySubQuestionsObj['program_name'] = obSub.get('programInfo', {}).get('name', '')
-        
-        # Before attempting to access the list, check if it is non-empty
-        profile_user_types = obSub.get('userProfile', {}).get('profileUserTypes', [])
-        if profile_user_types:
-            # Access the first element of the list if it exists
-            user_type = profile_user_types[0].get('type', None)
-        else:
-            # Handle the case when the list is empty
-            user_type = None
-        surveySubQuestionsObj['user_type'] = user_type
-
-        surveySubQuestionsObj['solution_externalId'] = obSub.get('solutionExternalId')
-        surveySubQuestionsObj['solution_id'] = obSub.get('solutionId')
-
-        for location in obSub.get('userProfile', {}).get('userLocations', []):
-            name = location.get('name')
-            type_ = location.get('type')
-            if name and type_:
-                surveySubQuestionsObj[type_] = name
-        
-        surveySubQuestionsObj['board_name'] = obSub.get('userProfile', {}).get('framework', {}).get('board', [''])[0]
-
-        orgArr = orgCreator(obSub.get('userProfile', {}).get('organisations',None))
-        if orgArr:
-            surveySubQuestionsObj['schoolId'] = orgArr[0].get("organisation_id")
-            surveySubQuestionsObj['org_name'] = orgArr[0].get("organisation_name")
-        else:
-            surveySubQuestionsObj['schoolId'] = None
-            surveySubQuestionsObj['org_name'] = None
-
-        _id = surveySubQuestionsObj.get('survey_submission_id', None)
+        '''Function to process survey submission data before sending it to Kafka topics'''
         try:
-            if _id:
-                    if check_survey_submission_id_existance(_id,"survey_submission_id","sl_survey_meta"):
-                        # Upload survey submission data to Druid topic
-                        producer.send((config.get("KAFKA", "survey_meta_druid_topic")), json.dumps(surveySubQuestionsObj).encode('utf-8'))  
-                        producer.flush()
-                        successLogger.debug(f"Data with submission_id ({_id}) is being inserted into the sl_survey_meta datasource.")
-                    else:
-                        successLogger.debug(f"Data with submission_id ({_id}) is already present in the sl_survey_meta datasource or the datasource is down.")
-        except Exception as e :
-            # Log any errors that occur during data ingestion
-            errorLogger.error("======An error was found during data ingestion in the sl_survey_meta datasource========")
-            errorLogger.error(e,exc_info=True)
+            infoLogger.info(f"Starting to process kafka event for the Survey Submission Id : {obSub['_id']}. For Survey Status report")
+            # Initialize dictionary for storing survey submission data
+            surveySubQuestionsObj = {}
+            survey_status = {}
+            
+            # Extract various attributes from survey submission object
+            surveySubQuestionsObj['surveyId'] = str(obSub.get('surveyId', ''))
+            surveySubQuestionsObj['survey_name'] = str(obSub.get('surveyInformation', {}).get('name', ''))
+            surveySubQuestionsObj['survey_submission_id'] = obSub.get('_id', '')
+            surveySubQuestionsObj['UUID'] = obSub.get('createdBy', '')
+            surveySubQuestionsObj['programId'] = obSub.get('programInfo', {}).get('_id', '')
+            surveySubQuestionsObj['program_name'] = obSub.get('programInfo', {}).get('name', '')
+            
+            # Before attempting to access the list, check if it is non-empty
+            profile_user_types = obSub.get('userProfile', {}).get('profileUserTypes', [])
+            if profile_user_types:
+                # Access the first element of the list if it exists
+                user_type = profile_user_types[0].get('type', None)
+            else:
+                # Handle the case when the list is empty
+                user_type = None
+            surveySubQuestionsObj['user_type'] = user_type
 
-        # upload the survey_submission_id and date in druid if status is started
-        
-        if obSub['status'] == 'started':
-            survey_status['survey_submission_id'] = obSub['_id']
-            survey_status['started_at'] = obSub['completedDate']
-           
-            survey_id = survey_status.get('survey_submission_id', None) 
-            try : 
-                if survey_id:
-                    if check_survey_submission_id_existance(survey_id,"survey_submission_id","sl_survey_status_started"):
-                        # Upload survey status data to Druid topic
-                        producer.send((config.get("KAFKA", "survey_started_druid_topic")), json.dumps(survey_status).encode('utf-8'))
-                        producer.flush()
-                        successLogger.debug(f"Data with submission_id ({_id}) is being inserted into the sl_survey_status_started datasource.")
-                    else:       
-                        successLogger.debug(f"Data with submission_id ({_id}) is already present in the sl_survey_status_started datasource or the datasource is down")
+            surveySubQuestionsObj['solution_externalId'] = obSub.get('solutionExternalId', '')
+            surveySubQuestionsObj['solution_id'] = obSub.get('solutionId', '')
+
+            for location in obSub.get('userProfile', {}).get('userLocations', []):
+                name = location.get('name')
+                type_ = location.get('type')
+                if name and type_:
+                    surveySubQuestionsObj[type_] = name
+            
+            surveySubQuestionsObj['board_name'] = obSub.get('userProfile', {}).get('framework', {}).get('board', [''])[0]
+
+            orgArr = orgCreator(obSub.get('userProfile', {}).get('organisations',None))
+            if orgArr:
+                surveySubQuestionsObj['schoolId'] = orgArr[0].get("organisation_id")
+                surveySubQuestionsObj['org_name'] = orgArr[0].get("organisation_name")
+            else:
+                surveySubQuestionsObj['schoolId'] = None
+                surveySubQuestionsObj['org_name'] = None
+            
+            # Insert data to sl-survey-meta druid datasource if status is anything 
+            _id = surveySubQuestionsObj.get('survey_submission_id', None)
+            try:
+                if _id:
+                        if check_survey_submission_id_existance(_id,"survey_submission_id","sl-survey-meta"):
+                            infoLogger.info(f"No data duplection for the Submission ID : {_id} in sl-survey-meta datasource")
+                            # Upload survey submission data to Druid topic
+                            producer.send((config.get("KAFKA", "survey_meta_druid_topic")), json.dumps(surveySubQuestionsObj).encode('utf-8'))  
+                            producer.flush()
+                            infoLogger.info(f"Data with submission_id {_id} is being inserted into the sl-survey-meta datasource.")
+                        else:
+                            infoLogger.info(f"Data with submission_id {_id} is already exists in the sl-survey-meta datasource.")
             except Exception as e :
                 # Log any errors that occur during data ingestion
-                errorLogger.error("======An error was found during data ingestion in the sl_survey_status_completed datasource========")
-                errorLogger.error(e,exc_info=True)  
+                errorLogger.error("====== An error was found during data ingestion in the sl-survey-meta datasource ======")
+                errorLogger.error(e,exc_info=True)
 
-        if obSub['status'] == 'completed':
-            survey_status['completed_at'] = obSub['completedDate']
-            survey_id = survey_status.get('survey_submission_id', None) 
-            try : 
-                if survey_id:
-                    if check_survey_submission_id_existance(survey_id,"survey_submission_id","sl_survey_status_completed"):
-                        # Upload survey status data to Druid topic
-                        producer.send((config.get("KAFKA", "survey_completed_druid_topic")), json.dumps(survey_status).encode('utf-8'))
-                        producer.flush()
-                        successLogger.debug(f"Data with submission_id ({_id}) is being inserted into the sl_survey_status_completed datasource.")
-                    else:       
-                        successLogger.debug(f"Data with submission_id ({_id}) is already present in the sl_survey_status_completed datasource or the datasource is down.")
-            except Exception as e :
-                # Log any errors that occur during data ingestion
-                errorLogger.error("======An error was found during data ingestion in the sl_survey_status_completed datasource========")
-                errorLogger.error(e,exc_info=True)  
+
+            # Insert data to sl-survey-status-started druid datasource if status is started
+            if obSub['status'] == 'started':
+                survey_status['survey_submission_id'] = obSub['_id']
+                survey_status['started_at'] = obSub['completedDate']
+                _id = survey_status.get('survey_submission_id', None) 
+                try : 
+                    if _id:
+                        if check_survey_submission_id_existance(_id,"survey_submission_id","sl-survey-status-started"):
+                            infoLogger.info(f"No data duplection for the Submission ID : {_id} in sl-survey-status-started datasource")
+                            # Upload survey status data to Druid topic
+                            producer.send((config.get("KAFKA", "survey_started_druid_topic")), json.dumps(survey_status).encode('utf-8'))
+                            producer.flush()
+                            infoLogger.info(f"Data with submission_id {_id} is being inserted into the sl-survey-status-started datasource.")
+                        else:       
+                            infoLogger.info(f"Data with submission_id {_id} is already exists in the sl-survey-status-started datasource.")
+                except Exception as e :
+                    # Log any errors that occur during data ingestion
+                    errorLogger.error("====== An error was found during data ingestion in the sl-survey-status-started datasource ======")
+                    errorLogger.error(e,exc_info=True)  
+
+            
+            # Insert data to sl-survey-status-started druid datasource if status is inprogress
+            elif obSub['status'] == 'inprogress':
+                survey_status['survey_submission_id'] = obSub['_id']
+                survey_status['inprogress_at'] = obSub['completedDate']
+                _id = survey_status.get('survey_submission_id', None) 
+                try : 
+                    if _id:
+                        if check_survey_submission_id_existance(_id,"survey_submission_id","sl-survey-status-inprogress"):
+                            infoLogger.info(f"No data duplection for the Submission ID : {_id} in sl-survey-status-inprogress datasource")
+                            # Upload survey status data to Druid topic
+                            producer.send((config.get("KAFKA", "survey_inprogress_druid_topic")), json.dumps(survey_status).encode('utf-8'))
+                            producer.flush()
+                            infoLogger.info(f"Data with submission_id {_id} is being inserted into the sl-survey-status-inprogress datasource.")
+                        else:       
+                            infoLogger.info(f"Data with submission_id {_id} is already exists in the sl-survey-status-inprogress datasource.")
+                except Exception as e :
+                    # Log any errors that occur during data ingestion
+                    errorLogger.error("====== An error was found during data ingestion in the sl-survey-status-inprogress datasource ======")
+                    errorLogger.error(e,exc_info=True)  
+
+
+            elif obSub['status'] == 'completed':
+                survey_status['survey_submission_id'] = obSub['_id']
+                survey_status['completed_at'] = obSub['completedDate']
+                _id = survey_status.get('survey_submission_id', None) 
+                try : 
+                    if _id:
+                        if check_survey_submission_id_existance(_id,"survey_submission_id","sl-survey-status-completed"):
+                            infoLogger.info(f"No data duplection for the Submission ID : {_id} in sl-survey-status-completed datasource")
+                            # Upload survey status data to Druid topic
+                            producer.send((config.get("KAFKA", "survey_completed_druid_topic")), json.dumps(survey_status).encode('utf-8'))
+                            producer.flush()
+                            infoLogger.info(f"Data with submission_id {_id} is being inserted into the sl-survey-status-completed datasource")
+                        else:       
+                            infoLogger.info(f"Data with submission_id {_id} is already exists in the sl-survey-status-completed datasource")
+                except Exception as e :
+                    # Log any errors that occur during data ingestion
+                    errorLogger.error("====== An error was found during data ingestion in the sl-survey-status-inprogress datasource ======")
+                    errorLogger.error(e,exc_info=True)  
+
+            infoLogger.info(f"Completed processing kafka event for the Survey Submission Id : {obSub['_id']}. For Survey Status report")
+        except Exception as e:
+            # Log any errors that occur during data extraction
+            errorLogger.error(e, exc_info=True)
 except Exception as e:
     # Log any errors that occur during data extraction
     errorLogger.error(e, exc_info=True)
@@ -625,10 +680,10 @@ try:
                 msg_val = msg.decode('utf-8')
                 msg_data = json.loads(msg_val)
                 
-                successLogger.debug("========== START OF SURVEY SUBMISSION ========")
+                infoLogger.info("========== START OF SURVEY SUBMISSION EVENT PROCESSING ==========")
                 obj_creation(msg_data)
                 main_data_extraction(msg_data)
-                successLogger.debug("********* END OF SURVEY SUBMISSION ***********")
+                infoLogger.info("********** END OF SURVEY SUBMISSION EVENT PROCESSING **********")
             except KeyError as ke:
                 # Log KeyError
                 errorLogger.error(f"KeyError occurred: {ke}")
@@ -639,4 +694,3 @@ except Exception as e:
 
 if __name__ == '__main__':
     app.main()
-
