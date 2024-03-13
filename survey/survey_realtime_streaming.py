@@ -565,7 +565,7 @@ try:
                 user_type = None
             surveySubQuestionsObj['user_type'] = user_type
 
-            surveySubQuestionsObj['solution_externalId'] = obSub.get('solutionExternalId', '')
+            surveySubQuestionsObj['survey_externalId'] = obSub.get('solutionExternalId', '')
             surveySubQuestionsObj['solution_id'] = obSub.get('solutionId', '')
 
             for location in obSub.get('userProfile', {}).get('userLocations', []):
