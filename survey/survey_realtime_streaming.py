@@ -193,6 +193,33 @@ def check_datasource_existence(datasource_name):
             return False
     except requests.RequestException as e:
         errorLogger.error(f"Error fetching datasources: {e}")
+def flatten_json(y):
+    out = {}
+
+    def flatten(x, name=''):
+        # If the Nested key-value pair is of dict type
+        if isinstance(x, dict):
+            for a in x:
+                flatten(x[a], name + a + '-')
+
+        # If the Nested key-value pair is of list type
+        elif isinstance(x, list):
+            if not x:  # Check if the list is empty
+                out[name[:-1]] = "null"
+            else:
+                for i, a in enumerate(x):
+                    flatten(a, name + str(i) + '-')
+
+        # If the Nested key-value pair is of other types
+        else:
+            # Replace None, empty string, or empty list with "null"
+            if x is None or x == '' or x == []:
+                out[name[:-1]] = "null"
+            else:
+                out[name[:-1]] = x
+
+    flatten(y)
+    return out
 
 # Worker class to send data to Kafka
 class FinalWorker:
@@ -281,10 +308,10 @@ try:
                                     surveySubQuestionsObj = {}
 
                                     # Extracting various attributes from submission object
-                                    try:
-                                        surveySubQuestionsObj['appName'] = obSub["appInformation"]["appName"].lower()
-                                    except KeyError :
-                                        surveySubQuestionsObj['appName'] = config.get("ML_APP_NAME", "survey_app")
+                                    # try:
+                                    #     surveySubQuestionsObj['appName'] = obSub["appInformation"]["appName"].lower()
+                                    # except KeyError :
+                                    #     surveySubQuestionsObj['appName'] = config.get("ML_APP_NAME", "survey_app")
 
                                     surveySubQuestionsObj['surveySubmissionId'] = str(obSub['_id'])
                                     surveySubQuestionsObj['createdBy'] = obSub['createdBy']
@@ -296,21 +323,21 @@ try:
                                         surveySubQuestionsObj['isAPrivateProgram'] = True
 
                                     # Extract program related information
-                                    try:
-                                        surveySubQuestionsObj['programExternalId'] = obSub['programExternalId']
-                                    except KeyError :
-                                        surveySubQuestionsObj['programExternalId'] = None
-                                    try:
-                                        surveySubQuestionsObj['programId'] = str(obSub['programId'])
-                                    except KeyError :
-                                        surveySubQuestionsObj['programId'] = None
-                                    try:
-                                        if 'programInfo' in obSub:
-                                            surveySubQuestionsObj['programName'] = obSub['programInfo']['name']
-                                        else:
-                                            surveySubQuestionsObj['programName'] = ''
-                                    except KeyError:
-                                        surveySubQuestionsObj['programName'] = ''
+                                    # try:
+                                    #     surveySubQuestionsObj['programExternalId'] = obSub['programExternalId']
+                                    # except KeyError :
+                                    #     surveySubQuestionsObj['programExternalId'] = None
+                                    # try:
+                                    #     surveySubQuestionsObj['programId'] = str(obSub['programId'])
+                                    # except KeyError :
+                                    #     surveySubQuestionsObj['programId'] = None
+                                    # try:
+                                    #     if 'programInfo' in obSub:
+                                    #         surveySubQuestionsObj['programName'] = obSub['programInfo']['name']
+                                    #     else:
+                                    #         surveySubQuestionsObj['programName'] = ''
+                                    # except KeyError:
+                                    #     surveySubQuestionsObj['programName'] = ''
 
                                     # Extract solution related information
                                     surveySubQuestionsObj['solutionExternalId'] = obSub['solutionExternalId']
@@ -325,54 +352,54 @@ try:
                                         surveySubQuestionsObj['solutionName'] = ''
 
                                     # Extract section information
-                                    try:
-                                        section = [k for k in obSub['solutionInfo']['sections'].keys()]
-                                        surveySubQuestionsObj['section'] = section[0]
-                                    except KeyError:
-                                        surveySubQuestionsObj['section'] = ''
+                                    # try:
+                                    #     section = [k for k in obSub['solutionInfo']['sections'].keys()]
+                                    #     surveySubQuestionsObj['section'] = section[0]
+                                    # except KeyError:
+                                    #     surveySubQuestionsObj['section'] = ''
 
                                     # Get sequence number for the question
-                                    surveySubQuestionsObj['questionSequenceByEcm'] = sequenceNumber(quesexternalId, answer)
+                                    # surveySubQuestionsObj['questionSequenceByEcm'] = sequenceNumber(quesexternalId, answer)
 
                                     # Extract scoring related information
-                                    try:
-                                        if obSub['solutionInformation']['scoringSystem'] == 'pointsBasedScoring':
-                                            try:
-                                                surveySubQuestionsObj['totalScore'] = obSub['pointsBasedMaxScore']
-                                            except KeyError :
-                                                surveySubQuestionsObj['totalScore'] = ''
-                                            try:
-                                                surveySubQuestionsObj['scoreAchieved'] = obSub['pointsBasedScoreAchieved']
-                                            except KeyError :
-                                                surveySubQuestionsObj['scoreAchieved'] = ''
-                                            try:
-                                                surveySubQuestionsObj['totalpercentage'] = obSub['pointsBasedPercentageScore']
-                                            except KeyError :
-                                                surveySubQuestionsObj['totalpercentage'] = ''
-                                            try:
-                                                surveySubQuestionsObj['maxScore'] = answer['maxScore']
-                                            except KeyError :
-                                                surveySubQuestionsObj['maxScore'] = ''
-                                            try:
-                                                surveySubQuestionsObj['minScore'] = answer['scoreAchieved']
-                                            except KeyError :
-                                                surveySubQuestionsObj['minScore'] = ''
-                                            try:
-                                                surveySubQuestionsObj['percentageScore'] = answer['percentageScore']
-                                            except KeyError :
-                                                surveySubQuestionsObj['percentageScore'] = ''
-                                            try:
-                                                surveySubQuestionsObj['pointsBasedScoreInParent'] = answer['pointsBasedScoreInParent']
-                                            except KeyError :
-                                                surveySubQuestionsObj['pointsBasedScoreInParent'] = ''
-                                    except KeyError:
-                                        surveySubQuestionsObj['totalScore'] = ''
-                                        surveySubQuestionsObj['scoreAchieved'] = ''
-                                        surveySubQuestionsObj['totalpercentage'] = ''
-                                        surveySubQuestionsObj['maxScore'] = ''
-                                        surveySubQuestionsObj['minScore'] = ''
-                                        surveySubQuestionsObj['percentageScore'] = ''
-                                        surveySubQuestionsObj['pointsBasedScoreInParent'] = ''
+                                    # try:
+                                    #     if obSub['solutionInformation']['scoringSystem'] == 'pointsBasedScoring':
+                                    #         # try:
+                                    #         #     surveySubQuestionsObj['totalScore'] = obSub['pointsBasedMaxScore']
+                                    #         # except KeyError :
+                                    #         #     surveySubQuestionsObj['totalScore'] = ''
+                                    #         try:
+                                    #             surveySubQuestionsObj['scoreAchieved'] = obSub['pointsBasedScoreAchieved']
+                                    #         except KeyError :
+                                    #             surveySubQuestionsObj['scoreAchieved'] = ''
+                                    #         try:
+                                    #             surveySubQuestionsObj['totalpercentage'] = obSub['pointsBasedPercentageScore']
+                                    #         except KeyError :
+                                    #             surveySubQuestionsObj['totalpercentage'] = ''
+                                    #         try:
+                                    #             surveySubQuestionsObj['maxScore'] = answer['maxScore']
+                                    #         except KeyError :
+                                    #             surveySubQuestionsObj['maxScore'] = ''
+                                    #         try:
+                                    #             surveySubQuestionsObj['minScore'] = answer['scoreAchieved']
+                                    #         except KeyError :
+                                    #             surveySubQuestionsObj['minScore'] = ''
+                                    #         try:
+                                    #             surveySubQuestionsObj['percentageScore'] = answer['percentageScore']
+                                    #         except KeyError :
+                                    #             surveySubQuestionsObj['percentageScore'] = ''
+                                    #         try:
+                                    #             surveySubQuestionsObj['pointsBasedScoreInParent'] = answer['pointsBasedScoreInParent']
+                                    #         except KeyError :
+                                    #             surveySubQuestionsObj['pointsBasedScoreInParent'] = ''
+                                    # except KeyError:
+                                    #     surveySubQuestionsObj['totalScore'] = ''
+                                    #     surveySubQuestionsObj['scoreAchieved'] = ''
+                                    #     surveySubQuestionsObj['totalpercentage'] = ''
+                                    #     surveySubQuestionsObj['maxScore'] = ''
+                                    #     surveySubQuestionsObj['minScore'] = ''
+                                    #     surveySubQuestionsObj['percentageScore'] = ''
+                                    #     surveySubQuestionsObj['pointsBasedScoreInParent'] = ''
 
                                     # Extract survey name
                                     if 'surveyInformation' in obSub :
@@ -392,6 +419,8 @@ try:
                                             surveySubQuestionsObj['questionResponseLabel_number'] = responseLabel
                                         else:
                                             surveySubQuestionsObj['questionResponseLabel_number'] = 0
+                                    else:
+                                        surveySubQuestionsObj['questionResponseLabel_number'] = 0
 
                                     # Extract response label for other response types
                                     try:
@@ -446,33 +475,53 @@ try:
                                                 multipleFiles = multipleFiles + ' , ' + filedetail['sourcePath']
                                         surveySubQuestionsObj['evidences'] = multipleFiles                                  
                                         surveySubQuestionsObj['evidence_count'] = len(answer['fileName'])
+                                    else:
+                                        surveySubQuestionsObj['evidences'] = ''                                
+                                        surveySubQuestionsObj['evidence_count'] = 0
                                     surveySubQuestionsObj['total_evidences'] = evidence_sub_count
 
                                     # Extract parent question details for matrix response type
-                                    if ans['responseType']=='matrix':
-                                        surveySubQuestionsObj['instanceParentQuestion'] = ans['question'][0]
-                                        surveySubQuestionsObj['instanceParentId'] = ans['qid']
-                                        surveySubQuestionsObj['instanceParentResponsetype'] =ans['responseType']
-                                        surveySubQuestionsObj['instanceParentCriteriaId'] =ans['criteriaId']
-                                        surveySubQuestionsObj['instanceParentCriteriaExternalId'] = ans['criteriaId']
-                                        surveySubQuestionsObj['instanceParentCriteriaName'] = None
-                                        surveySubQuestionsObj['instanceId'] = instNumber
-                                        surveySubQuestionsObj['instanceParentExternalId'] = quesexternalId
-                                        surveySubQuestionsObj['instanceParentEcmSequence']= sequenceNumber(
-                                            surveySubQuestionsObj['instanceParentExternalId'], answer
-                                        )
-                                    else:
-                                        surveySubQuestionsObj['instanceParentQuestion'] = ''
-                                        surveySubQuestionsObj['instanceParentId'] = ''
-                                        surveySubQuestionsObj['instanceParentResponsetype'] =''
-                                        surveySubQuestionsObj['instanceId'] = instNumber
-                                        surveySubQuestionsObj['instanceParentExternalId'] = ''
-                                        surveySubQuestionsObj['instanceParentEcmSequence'] = '' 
+                                    # if ans['responseType']=='matrix':
+                                    #     surveySubQuestionsObj['instanceParentQuestion'] = ans['question'][0]
+                                    #     surveySubQuestionsObj['instanceParentId'] = ans['qid']
+                                    #     surveySubQuestionsObj['instanceParentResponsetype'] =ans['responseType']
+                                    #     surveySubQuestionsObj['instanceParentCriteriaId'] =ans['criteriaId']
+                                    #     surveySubQuestionsObj['instanceParentCriteriaExternalId'] = ans['criteriaId']
+                                    #     surveySubQuestionsObj['instanceParentCriteriaName'] = None
+                                    #     surveySubQuestionsObj['instanceId'] = instNumber
+                                    #     surveySubQuestionsObj['instanceParentExternalId'] = quesexternalId
+                                    #     surveySubQuestionsObj['instanceParentEcmSequence']= sequenceNumber(
+                                    #         surveySubQuestionsObj['instanceParentExternalId'], answer
+                                    #     )
+                                    # else:
+                                    #     surveySubQuestionsObj['instanceParentQuestion'] = ''
+                                    #     surveySubQuestionsObj['instanceParentId'] = ''
+                                    #     surveySubQuestionsObj['instanceParentResponsetype'] =''
+                                    #     surveySubQuestionsObj['instanceId'] = instNumber
+                                    #     surveySubQuestionsObj['instanceParentExternalId'] = ''
+                                    #     surveySubQuestionsObj['instanceParentEcmSequence'] = '' 
 
                                     # Extract channel and parent channel
-                                    surveySubQuestionsObj['channel'] = rootOrgId 
-                                    surveySubQuestionsObj['parent_channel'] = "SHIKSHALOKAM"
+                                    # surveySubQuestionsObj['channel'] = rootOrgId 
+                                    # surveySubQuestionsObj['parent_channel'] = "SHIKSHALOKAM"
+                                    # user profile creation
+                                    flatten_userprofile = flatten_json(obSub['userProfile'])
+                                    new_dict = {}
+                                    for key in flatten_userprofile:
+                                        string_without_integer = re.sub(r'\d+', '', key)
+                                        updated_string = string_without_integer.replace("--", "-")
+                                        # Check if the value associated with the key is not None
+                                        if flatten_userprofile[key] is not None:
+                                            if updated_string in new_dict:
+                                                # Perform addition only if both values are not None
+                                                if new_dict[updated_string] is not None:
+                                                    new_dict[updated_string] += "," + str(flatten_userprofile[key])
+                                                else:
+                                                    new_dict[updated_string] = str(flatten_userprofile[key])
+                                            else:
+                                                new_dict[updated_string] = str(flatten_userprofile[key])
 
+                                    surveySubQuestionsObj['userProfile'] = str(new_dict)
                                     # Update object with additional user data
                                     # Commented the bellow line as we don't need userRoleInso in KB
                                     # surveySubQuestionsObj.update(userDataCollector(obSub))
@@ -551,38 +600,63 @@ try:
             surveySubQuestionsObj['surveyId'] = str(obSub.get('surveyId', ''))
             surveySubQuestionsObj['survey_name'] = str(obSub.get('surveyInformation', {}).get('name', ''))
             surveySubQuestionsObj['survey_submission_id'] = obSub.get('_id', '')
-            surveySubQuestionsObj['UUID'] = obSub.get('createdBy', '')
-            surveySubQuestionsObj['programId'] = obSub.get('programInfo', {}).get('_id', '')
-            surveySubQuestionsObj['program_name'] = obSub.get('programInfo', {}).get('name', '')
-            
+            # surveySubQuestionsObj['UUID'] = obSub.get('createdBy', '')
+            # surveySubQuestionsObj['programId'] = obSub.get('programInfo', {}).get('_id', '')
+            # surveySubQuestionsObj['program_name'] = obSub.get('programInfo', {}).get('name', '')
+            surveySubQuestionsObj['createdBy'] = obSub['createdBy']
+            surveySubQuestionsObj['completedDate'] = obSub['completedDate']
+            # Check if 'isAPrivateProgram' key exists
+            try:
+                surveySubQuestionsObj['isAPrivateProgram'] = obSub['isAPrivateProgram']
+            except KeyError:
+                surveySubQuestionsObj['isAPrivateProgram'] = True
+            # user profile creation
+            flatten_userprofile = flatten_json(obSub['userProfile'])
+            new_dict = {}
+            for key in flatten_userprofile:
+                string_without_integer = re.sub(r'\d+', '', key)
+                updated_string = string_without_integer.replace("--", "-")
+                # Check if the value associated with the key is not None
+                if flatten_userprofile[key] is not None:
+                    if updated_string in new_dict:
+                        # Perform addition only if both values are not None
+                        if new_dict[updated_string] is not None:
+                            new_dict[updated_string] += "," + str(flatten_userprofile[key])
+                        else:
+                            new_dict[updated_string] = str(flatten_userprofile[key])
+                    else:
+                        new_dict[updated_string] = str(flatten_userprofile[key])
+
+            surveySubQuestionsObj['userProfile'] = str(new_dict)
+
             # Before attempting to access the list, check if it is non-empty
-            profile_user_types = obSub.get('userProfile', {}).get('profileUserTypes', [])
-            if profile_user_types:
-                # Access the first element of the list if it exists
-                user_type = profile_user_types[0].get('type', None)
-            else:
-                # Handle the case when the list is empty
-                user_type = None
-            surveySubQuestionsObj['user_type'] = user_type
+            # profile_user_types = obSub.get('userProfile', {}).get('profileUserTypes', [])
+            # if profile_user_types:
+            #     # Access the first element of the list if it exists
+            #     user_type = profile_user_types[0].get('type', None)
+            # else:
+            #     # Handle the case when the list is empty
+            #     user_type = None
+            # surveySubQuestionsObj['user_type'] = user_type
 
-            surveySubQuestionsObj['survey_externalId'] = obSub.get('solutionExternalId', '')
-            surveySubQuestionsObj['solution_id'] = obSub.get('solutionId', '')
+            surveySubQuestionsObj['solutionExternalId'] = obSub.get('solutionExternalId', '')
+            surveySubQuestionsObj['solutionId'] = obSub.get('solutionId', '')
 
-            for location in obSub.get('userProfile', {}).get('userLocations', []):
-                name = location.get('name')
-                type_ = location.get('type')
-                if name and type_:
-                    surveySubQuestionsObj[type_] = name
+            # for location in obSub.get('userProfile', {}).get('userLocations', []):
+            #     name = location.get('name')
+            #     type_ = location.get('type')
+            #     if name and type_:
+            #         surveySubQuestionsObj[type_] = name
             
-            surveySubQuestionsObj['board_name'] = obSub.get('userProfile', {}).get('framework', {}).get('board', [''])[0]
+            # surveySubQuestionsObj['board_name'] = obSub.get('userProfile', {}).get('framework', {}).get('board', [''])[0]
 
             orgArr = orgCreator(obSub.get('userProfile', {}).get('organisations',None))
             if orgArr:
-                surveySubQuestionsObj['schoolId'] = orgArr[0].get("organisation_id")
-                surveySubQuestionsObj['org_name'] = orgArr[0].get("organisation_name")
+                # surveySubQuestionsObj['schoolId'] = orgArr[0].get("organisation_id")
+                surveySubQuestionsObj['organisation_name'] = orgArr[0].get("organisation_name")
             else:
-                surveySubQuestionsObj['schoolId'] = None
-                surveySubQuestionsObj['org_name'] = None
+                # surveySubQuestionsObj['schoolId'] = None
+                surveySubQuestionsObj['organisation_name'] = None
             
             # Insert data to sl-survey-meta druid datasource if status is anything 
             _id = surveySubQuestionsObj.get('survey_submission_id', None)
