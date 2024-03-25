@@ -4,7 +4,7 @@
 /opt/sparkjobs/faust_as_service/faust.sh  survey/survey_realtime_streaming survey/ &
 
 #start observations
-#/opt/sparkjobs/faust_as_service/faust.sh  observations/py_observation_streaming observations/ &
+/opt/sparkjobs/faust_as_service/faust.sh  observations/observation_realtime_streaming observations/ &
 
 #start observation_evidence
 #/opt/sparkjobs/faust_as_service/faust.sh  observations/py_observation_evidence_streaming observations/ &

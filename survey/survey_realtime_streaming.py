@@ -598,7 +598,7 @@ try:
             
             # Extract various attributes from survey submission object
             surveySubQuestionsObj['surveyId'] = str(obSub.get('surveyId', ''))
-            surveySubQuestionsObj['survey_name'] = str(obSub.get('surveyInformation', {}).get('name', ''))
+            surveySubQuestionsObj['surveyName'] = str(obSub.get('surveyInformation', {}).get('name', ''))
             surveySubQuestionsObj['survey_submission_id'] = obSub.get('_id', '')
             # surveySubQuestionsObj['UUID'] = obSub.get('createdBy', '')
             # surveySubQuestionsObj['programId'] = obSub.get('programInfo', {}).get('_id', '')

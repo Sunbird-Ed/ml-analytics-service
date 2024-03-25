@@ -98,7 +98,7 @@ rawTopicName = app.topic(config.get("KAFKA", "observation_raw_topic"))
 producer = KafkaProducer(bootstrap_servers=[kafka_url])
 
 # # Define function to check if observation submission Id exists in Druid
-def check_observation_submission_id_existance(key,column_name,table_name):
+def check_observation_submission_id_existance(observationId,column_name,table_name):
   try:
       # Establish connection to Druid
       url = config.get("DRUID","sql_url")
@@ -115,7 +115,7 @@ def check_observation_submission_id_existance(key,column_name,table_name):
       response = check_datasource_existence(table_name)
       if response == True:
           # Query to check existence of observation submission Id in Druid table
-          query = f"SELECT COUNT(*) FROM \"{table_name}\" WHERE \"{column_name}\" = '{key}'"
+          query = f"SELECT COUNT(*) FROM \"{table_name}\" WHERE \"{column_name}\" = '{observationId}'"
           cur.execute(query)
           result = cur.fetchone()
           count = result[0]
@@ -871,7 +871,7 @@ try:
       
       # Extract various attributes from observation submission object
       observationSubQuestionsObj['observationId'] = str(obSub.get('observationId', ''))
-      observationSubQuestionsObj['observation_name'] = str(obSub.get('observationInformation', {}).get('name', ''))
+      observationSubQuestionsObj['observationName'] = str(obSub.get('observationInformation', {}).get('name', ''))
       observationSubQuestionsObj['observation_submission_id'] = obSub.get('_id', '')
       try:
         observationSubQuestionsObj['createdBy'] = obSub['createdBy']
