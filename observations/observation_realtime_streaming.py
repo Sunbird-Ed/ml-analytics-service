@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------
 # Name : observation_realtime_streaming.py
-# Author : 
+# Author : Prashant
 # Description : Program to read data from one kafka topic and 
 # produce it to another kafka topic 
 # -----------------------------------------------------------------
@@ -11,7 +11,6 @@ import logging
 import os, json
 import datetime
 import requests
-from pymongo import MongoClient
 from bson.objectid import ObjectId
 from kafka import KafkaConsumer, KafkaProducer
 from configparser import ConfigParser,ExtendedInterpolation
@@ -120,6 +119,8 @@ def check_observation_submission_id_existance(observationId,column_name,table_na
           result = cur.fetchone()
           count = result[0]
           infoLogger.info(f"Found {count} entires in {table_name}")
+          # if count == 0 means observation_submission_id not exits in the datasource
+          # if count > 0 means observation_submission_id exits in datasource 
           if count == 0:
               return True
           else:
@@ -240,9 +241,9 @@ try:
   def obj_creation(obSub):
     # Debug log for survey submission ID
     infoLogger.info(f"Started to process kafka event for the observation Submission Id : {obSub['_id']}. For Observation Question report")
-    observation_submission_id =  str(obSub['_id'])  
-    if check_observation_submission_id_existance(observation_submission_id,"observationSubmissionId","sl-observation"):
-      infoLogger.info(f"No data duplection for the Submission ID : {observation_submission_id} in sl-observation ")  
+    observationSubmissionId =  str(obSub['_id'])  
+    if check_observation_submission_id_existance(observationSubmissionId,"observationSubmissionId","sl-observation"):
+      infoLogger.info(f"No data duplection for the Submission ID : {observationSubmissionId} in sl-observation ")  
       if obSub['status'] == 'completed': 
         if 'isAPrivateProgram' in obSub :
           completedDate = None
@@ -854,7 +855,7 @@ try:
       else:
           infoLogger.info(f"Observation Submission is not in completed status" )
     else:
-       infoLogger.info(f"observation_Submission_id {observation_submission_id} is already exists in the sl-observation datasource.") 
+       infoLogger.info(f"observation_Submission_id {observationSubmissionId} is already exists in the sl-observation datasource.") 
     infoLogger.info(f"Completed processing kafka event for the Observation Submission Id : {obSub['_id']}. For Observation Question report ")                    
 except Exception as e:
   errorLogger.error(e, exc_info=True)
@@ -872,7 +873,7 @@ try:
       # Extract various attributes from observation submission object
       observationSubQuestionsObj['observationId'] = str(obSub.get('observationId', ''))
       observationSubQuestionsObj['observationName'] = str(obSub.get('observationInformation', {}).get('name', ''))
-      observationSubQuestionsObj['observation_submission_id'] = obSub.get('_id', '')
+      observationSubQuestionsObj['observationSubmissionId'] = obSub.get('_id', '')
       try:
         observationSubQuestionsObj['createdBy'] = obSub['createdBy']
       except KeyError:
@@ -949,10 +950,10 @@ try:
           observationSubQuestionsObj['organisation_name'] = None
       
       # Insert data to sl-observation-meta druid datasource if status is anything 
-      _id = observationSubQuestionsObj.get('observation_submission_id', None)
+      _id = observationSubQuestionsObj.get('observationSubmissionId', None)
       try:
           if _id:
-                if check_observation_submission_id_existance(_id,"observation_submission_id","sl-observation-meta"):
+                if check_observation_submission_id_existance(_id,"observationSubmissionId","sl-observation-meta"):
                     infoLogger.info(f"No data duplection for the Submission ID : {_id} in sl-observation-meta datasource")
                     # Upload observation submission data to Druid topic
                     producer.send((config.get("KAFKA", "observation_meta_druid_topic")), json.dumps(observationSubQuestionsObj).encode('utf-8'))  
@@ -968,15 +969,15 @@ try:
 
       # Insert data to sl-observation-status-started druid datasource if status is started
       if obSub['status'] == 'started':
-          observation_status['observation_submission_id'] = obSub['_id']
+          observation_status['observationSubmissionId'] = obSub['_id']
           try:
             observation_status['started_at'] = obSub['completedDate']
           except KeyError:
             observation_status['started_at'] = ''
-          _id = observation_status.get('observation_submission_id', None) 
+          _id = observation_status.get('observationSubmissionId', None) 
           try : 
               if _id:
-                  if check_observation_submission_id_existance(_id,"observation_submission_id","sl-observation-status-started"):
+                  if check_observation_submission_id_existance(_id,"observationSubmissionId","sl-observation-status-started"):
                       infoLogger.info(f"No data duplection for the Submission ID : {_id} in sl-observation-status-started datasource")
                       # Upload observation status data to Druid topic
                       producer.send((config.get("KAFKA", "observation_started_druid_topic")), json.dumps(observation_status).encode('utf-8'))
@@ -992,12 +993,12 @@ try:
       
       # Insert data to sl-observation-status-started druid datasource if status is inprogress
       elif obSub['status'] == 'inprogress':
-          observation_status['observation_submission_id'] = obSub['_id']
+          observation_status['observationSubmissionId'] = obSub['_id']
           observation_status['inprogress_at'] = obSub['completedDate']
-          _id = observation_status.get('observation_submission_id', None) 
+          _id = observation_status.get('observationSubmissionId', None) 
           try : 
               if _id:
-                  if check_observation_submission_id_existance(_id,"observation_submission_id","sl-observation-status-inprogress"):
+                  if check_observation_submission_id_existance(_id,"observationSubmissionId","sl-observation-status-inprogress"):
                       infoLogger.info(f"No data duplection for the Submission ID : {_id} in sl-observation-status-inprogress datasource")
                       # Upload observation status data to Druid topic
                       producer.send((config.get("KAFKA", "observation_inprogress_druid_topic")), json.dumps(observation_status).encode('utf-8'))
@@ -1012,12 +1013,12 @@ try:
 
 
       elif obSub['status'] == 'completed':
-          observation_status['observation_submission_id'] = obSub['_id']
+          observation_status['observationSubmissionId'] = obSub['_id']
           observation_status['completed_at'] = obSub['completedDate']
-          _id = observation_status.get('observation_submission_id', None) 
+          _id = observation_status.get('observationSubmissionId', None) 
           try : 
               if _id:
-                  if check_observation_submission_id_existance(_id,"observation_submission_id","sl-observation-status-completed"):
+                  if check_observation_submission_id_existance(_id,"observationSubmissionId","sl-observation-status-completed"):
                       infoLogger.info(f"No data duplection for the Submission ID : {_id} in sl-observation-status-completed datasource")
                       # Upload observation status data to Druid topic
                       producer.send((config.get("KAFKA", "observation_completed_druid_topic")), json.dumps(observation_status).encode('utf-8'))

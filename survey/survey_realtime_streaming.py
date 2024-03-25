@@ -142,8 +142,8 @@ def orgCreator(val):
         for org in val:
             orgObj = {}
             if org["isSchool"] == False:
-                orgObj['organisation_id'] = org['organisationId']
-                orgObj['organisation_name'] = org["orgName"]
+                orgObj['organisationId'] = org['organisationId']
+                orgObj['organisationName'] = org["orgName"]
                 orgarr.append(orgObj)
     return orgarr
 
@@ -259,9 +259,9 @@ try:
         try:
             # Debug log for survey submission ID
             infoLogger.info(f"Started to process kafka event for the Survey Submission Id : {obSub['_id']}. For Survey Question report")
-            survey_submission_id =  str(obSub['_id'])
-            if check_survey_submission_id_existance(survey_submission_id,"surveySubmissionId","sl-survey"):
-                infoLogger.info(f"No data duplection for the Submission ID : {survey_submission_id} in sl-survey ")
+            surveySubmissionId =  str(obSub['_id'])
+            if check_survey_submission_id_existance(surveySubmissionId,"surveySubmissionId","sl-survey"):
+                infoLogger.info(f"No data duplection for the Submission ID : {surveySubmissionId} in sl-survey ")
                 if obSub['status'] == 'completed':   
                     if 'isAPrivateProgram' in obSub :
                         surveySubQuestionsArr = []
@@ -474,11 +474,11 @@ try:
                                             else:
                                                 multipleFiles = multipleFiles + ' , ' + filedetail['sourcePath']
                                         surveySubQuestionsObj['evidences'] = multipleFiles                                  
-                                        surveySubQuestionsObj['evidence_count'] = len(answer['fileName'])
+                                        surveySubQuestionsObj['evidenceCount'] = len(answer['fileName'])
                                     else:
                                         surveySubQuestionsObj['evidences'] = ''                                
-                                        surveySubQuestionsObj['evidence_count'] = 0
-                                    surveySubQuestionsObj['total_evidences'] = evidence_sub_count
+                                        surveySubQuestionsObj['evidenceCount'] = 0
+                                    surveySubQuestionsObj['totalEvidences'] = evidence_sub_count
 
                                     # Extract parent question details for matrix response type
                                     # if ans['responseType']=='matrix':
@@ -575,7 +575,7 @@ try:
                 else:                        
                     infoLogger.info(f"Survey Submission is not in completed status" )
             else:
-                infoLogger.info(f"survey_Submission_id {survey_submission_id} is already exists in the sl-survey datasource.")    
+                infoLogger.info(f"survey_Submission_id {surveySubmissionId} is already exists in the sl-survey datasource.")    
 
             infoLogger.info(f"Completed processing kafka event for the Survey Submission Id : {obSub['_id']}. For Survey Question report ")              
         
@@ -599,10 +599,15 @@ try:
             # Extract various attributes from survey submission object
             surveySubQuestionsObj['surveyId'] = str(obSub.get('surveyId', ''))
             surveySubQuestionsObj['surveyName'] = str(obSub.get('surveyInformation', {}).get('name', ''))
-            surveySubQuestionsObj['survey_submission_id'] = obSub.get('_id', '')
-            # surveySubQuestionsObj['UUID'] = obSub.get('createdBy', '')
-            # surveySubQuestionsObj['programId'] = obSub.get('programInfo', {}).get('_id', '')
-            # surveySubQuestionsObj['program_name'] = obSub.get('programInfo', {}).get('name', '')
+            surveySubQuestionsObj['surveySubmissionId'] = obSub.get('_id', '')
+            try:
+                if 'solutionInfo' in obSub:
+                    surveySubQuestionsObj['solutionName'] = obSub['solutionInfo']['name']
+                else:
+                    surveySubQuestionsObj['solutionName'] = ''
+            except KeyError:
+                surveySubQuestionsObj['solutionName'] = ''
+
             surveySubQuestionsObj['createdBy'] = obSub['createdBy']
             surveySubQuestionsObj['completedDate'] = obSub['completedDate']
             # Check if 'isAPrivateProgram' key exists
@@ -653,16 +658,16 @@ try:
             orgArr = orgCreator(obSub.get('userProfile', {}).get('organisations',None))
             if orgArr:
                 # surveySubQuestionsObj['schoolId'] = orgArr[0].get("organisation_id")
-                surveySubQuestionsObj['organisation_name'] = orgArr[0].get("organisation_name")
+                surveySubQuestionsObj['organisationName'] = orgArr[0].get("organisationName")
             else:
                 # surveySubQuestionsObj['schoolId'] = None
-                surveySubQuestionsObj['organisation_name'] = None
+                surveySubQuestionsObj['organisationName'] = None
             
             # Insert data to sl-survey-meta druid datasource if status is anything 
-            _id = surveySubQuestionsObj.get('survey_submission_id', None)
+            _id = surveySubQuestionsObj.get('surveySubmissionId', None)
             try:
                 if _id:
-                        if check_survey_submission_id_existance(_id,"survey_submission_id","sl-survey-meta"):
+                        if check_survey_submission_id_existance(_id,"surveySubmissionId","sl-survey-meta"):
                             infoLogger.info(f"No data duplection for the Submission ID : {_id} in sl-survey-meta datasource")
                             # Upload survey submission data to Druid topic
                             producer.send((config.get("KAFKA", "survey_meta_druid_topic")), json.dumps(surveySubQuestionsObj).encode('utf-8'))  
@@ -678,12 +683,12 @@ try:
 
             # Insert data to sl-survey-status-started druid datasource if status is started
             if obSub['status'] == 'started':
-                survey_status['survey_submission_id'] = obSub['_id']
+                survey_status['surveySubmissionId'] = obSub['_id']
                 survey_status['started_at'] = obSub['completedDate']
-                _id = survey_status.get('survey_submission_id', None) 
+                _id = survey_status.get('surveySubmissionId', None) 
                 try : 
                     if _id:
-                        if check_survey_submission_id_existance(_id,"survey_submission_id","sl-survey-status-started"):
+                        if check_survey_submission_id_existance(_id,"surveySubmissionId","sl-survey-status-started"):
                             infoLogger.info(f"No data duplection for the Submission ID : {_id} in sl-survey-status-started datasource")
                             # Upload survey status data to Druid topic
                             producer.send((config.get("KAFKA", "survey_started_druid_topic")), json.dumps(survey_status).encode('utf-8'))
@@ -699,12 +704,12 @@ try:
             
             # Insert data to sl-survey-status-started druid datasource if status is inprogress
             elif obSub['status'] == 'inprogress':
-                survey_status['survey_submission_id'] = obSub['_id']
+                survey_status['surveySubmissionId'] = obSub['_id']
                 survey_status['inprogress_at'] = obSub['completedDate']
-                _id = survey_status.get('survey_submission_id', None) 
+                _id = survey_status.get('surveySubmissionId', None) 
                 try : 
                     if _id:
-                        if check_survey_submission_id_existance(_id,"survey_submission_id","sl-survey-status-inprogress"):
+                        if check_survey_submission_id_existance(_id,"surveySubmissionId","sl-survey-status-inprogress"):
                             infoLogger.info(f"No data duplection for the Submission ID : {_id} in sl-survey-status-inprogress datasource")
                             # Upload survey status data to Druid topic
                             producer.send((config.get("KAFKA", "survey_inprogress_druid_topic")), json.dumps(survey_status).encode('utf-8'))
@@ -719,12 +724,12 @@ try:
 
 
             elif obSub['status'] == 'completed':
-                survey_status['survey_submission_id'] = obSub['_id']
+                survey_status['surveySubmissionId'] = obSub['_id']
                 survey_status['completed_at'] = obSub['completedDate']
-                _id = survey_status.get('survey_submission_id', None) 
+                _id = survey_status.get('surveySubmissionId', None) 
                 try : 
                     if _id:
-                        if check_survey_submission_id_existance(_id,"survey_submission_id","sl-survey-status-completed"):
+                        if check_survey_submission_id_existance(_id,"surveySubmissionId","sl-survey-status-completed"):
                             infoLogger.info(f"No data duplection for the Submission ID : {_id} in sl-survey-status-completed datasource")
                             # Upload survey status data to Druid topic
                             producer.send((config.get("KAFKA", "survey_completed_druid_topic")), json.dumps(survey_status).encode('utf-8'))
