@@ -97,16 +97,6 @@ app = faust.App(
 rawTopicName = app.topic(config.get("KAFKA", "observation_raw_topic"))
 producer = KafkaProducer(bootstrap_servers=[kafka_url])
 
-#db production
-# client = MongoClient(config.get('MONGO', 'url'))
-# db = client[config.get('MONGO', 'database_name')]
-# solCollec = db[config.get('MONGO', 'solutions_collection')]
-# obsCollec = db[config.get('MONGO', 'observations_collection')]
-# criteriaQuestionsCollec = db[config.get('MONGO', 'criteria_questions_collection')]
-# criteriaCollec = db[config.get('MONGO', 'criteria_collection')]
-# programsCollec = db[config.get('MONGO', 'programs_collection')]
-
-
 # # Define function to check if observation submission Id exists in Druid
 def check_observation_submission_id_existance(key,column_name,table_name):
   try:
@@ -142,8 +132,8 @@ def check_observation_submission_id_existance(key,column_name,table_name):
       errorLogger.error(f"Error checking observation_submission_id existence in Druid: {e}")
    
 def check_datasource_existence(datasource_name):
-  host = config.get('DRUID', 'datasource_url')
   try : 
+      host = config.get('DRUID', 'datasource_url')
       response = requests.get(host)
       if response.status_code == 200:
         datasources = response.json()
@@ -301,12 +291,6 @@ try:
           roleObj["role_title"] = userSubType
           roleObj["user_boardName"] = boardName
           roleObj["user_type"] = user_type
-          #commented it beacause "userLocation" key not present in userProfile
-          # if "userProfile" in obSub and len(obSub["userProfile"]["userLocations"])>0:
-          #  for ent in obSub["userProfile"]["userLocations"]:
-          #     roleObj["user_"+ent["type"]+"Name"] = ent["name"]
-          #     roleObj[ent["type"]+"_externalId"] = ent["id"]
-          #     roleObj[ent["type"]+"_code"] = ent["code"]
           userRolesArrUnique.append(roleObj)
           try:
             orgArr = orgName(obSub["userProfile"]["organisations"])
@@ -354,9 +338,6 @@ try:
 
                   entityType =obSub['entityType']
                   observationSubQuestionsObj[entityType] = str(obSub['entityId'])
-                  # observationSubQuestionsObj[entityType+'Name'] = obSub['entityInformation']['name']
-                  # observationSubQuestionsObj[entityType+'ExternalId'] = obSub['entityInformation']['externalId']        
-                  # observed_entities = obSub['entityInformation']['hierarchy']
                   observed_entities = {}
                   try:
                     for values in observed_entities:
@@ -398,14 +379,7 @@ try:
                       observationSubQuestionsObj['criteriaName'] = critQues['name']
                       observationSubQuestionsObj['criteriaDescription'] = critQues['description']
                       observationSubQuestionsObj['section'] = ''
-                      # for eviCQ in critQues["evidences"] :
-                      #   for secCQ in eviCQ["sections"] :
-                      #     for quesCQ in secCQ["questions"] :
-                      #       if str(quesCQ["_id"]) == str(answer["qid"]) :
-                      #         observationSubQuestionsObj['section'] = secCQ["code"]
                   solutionObj = {}
-                  # for solu in solCollec.find({'_id':ObjectId(obSub['solutionId'])}):
-                  #   solutionObj = solu
                   try : 
                     if 'solutionInfo' in obSub.keys():
                       solutionObj = obSub['solutionInfo']
@@ -469,18 +443,8 @@ try:
                       observationSubQuestionsObj['observationName'] = obSub['observationInformation']['name']
                     else :
                       observationSubQuestionsObj['observationName'] = ''
-                    #  try:
-                    #   for ob in obsCollec.find({'_id':obSub['observationId']},{'name':1}):
-                    #    observationSubQuestionsObj['observationName'] = ob['name']
-                    #  except KeyError :
-                    #   observationSubQuestionsObj['observationName'] = ''
                   else :
                     observationSubQuestionsObj['observationName'] = ''
-                  #  try:
-                  #   for ob in obsCollec.find({'_id':obSub['observationId']},{'name':1}):
-                  #    observationSubQuestionsObj['observationName'] = ob['name']
-                  #  except KeyError :
-                  #   observationSubQuestionsObj['observationName'] = '' 
 
                   observationSubQuestionsObj['questionId'] = str(answer['qid'])
                   observationSubQuestionsObj['questionAnswer'] = ans_val
@@ -534,13 +498,7 @@ try:
                       if critQuesInst['_id'] == ans['criteriaId']:
                         observationSubQuestionsObj['instanceParentCriteriaExternalId'] = critQuesInst['externalId']
                         observationSubQuestionsObj['instanceParentCriteriaExternalId'] = critQuesInst['name']
-                        # commented below lines because evidences object doesnt contain sections key
                         observationSubQuestionsObj['instanceParentSection'] = ''
-                        # for eviCQInst in critQuesInst["evidences"] :
-                        #   for secCQInst in eviCQInst["sections"] :
-                        #     for quesCQInst in secCQInst["questions"] :
-                        #       if str(quesCQInst["_id"]) == str(ans["qid"]) :
-                        #         observationSubQuestionsObj['instanceParentSection'] = secCQInst["code"]
                         observationSubQuestionsObj['instanceId'] = instNumber
                         observationSubQuestionsObj['instanceParentExternalId'] = quesexternalId
                       observationSubQuestionsObj['instanceParentEcmSequence']= sequenceNumber(observationSubQuestionsObj['instanceParentExternalId'], answer,
@@ -773,7 +731,7 @@ try:
                                   json.dumps(finalObj).encode('utf-8')
                                 )
                                 producer.flush()
-                                infoLogger.info("Send Obj to Kafka")
+                                infoLogger.info(f"Data for observationId ({finalObj['observationId']}) and questionId ({finalObj['questionId']}) inserted into sl-observation datasource")
                           else :
                             finalObj = {}
                             finalObj =  creatingObj(
@@ -789,7 +747,7 @@ try:
                                 json.dumps(finalObj).encode('utf-8')
                               )
                               producer.flush()
-                              infoLogger.info("Send Obj to Kafka")
+                              infoLogger.info(f"Data for observationId ({finalObj['observationId']}) and questionId ({finalObj['questionId']}) inserted into sl-observation datasource")
                       except KeyError:
                         pass
                     else:
@@ -815,7 +773,7 @@ try:
                                       json.dumps(finalObj).encode('utf-8')
                                     )
                                     producer.flush()
-                                    infoLogger.info("Send Obj to Kafka")
+                                    infoLogger.info(f"Data for observationId ({finalObj['observationId']}) and questionId ({finalObj['questionId']}) inserted into sl-observation datasource")
                               else :
                                 finalObj = {}
                                 finalObj =  creatingObj(
@@ -831,7 +789,7 @@ try:
                                     json.dumps(finalObj).encode('utf-8')
                                   )
                                   producer.flush()
-                                  infoLogger.info("Send Obj to Kafka") 
+                                  infoLogger.info(f"Data for observationId ({finalObj['observationId']}) and questionId ({finalObj['questionId']}) inserted into sl-observation datasource")
                               
                           elif type(ansFn['value']) == list:
                             for ansArr in ansFn['value']:
@@ -853,7 +811,7 @@ try:
                                         json.dumps(finalObj).encode('utf-8')
                                       )
                                       producer.flush()
-                                      infoLogger.info("Send Obj to Kafka")
+                                      infoLogger.info(f"Data for observationId ({finalObj['observationId']}) and questionId ({finalObj['questionId']}) inserted into sl-observation datasource")
                                 else :
                                   finalObj = {}
                                   finalObj =  creatingObj(
@@ -870,7 +828,7 @@ try:
                                       json.dumps(finalObj).encode('utf-8')
                                     )
                                     producer.flush()
-                                    infoLogger.info("Send Obj to Kafka")
+                                    infoLogger.info(f"Data for observationId ({finalObj['observationId']}) and questionId ({finalObj['questionId']}) inserted into sl-observation datasource")
                                 labelIndex = labelIndex + 1
                         except KeyError:
                           pass
@@ -915,8 +873,6 @@ try:
       observationSubQuestionsObj['observationId'] = str(obSub.get('observationId', ''))
       observationSubQuestionsObj['observation_name'] = str(obSub.get('observationInformation', {}).get('name', ''))
       observationSubQuestionsObj['observation_submission_id'] = obSub.get('_id', '')
-      # observationSubQuestionsObj['programId'] = obSub.get('programInfo', {}).get('_id', '')
-      # observationSubQuestionsObj['program_name'] = obSub.get('programInfo', {}).get('name', '')
       try:
         observationSubQuestionsObj['createdBy'] = obSub['createdBy']
       except KeyError:
@@ -983,7 +939,6 @@ try:
           if name and type_:
               observationSubQuestionsObj[type_] = name
       
-      # observationSubQuestionsObj['board_name'] = obSub.get('userProfile', {}).get('framework', {}).get('board', [''])[0]
 
       orgArr = orgName(obSub.get('userProfile', {}).get('organisations',None))
       if orgArr:
