@@ -883,6 +883,12 @@ try:
       observationSubQuestionsObj['entityType'] =obSub['entityType']
       observationSubQuestionsObj["solutionId"] = obSub["solutionId"],
       observationSubQuestionsObj["solutionExternalId"] = obSub["solutionExternalId"]
+      try : 
+        if 'solutionInfo' in obSub.keys():
+          solutionObj = obSub['solutionInfo']
+          observationSubQuestionsObj['solutionName'] = str(solutionObj.get('name',''))
+      except KeyError:
+        observationSubQuestionsObj['solutionName'] = ''
       try:
         if obSub["isRubricDriven"] == True and obSub["criteriaLevelReport"] == True:
           observationSubQuestionsObj['solution_type'] = "observation_with_rubric"
