@@ -416,11 +416,11 @@ try:
                                     # Extract response label for number response type
                                     if answer['responseType'] == 'number':
                                         if responseLabel:
-                                            surveySubQuestionsObj['questionResponseLabel_number'] = responseLabel
+                                            surveySubQuestionsObj['questionResponseLabelNumber'] = responseLabel
                                         else:
-                                            surveySubQuestionsObj['questionResponseLabel_number'] = 0
+                                            surveySubQuestionsObj['questionResponseLabelNumber'] = 0
                                     else:
-                                        surveySubQuestionsObj['questionResponseLabel_number'] = 0
+                                        surveySubQuestionsObj['questionResponseLabelNumber'] = 0
 
                                     # Extract response label for other response types
                                     try:
@@ -684,7 +684,7 @@ try:
             # Insert data to sl-survey-status-started druid datasource if status is started
             if obSub['status'] == 'started':
                 survey_status['surveySubmissionId'] = obSub['_id']
-                survey_status['started_at'] = obSub['completedDate']
+                survey_status['startedAt'] = obSub['completedDate']
                 _id = survey_status.get('surveySubmissionId', None) 
                 try : 
                     if _id:
@@ -705,7 +705,7 @@ try:
             # Insert data to sl-survey-status-started druid datasource if status is inprogress
             elif obSub['status'] == 'inprogress':
                 survey_status['surveySubmissionId'] = obSub['_id']
-                survey_status['inprogress_at'] = obSub['completedDate']
+                survey_status['inprogressAt'] = obSub['completedDate']
                 _id = survey_status.get('surveySubmissionId', None) 
                 try : 
                     if _id:
@@ -725,7 +725,7 @@ try:
 
             elif obSub['status'] == 'completed':
                 survey_status['surveySubmissionId'] = obSub['_id']
-                survey_status['completed_at'] = obSub['completedDate']
+                survey_status['completedAt'] = obSub['completedDate']
                 _id = survey_status.get('surveySubmissionId', None) 
                 try : 
                     if _id:
