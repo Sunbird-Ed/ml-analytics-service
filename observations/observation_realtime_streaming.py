@@ -289,17 +289,17 @@ try:
             obsAppName = ''
           userRolesArrUnique = []
           roleObj = {}
-          roleObj["role_title"] = userSubType
-          roleObj["user_boardName"] = boardName
-          roleObj["user_type"] = user_type
+          roleObj["roleTitle"] = userSubType
+          roleObj["userBoardName"] = boardName
+          roleObj["userType"] = user_type
           userRolesArrUnique.append(roleObj)
           try:
             orgArr = orgName(obSub["userProfile"]["organisations"])
             if len(orgArr) >0:
               for org in orgArr:
                 for obj in userRolesArrUnique:
-                  obj["organisation_id"] = org["orgId"]
-                  obj["organisation_name"] = org["orgName"]
+                  obj["organisationId"] = org["orgId"]
+                  obj["organisationName"] = org["orgName"]
           except KeyError:
               pass
 
@@ -326,13 +326,13 @@ try:
                   observationSubQuestionsObj['appName'] = obsAppName
                   try:
                     if obSub["isRubricDriven"] == True and obSub["criteriaLevelReport"] == True:
-                      observationSubQuestionsObj['solution_type'] = "observation_with_rubric"
+                      observationSubQuestionsObj['solutionType'] = "observation_with_rubric"
                     elif obSub["isRubricDriven"] == True and obSub["criteriaLevelReport"] == False:
-                      observationSubQuestionsObj['solution_type'] = "observation_with_rubric_no_criteria_level_report"
+                      observationSubQuestionsObj['solutionType'] = "observation_with_rubric_no_criteria_level_report"
                     else:
-                      observationSubQuestionsObj['solution_type'] = "observation_with_out_rubric"
+                      observationSubQuestionsObj['solutionType'] = "observation_with_out_rubric"
                   except KeyError:
-                    observationSubQuestionsObj['solution_type'] = "observation_with_out_rubric"
+                    observationSubQuestionsObj['solutionType'] = "observation_with_out_rubric"
                   observationSubQuestionsObj['entity'] = str(obSub['entityId'])
                   observationSubQuestionsObj['entityExternalId'] = obSub['entityExternalId']
                   # observationSubQuestionsObj['entityName'] = obSub['entityInformation']['name'] 
@@ -452,9 +452,9 @@ try:
                   observationSubQuestionsObj['questionResponseType'] = answer['responseType']
                   if answer['responseType'] == 'number':
                     if responseLabel:
-                      observationSubQuestionsObj['questionResponseLabel_number'] = responseLabel
+                      observationSubQuestionsObj['questionResponseLabelNumber'] = responseLabel
                     else:
-                      observationSubQuestionsObj['questionResponseLabel_number'] = 0
+                      observationSubQuestionsObj['questionResponseLabelNumber'] = 0
                   try:
                     if responseLabel:
                       if answer['responseType'] == 'text':
@@ -486,8 +486,8 @@ try:
                       else:
                         multipleFiles = multipleFiles + ' , ' + filedetail['sourcePath']
                     observationSubQuestionsObj['evidences'] = multipleFiles                                  
-                    observationSubQuestionsObj['evidence_count'] = str(len(answer['fileName']))
-                  observationSubQuestionsObj['total_evidences'] = evidence_sub_count
+                    observationSubQuestionsObj['evidenceCount'] = str(len(answer['fileName']))
+                  observationSubQuestionsObj['totalEvidences'] = evidence_sub_count
                   # to fetch the parent question of matrix
                   if ans['responseType']=='matrix':
                     observationSubQuestionsObj['instanceParentQuestion'] = ans['question'][0]
@@ -891,13 +891,13 @@ try:
         observationSubQuestionsObj['solutionName'] = ''
       try:
         if obSub["isRubricDriven"] == True and obSub["criteriaLevelReport"] == True:
-          observationSubQuestionsObj['solution_type'] = "observation_with_rubric"
+          observationSubQuestionsObj['solutionType'] = "observation_with_rubric"
         elif obSub["isRubricDriven"] == True and obSub["criteriaLevelReport"] == False:
-          observationSubQuestionsObj['solution_type'] = "observation_with_rubric_no_criteria_level_report"
+          observationSubQuestionsObj['solutionType'] = "observation_with_rubric_no_criteria_level_report"
         else:
-          observationSubQuestionsObj['solution_type'] = "observation_with_out_rubric"
+          observationSubQuestionsObj['solutionType'] = "observation_with_out_rubric"
       except KeyError:
-        observationSubQuestionsObj['solution_type'] = "observation_with_out_rubric"
+        observationSubQuestionsObj['solutionType'] = "observation_with_out_rubric"
 
       try:
         observationSubQuestionsObj['completedDate'] = obSub['completedDate']
@@ -935,7 +935,7 @@ try:
       else:
           # Handle the case when the list is empty
           user_type = None
-      observationSubQuestionsObj['user_type'] = user_type
+      observationSubQuestionsObj['userType'] = user_type
 
       observationSubQuestionsObj['solutionExternalId'] = obSub.get('solutionExternalId', '')
       observationSubQuestionsObj['solutionId'] = obSub.get('solutionId', '')
@@ -950,10 +950,10 @@ try:
       orgArr = orgName(obSub.get('userProfile', {}).get('organisations',None))
       if orgArr:
           # observationSubQuestionsObj['schoolId'] = orgArr[0].get("organisation_id")
-          observationSubQuestionsObj['organisation_name'] = orgArr[0].get("organisation_name")
+          observationSubQuestionsObj['organisationName'] = orgArr[0].get("organisation_name")
       else:
           # observationSubQuestionsObj['schoolId'] = None
-          observationSubQuestionsObj['organisation_name'] = None
+          observationSubQuestionsObj['organisationName'] = None
       
       # Insert data to sl-observation-meta druid datasource if status is anything 
       _id = observationSubQuestionsObj.get('observationSubmissionId', None)
@@ -977,9 +977,9 @@ try:
       if obSub['status'] == 'started':
           observation_status['observationSubmissionId'] = obSub['_id']
           try:
-            observation_status['started_at'] = obSub['completedDate']
+            observation_status['startedAt'] = obSub['completedDate']
           except KeyError:
-            observation_status['started_at'] = ''
+            observation_status['startedAt'] = ''
           _id = observation_status.get('observationSubmissionId', None) 
           try : 
               if _id:
@@ -1000,7 +1000,7 @@ try:
       # Insert data to sl-observation-status-started druid datasource if status is inprogress
       elif obSub['status'] == 'inprogress':
           observation_status['observationSubmissionId'] = obSub['_id']
-          observation_status['inprogress_at'] = obSub['completedDate']
+          observation_status['inprogressAt'] = obSub['completedDate']
           _id = observation_status.get('observationSubmissionId', None) 
           try : 
               if _id:
@@ -1020,7 +1020,7 @@ try:
 
       elif obSub['status'] == 'completed':
           observation_status['observationSubmissionId'] = obSub['_id']
-          observation_status['completed_at'] = obSub['completedDate']
+          observation_status['completedAt'] = obSub['completedDate']
           _id = observation_status.get('observationSubmissionId', None) 
           try : 
               if _id:
