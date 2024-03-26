@@ -684,7 +684,7 @@ try:
             # Insert data to sl-survey-status-started druid datasource if status is started
             if obSub['status'] == 'started':
                 survey_status['surveySubmissionId'] = obSub['_id']
-                survey_status['startedAt'] = obSub['completedDate']
+                survey_status['startedAt'] = obSub['createdAt']
                 _id = survey_status.get('surveySubmissionId', None) 
                 try : 
                     if _id:
@@ -705,7 +705,7 @@ try:
             # Insert data to sl-survey-status-started druid datasource if status is inprogress
             elif obSub['status'] == 'inprogress':
                 survey_status['surveySubmissionId'] = obSub['_id']
-                survey_status['inprogressAt'] = obSub['completedDate']
+                survey_status['inprogressAt'] = obSub['updatedAt']
                 _id = survey_status.get('surveySubmissionId', None) 
                 try : 
                     if _id:

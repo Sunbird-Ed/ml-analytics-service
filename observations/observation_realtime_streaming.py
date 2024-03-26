@@ -977,7 +977,7 @@ try:
       if obSub['status'] == 'started':
           observation_status['observationSubmissionId'] = obSub['_id']
           try:
-            observation_status['startedAt'] = obSub['completedDate']
+            observation_status['startedAt'] = obSub['createdAt']
           except KeyError:
             observation_status['startedAt'] = ''
           _id = observation_status.get('observationSubmissionId', None) 
@@ -1000,7 +1000,7 @@ try:
       # Insert data to sl-observation-status-started druid datasource if status is inprogress
       elif obSub['status'] == 'inprogress':
           observation_status['observationSubmissionId'] = obSub['_id']
-          observation_status['inprogressAt'] = obSub['completedDate']
+          observation_status['inprogressAt'] = obSub['updatedAt']
           _id = observation_status.get('observationSubmissionId', None) 
           try : 
               if _id:
