@@ -600,6 +600,7 @@ try:
             surveySubQuestionsObj['surveyId'] = str(obSub.get('surveyId', ''))
             surveySubQuestionsObj['surveyName'] = str(obSub.get('surveyInformation', {}).get('name', ''))
             surveySubQuestionsObj['surveySubmissionId'] = obSub.get('_id', '')
+            surveySubQuestionsObj['createdAt'] = obSub.get('createdAt', '')
             try:
                 if 'solutionInfo' in obSub:
                     surveySubQuestionsObj['solutionName'] = obSub['solutionInfo']['name']
