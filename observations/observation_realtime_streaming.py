@@ -874,6 +874,7 @@ try:
       observationSubQuestionsObj['observationId'] = str(obSub.get('observationId', ''))
       observationSubQuestionsObj['observationName'] = str(obSub.get('observationInformation', {}).get('name', ''))
       observationSubQuestionsObj['observationSubmissionId'] = obSub.get('_id', '')
+      observationSubQuestionsObj['createdAt'] = obSub.get('createdAt', '')
       try:
         observationSubQuestionsObj['createdBy'] = obSub['createdBy']
       except KeyError:
