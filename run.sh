@@ -55,5 +55,14 @@ echo "Daily Survey Status Batch Job Ingestion == Started"
 echo "Daily Survey Status Batch Job Ingestion == Completed"
 echo "*************************************"
 
+# SURVEY DISTINCT COUNT STATUS: Deletion and Ingestion
+echo ""
+echo "$(date)"
+echo "====================================="
+echo "Daily Survey Distinct Count Status Batch Job Ingestion == Started"
+. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory 50g --executor-memory 50g /opt/sparkjobs/ml-analytics-service/survey/pyspark_sur_distinct_count_status.py
+echo "Daily Survey Distinct Count Status Batch Job Ingestion == Completed"
+echo "*************************************"
+
 echo "COMPLETED"
 
