@@ -154,73 +154,6 @@ def orgCreator(val):
                 orgarr.append(orgObj)
     return orgarr
 
-# # Define function to check if survey submission Id exists in Druid
-def check_survey_submission_id_existance(key,column_name,table_name):
-        try:
-            # Establish connection to Druid
-            url = config.get("DRUID","sql_url")
-            url = str(url)
-            parsed_url = urlparse(url)
-
-            host = parsed_url.hostname
-            port = int(parsed_url.port)
-            path = parsed_url.path
-            scheme = parsed_url.scheme
-
-            conn = connect(host=host, port=port, path=path, scheme=scheme)
-            cur = conn.cursor()
-            response = check_datasource_existence(table_name)
-            if response == True:
-                # Query to check existence of survey submission Id in Druid table
-                query = f"SELECT COUNT(*) FROM \"{table_name}\" WHERE \"{column_name}\" = '{key}'"
-                cur.execute(query)
-                result = cur.fetchone()
-                count = result[0]
-                infoLogger.info(f"Found {count} entires in {table_name}")
-                if count == 0:
-                    return True
-                else:
-                    return False
-            else:
-                # Since the table doesn't exist, return True to allow data insertion initially 
-                return True             
-        except Exception as e:
-            # Log any errors that occur during Druid query execution
-            errorLogger.error(f"Error checking survey_submission_id existence in Druid: {e}")
-   
-def check_datasource_existence(datasource_name):
-    host = config.get('DRUID', 'datasource_url')
-    try : 
-        response = requests.get(host)
-        if response.status_code == 200:
-            datasources = response.json()
-        if datasource_name in datasources : 
-            return True
-        else : 
-            return False
-    except requests.RequestException as e:
-        errorLogger.error(f"Error fetching datasources: {e}")
-
-def check_service_health(service_url):
-
-    try:
-        response = requests.get(service_url)
-        if response.status_code == 200:
-            return True, response.status_code
-        else:
-            return False, response.status_code
-    except requests.ConnectionError:
-        # Could not connect to the service
-        return False, -1
-
-def check_all_druid_services_health(druid_urls):
-
-    health_status = {}
-    for service, url in druid_urls.items():
-        is_running, status_code = check_service_health(url)
-        health_status[service] = {'is_running': is_running, 'status_code': status_code}
-    return health_status       
- 
 def flatten_json(y):
     out = {}
 
@@ -249,6 +182,51 @@ def flatten_json(y):
     flatten(y)
     return out
 
+# # Define function to check if survey submission Id exists in Druid
+def check_survey_submission_id_existance(key,column_name,table_name):
+    try:
+        # Establish connection to Druid
+        url = config.get("DRUID","sql_url")
+        url = str(url)
+        parsed_url = urlparse(url)
+
+        host = parsed_url.hostname
+        port = int(parsed_url.port)
+        path = parsed_url.path
+        scheme = parsed_url.scheme
+
+        conn = connect(host=host, port=port, path=path, scheme=scheme)
+        cur = conn.cursor()
+        # Query to check existence of survey submission Id in Druid table
+        query = f"SELECT COUNT(*) FROM \"{table_name}\" WHERE \"{column_name}\" = '{key}'"
+        cur.execute(query)
+        result = cur.fetchone()
+        count = result[0]
+        infoLogger.info(f"Found {count} entires in {table_name}")
+        if count == 0:
+            return False
+        else:
+            return True        
+    except Exception as e:
+        infoLogger.info(f"Failed to check the {table_name} datasource")
+        # Log any errors that occur during Druid query execution
+        errorLogger.error(f"Failed to check the {table_name} datasource {e}",exc_info=True)
+
+def set_null_value(data):
+    if ("userProfile" in data) and ("organisationName" in data):
+        if config.get("OUTPUT_DIR","CAPTURE_USER_PROFILE") == "False":
+            data['userProfile'] = ''
+            data['organisationName'] = ''        
+    return data
+
+def send_data_to_kafka(data,topic):
+  modified_data = set_null_value(data)
+  future = producer.send(topic, json.dumps(modified_data).encode('utf-8'))
+  producer.flush()
+  record_metadata = future.get()
+  message_id = record_metadata.offset
+  return message_id
+
 # Worker class to send data to Kafka
 class FinalWorker:
     '''Class that takes necessary inputs and sends the correct object into Kafka'''
@@ -262,6 +240,8 @@ class FinalWorker:
         self.creatingObj = createObj
 
     def run(self):
+        list_message_id = []
+        flag_count = 0
         if len(self.orgArr) >0:
             for org in range(len(self.orgArr)):
                 finalObj = {}
@@ -269,360 +249,321 @@ class FinalWorker:
                 finalObj.update(self.orgArr[org])
                 survey_id = finalObj["surveyId"]
                 question_id = finalObj["questionId"]
-                producer.send((config.get("KAFKA", "survey_druid_topic")), json.dumps(finalObj).encode('utf-8'))
-                producer.flush()
-                infoLogger.info(f"Data for surveyId ({survey_id}) and questionId ({question_id}) inserted into sl-survey datasource")
+                flag_count += 1
+                try :
+                    message_id  = send_data_to_kafka(finalObj,config.get("KAFKA", "survey_druid_topic"))
+                    list_message_id.append(message_id)
+                    infoLogger.info(f"Data for surveyId ({survey_id}) and questionId ({question_id}) inserted into sl-survey datasource")
+                except Exception as e :
+                    infoLogger.info(f"Failed to insert data for surveyId ({survey_id}) and questionId ({question_id}) into sl-survey datasource ")
+                    errorLogger.error(f"Data for surveyId ({survey_id}) and questionId ({question_id}) not inserted into sl-survey datasource{e}",exc_info=True)
+            return list_message_id,flag_count
         else:
             finalObj = {}
             finalObj =  self.creatingObj(self.answer,self.quesexternalId,self.ans_val,self.instNum,self.responseLabel)
             survey_id = finalObj["surveyId"]
             question_id = finalObj["questionId"]
-            producer.send((config.get("KAFKA", "survey_druid_topic")), json.dumps(finalObj).encode('utf-8'))
-            producer.flush()
-            infoLogger.info(f"Data for surveyId ({survey_id}) and questionId ({question_id}) inserted into sl-survey datasource")
+            flag_count += 1
+            try:
+                message_id = send_data_to_kafka(finalObj,config.get("KAFKA", "survey_druid_topic"))
+                list_message_id.append(message_id)
+                infoLogger.info(f"Data for surveyId ({survey_id}) and questionId ({question_id}) inserted into sl-survey datasource")
+            except Exception as e :
+                infoLogger.info(f"Failed to insert data for surveyId ({survey_id}) and questionId ({question_id}) into sl-survey datasource ")
+                errorLogger.error(f"Data for surveyId ({survey_id}) and questionId ({question_id}) not inserted into sl-survey datasource{e}",exc_info=True)
+            return list_message_id,flag_count
+        
 
-try:
-    def obj_creation(obSub):
-        '''Function to process survey submission data before sending it to Kafka'''
-        try:
-            # Debug log for survey submission ID
-            infoLogger.info(f"Started to process kafka event for the Survey Submission Id : {obSub['_id']}. For Survey Question report")
+
+def obj_creation(obSub):
+    '''Function to process survey submission data before sending it to Kafka'''
+    try:
+        # Debug log for survey submission ID
+        infoLogger.info(f"Started to process kafka event for the Survey Submission Id : {obSub['_id']}. For Survey Question report")
+        list_message_id_ext = []
+        flag_count_ext = 0
+        if obSub['status'] == 'completed': 
             surveySubmissionId =  str(obSub['_id'])
-            if check_survey_submission_id_existance(surveySubmissionId,"surveySubmissionId","sl-survey"):
-                infoLogger.info(f"No data duplection for the Submission ID : {surveySubmissionId} in sl-survey ")
-                if obSub['status'] == 'completed':   
-                    if 'isAPrivateProgram' in obSub :
-                        surveySubQuestionsArr = []
-                        completedDate = str(obSub['completedDate'])
-                        createdAt = str(obSub['createdAt'])
-                        updatedAt = str(obSub['updatedAt'])
-                        evidencesArr = [v for v in obSub['evidences'].values()]
-                        evidence_sub_count = 0
-                        rootOrgId = None
+            submission_exits = check_survey_submission_id_existance(surveySubmissionId,"surveySubmissionId","sl-survey")
+            if submission_exits == False:
+                infoLogger.info(f"No data duplection for the Submission ID : {surveySubmissionId} in sl-survey ")  
+                if 'isAPrivateProgram' in obSub :
+                    surveySubQuestionsArr = []
+                    completedDate = str(obSub['completedDate'])
+                    createdAt = str(obSub['createdAt'])
+                    updatedAt = str(obSub['updatedAt'])
+                    evidencesArr = [v for v in obSub['evidences'].values()]
+                    evidence_sub_count = 0
+                    rootOrgId = None
 
-                        # Extract root organization ID from user profile if available
-                        try:
-                            if obSub["userProfile"]:
-                                if "rootOrgId" in obSub["userProfile"] and obSub["userProfile"]["rootOrgId"]:
-                                    rootOrgId = obSub["userProfile"]["rootOrgId"]
-                        except KeyError:
-                            pass
-                        if 'answers' in obSub.keys() :  
-                            answersArr = [v for v in obSub['answers'].values()]
-                            for ans in answersArr:
-                                try:
-                                    if len(ans['fileName']):
-                                        evidence_sub_count = evidence_sub_count + len(ans['fileName'])
-                                except KeyError:
-                                    pass
-                            for ans in answersArr:
-                                def sequenceNumber(externalId,answer):
-                                    if 'solutions' in obSub.keys():
-                                        solutionsArr = [v for v in obSub['solutions'].values()]
-                                        for solu in solutionsArr:
-                                            section = [k for k in solu['sections'].keys()]
-                                        # parsing through questionSequencebyecm to get the sequence number
-                                        try:
-                                            for num in range(
-                                                len(solu['questionSequenceByEcm'][answer['evidenceMethod']][section[0]])
-                                            ):
-                                                if solu['questionSequenceByEcm'][answer['evidenceMethod']][section[0]][num] == externalId:
-                                                    return num + 1
-                                        except KeyError:
-                                            pass
-
-                                # Function to create object for each answer
-                                def creatingObj(answer,quesexternalId,ans_val,instNumber,responseLabel):
-                                    surveySubQuestionsObj = {}
-
-                                    # Extracting various attributes from submission object
-                                    # try:
-                                    #     surveySubQuestionsObj['appName'] = obSub["appInformation"]["appName"].lower()
-                                    # except KeyError :
-                                    #     surveySubQuestionsObj['appName'] = config.get("ML_APP_NAME", "survey_app")
-
-                                    surveySubQuestionsObj['surveySubmissionId'] = str(obSub['_id'])
-                                    surveySubQuestionsObj['createdBy'] = obSub['createdBy']
-
-                                    # Check if 'isAPrivateProgram' key exists
+                    # Extract root organization ID from user profile if available
+                    try:
+                        if obSub["userProfile"]:
+                            if "rootOrgId" in obSub["userProfile"] and obSub["userProfile"]["rootOrgId"]:
+                                rootOrgId = obSub["userProfile"]["rootOrgId"]
+                    except KeyError:
+                        pass
+                    if 'answers' in obSub.keys() :  
+                        answersArr = [v for v in obSub['answers'].values()]
+                        for ans in answersArr:
+                            try:
+                                if len(ans['fileName']):
+                                    evidence_sub_count = evidence_sub_count + len(ans['fileName'])
+                            except KeyError:
+                                pass
+                        for ans in answersArr:
+                            def sequenceNumber(externalId,answer):
+                                if 'solutions' in obSub.keys():
+                                    solutionsArr = [v for v in obSub['solutions'].values()]
+                                    for solu in solutionsArr:
+                                        section = [k for k in solu['sections'].keys()]
+                                    # parsing through questionSequencebyecm to get the sequence number
                                     try:
-                                        surveySubQuestionsObj['isAPrivateProgram'] = obSub['isAPrivateProgram']
-                                    except KeyError:
-                                        surveySubQuestionsObj['isAPrivateProgram'] = True
-
-                                    # Extract program related information
-                                    # try:
-                                    #     surveySubQuestionsObj['programExternalId'] = obSub['programExternalId']
-                                    # except KeyError :
-                                    #     surveySubQuestionsObj['programExternalId'] = None
-                                    # try:
-                                    #     surveySubQuestionsObj['programId'] = str(obSub['programId'])
-                                    # except KeyError :
-                                    #     surveySubQuestionsObj['programId'] = None
-                                    # try:
-                                    #     if 'programInfo' in obSub:
-                                    #         surveySubQuestionsObj['programName'] = obSub['programInfo']['name']
-                                    #     else:
-                                    #         surveySubQuestionsObj['programName'] = ''
-                                    # except KeyError:
-                                    #     surveySubQuestionsObj['programName'] = ''
-
-                                    # Extract solution related information
-                                    surveySubQuestionsObj['solutionExternalId'] = obSub['solutionExternalId']
-                                    surveySubQuestionsObj['surveyId'] = str(obSub['surveyId'])
-                                    surveySubQuestionsObj['solutionId'] = str(obSub["solutionId"])
-                                    try:
-                                        if 'solutionInfo' in obSub:
-                                            surveySubQuestionsObj['solutionName'] = obSub['solutionInfo']['name']
-                                        else:
-                                            surveySubQuestionsObj['solutionName'] = ''
-                                    except KeyError:
-                                        surveySubQuestionsObj['solutionName'] = ''
-
-                                    # Extract section information
-                                    # try:
-                                    #     section = [k for k in obSub['solutionInfo']['sections'].keys()]
-                                    #     surveySubQuestionsObj['section'] = section[0]
-                                    # except KeyError:
-                                    #     surveySubQuestionsObj['section'] = ''
-
-                                    # Get sequence number for the question
-                                    # surveySubQuestionsObj['questionSequenceByEcm'] = sequenceNumber(quesexternalId, answer)
-
-                                    # Extract scoring related information
-                                    # try:
-                                    #     if obSub['solutionInformation']['scoringSystem'] == 'pointsBasedScoring':
-                                    #         # try:
-                                    #         #     surveySubQuestionsObj['totalScore'] = obSub['pointsBasedMaxScore']
-                                    #         # except KeyError :
-                                    #         #     surveySubQuestionsObj['totalScore'] = ''
-                                    #         try:
-                                    #             surveySubQuestionsObj['scoreAchieved'] = obSub['pointsBasedScoreAchieved']
-                                    #         except KeyError :
-                                    #             surveySubQuestionsObj['scoreAchieved'] = ''
-                                    #         try:
-                                    #             surveySubQuestionsObj['totalpercentage'] = obSub['pointsBasedPercentageScore']
-                                    #         except KeyError :
-                                    #             surveySubQuestionsObj['totalpercentage'] = ''
-                                    #         try:
-                                    #             surveySubQuestionsObj['maxScore'] = answer['maxScore']
-                                    #         except KeyError :
-                                    #             surveySubQuestionsObj['maxScore'] = ''
-                                    #         try:
-                                    #             surveySubQuestionsObj['minScore'] = answer['scoreAchieved']
-                                    #         except KeyError :
-                                    #             surveySubQuestionsObj['minScore'] = ''
-                                    #         try:
-                                    #             surveySubQuestionsObj['percentageScore'] = answer['percentageScore']
-                                    #         except KeyError :
-                                    #             surveySubQuestionsObj['percentageScore'] = ''
-                                    #         try:
-                                    #             surveySubQuestionsObj['pointsBasedScoreInParent'] = answer['pointsBasedScoreInParent']
-                                    #         except KeyError :
-                                    #             surveySubQuestionsObj['pointsBasedScoreInParent'] = ''
-                                    # except KeyError:
-                                    #     surveySubQuestionsObj['totalScore'] = ''
-                                    #     surveySubQuestionsObj['scoreAchieved'] = ''
-                                    #     surveySubQuestionsObj['totalpercentage'] = ''
-                                    #     surveySubQuestionsObj['maxScore'] = ''
-                                    #     surveySubQuestionsObj['minScore'] = ''
-                                    #     surveySubQuestionsObj['percentageScore'] = ''
-                                    #     surveySubQuestionsObj['pointsBasedScoreInParent'] = ''
-
-                                    # Extract survey name
-                                    if 'surveyInformation' in obSub :
-                                        if 'name' in obSub['surveyInformation']:
-                                            surveySubQuestionsObj['surveyName'] = obSub['surveyInformation']['name']
-                                        else:
-                                            surveySubQuestionsObj['surveyName'] = ''
-
-                                    # Extract question related information
-                                    surveySubQuestionsObj['questionId'] = str(answer['qid'])
-                                    surveySubQuestionsObj['questionAnswer'] = ans_val
-                                    surveySubQuestionsObj['questionResponseType'] = answer['responseType']
-
-                                    # Extract response label for number response type
-                                    if answer['responseType'] == 'number':
-                                        if responseLabel:
-                                            surveySubQuestionsObj['questionResponseLabelNumber'] = responseLabel
-                                        else:
-                                            surveySubQuestionsObj['questionResponseLabelNumber'] = 0
-                                    else:
-                                        surveySubQuestionsObj['questionResponseLabelNumber'] = 0
-
-                                    # Extract response label for other response types
-                                    try:
-                                        if responseLabel:
-                                            if answer['responseType'] == 'text':
-                                                surveySubQuestionsObj['questionResponseLabel'] = "'"+ re.sub("\n|\"","",responseLabel) +"'"
-                                            else:
-                                                surveySubQuestionsObj['questionResponseLabel'] = responseLabel
-                                        else:
-                                            surveySubQuestionsObj['questionResponseLabel'] = ''
-                                    except KeyError :
-                                        surveySubQuestionsObj['questionResponseLabel'] = ''
-
-                                    # Extract question details
-                                    surveySubQuestionsObj['questionExternalId'] = quesexternalId
-                                    surveySubQuestionsObj['questionName'] = answer['question'][0]
-                                    surveySubQuestionsObj['questionECM'] = answer['evidenceMethod']
-                                    surveySubQuestionsObj['criteriaId'] = str(answer['criteriaId'])
-
-                                    # Extract criteria details
-                                    try:
-                                        if 'criteria' in obSub.keys():
-                                            for criteria in obSub['criteria']:
-                                                surveySubQuestionsObj['criteriaExternalId'] = criteria['externalId']
-                                                surveySubQuestionsObj['criteriaName'] = criteria['name']
-                                        else:
-                                            surveySubQuestionsObj['criteriaExternalId'] = ''
-                                            surveySubQuestionsObj['criteriaName'] = ''
-
-                                    except KeyError:
-                                        surveySubQuestionsObj['criteriaExternalId'] = ''
-                                        surveySubQuestionsObj['criteriaName'] = ''
-
-                                    # Extract completion dates
-                                    surveySubQuestionsObj['completedDate'] = completedDate
-                                    surveySubQuestionsObj['createdAt'] = createdAt
-                                    surveySubQuestionsObj['updatedAt'] = updatedAt
-
-                                    # Extract remarks and evidence details
-                                    if answer['remarks'] :
-                                        surveySubQuestionsObj['remarks'] = "'"+ re.sub("\n|\"","",answer['remarks']) +"'"
-                                    else :
-                                        surveySubQuestionsObj['remarks'] = None
-                                    if len(answer['fileName']):
-                                        multipleFiles = None
-                                        fileCnt = 1
-                                        for filedetail in answer['fileName']:
-                                            if fileCnt == 1:
-                                                multipleFiles = filedetail['sourcePath']
-                                                fileCnt = fileCnt + 1
-                                            else:
-                                                multipleFiles = multipleFiles + ' , ' + filedetail['sourcePath']
-                                        surveySubQuestionsObj['evidences'] = multipleFiles                                  
-                                        surveySubQuestionsObj['evidenceCount'] = len(answer['fileName'])
-                                    else:
-                                        surveySubQuestionsObj['evidences'] = ''                                
-                                        surveySubQuestionsObj['evidenceCount'] = 0
-                                    surveySubQuestionsObj['totalEvidences'] = evidence_sub_count
-
-                                    # Extract parent question details for matrix response type
-                                    # if ans['responseType']=='matrix':
-                                    #     surveySubQuestionsObj['instanceParentQuestion'] = ans['question'][0]
-                                    #     surveySubQuestionsObj['instanceParentId'] = ans['qid']
-                                    #     surveySubQuestionsObj['instanceParentResponsetype'] =ans['responseType']
-                                    #     surveySubQuestionsObj['instanceParentCriteriaId'] =ans['criteriaId']
-                                    #     surveySubQuestionsObj['instanceParentCriteriaExternalId'] = ans['criteriaId']
-                                    #     surveySubQuestionsObj['instanceParentCriteriaName'] = None
-                                    #     surveySubQuestionsObj['instanceId'] = instNumber
-                                    #     surveySubQuestionsObj['instanceParentExternalId'] = quesexternalId
-                                    #     surveySubQuestionsObj['instanceParentEcmSequence']= sequenceNumber(
-                                    #         surveySubQuestionsObj['instanceParentExternalId'], answer
-                                    #     )
-                                    # else:
-                                    #     surveySubQuestionsObj['instanceParentQuestion'] = ''
-                                    #     surveySubQuestionsObj['instanceParentId'] = ''
-                                    #     surveySubQuestionsObj['instanceParentResponsetype'] =''
-                                    #     surveySubQuestionsObj['instanceId'] = instNumber
-                                    #     surveySubQuestionsObj['instanceParentExternalId'] = ''
-                                    #     surveySubQuestionsObj['instanceParentEcmSequence'] = '' 
-
-                                    # Extract channel and parent channel
-                                    # surveySubQuestionsObj['channel'] = rootOrgId 
-                                    # surveySubQuestionsObj['parent_channel'] = "SHIKSHALOKAM"
-                                    # user profile creation
-                                    flatten_userprofile = flatten_json(obSub['userProfile'])
-                                    new_dict = {}
-                                    for key in flatten_userprofile:
-                                        string_without_integer = re.sub(r'\d+', '', key)
-                                        updated_string = string_without_integer.replace("--", "-")
-                                        # Check if the value associated with the key is not None
-                                        if flatten_userprofile[key] is not None:
-                                            if updated_string in new_dict:
-                                                # Perform addition only if both values are not None
-                                                if new_dict[updated_string] is not None:
-                                                    new_dict[updated_string] += "," + str(flatten_userprofile[key])
-                                                else:
-                                                    new_dict[updated_string] = str(flatten_userprofile[key])
-                                            else:
-                                                new_dict[updated_string] = str(flatten_userprofile[key])
-
-                                    surveySubQuestionsObj['userProfile'] = str(new_dict)
-                                    # Update object with additional user data
-                                    # Commented the bellow line as we don't need userRoleInso in KB
-                                    # surveySubQuestionsObj.update(userDataCollector(obSub))
-                                    return surveySubQuestionsObj
-
-                                # Function to fetch question details
-                                def fetchingQuestiondetails(ansFn,instNumber):        
-                                    try:
-                                        # if (len(ansFn['options']) == 0) or (('options' in ansFn.keys()) == False):
-                                        if (len(ansFn['options']) == 0) or (('options' not in ansFn.keys())):
-                                            try:
-                                                orgArr = orgCreator(obSub["userProfile"]["organisations"])
-                                                final_worker = FinalWorker(ansFn,ansFn['externalId'], ansFn['value'], instNumber, ansFn['value'], orgArr, creatingObj)
-                                                final_worker.run()
-                                            except KeyError :
-                                                pass 
-                                        else:
-                                            labelIndex = 0
-                                            for quesOpt in ansFn['options']:
-                                                try:
-                                                    if type(ansFn['value']) == str or type(ansFn['value']) == int:
-                                                        if quesOpt['value'] == ansFn['value'] :
-                                                            orgArr = orgCreator(obSub["userProfile"]["organisations"])
-                                                            final_worker = FinalWorker(ansFn,ansFn['externalId'], ansFn['value'], instNumber, quesOpt['label'], orgArr, creatingObj)
-                                                            final_worker.run()
-                                                    elif type(ansFn['value']) == list:
-                                                        for ansArr in ansFn['value']:
-                                                            if quesOpt['value'] == ansArr:
-                                                                orgArr = orgCreator(obSub["userProfile"]["organisations"])
-                                                                final_worker = FinalWorker(ansFn,ansFn['externalId'], ansArr, instNumber, quesOpt['label'], orgArr, creatingObj)
-                                                                final_worker.run()
-                                                except KeyError:
-                                                    pass
+                                        for num in range(
+                                            len(solu['questionSequenceByEcm'][answer['evidenceMethod']][section[0]])
+                                        ):
+                                            if solu['questionSequenceByEcm'][answer['evidenceMethod']][section[0]][num] == externalId:
+                                                return num + 1
                                     except KeyError:
                                         pass
 
-                                # Check response type and call function to fetch question details
-                                if (
-                                    ans['responseType'] == 'text' or ans['responseType'] == 'radio' or 
-                                    ans['responseType'] == 'multiselect' or ans['responseType'] == 'slider' or 
-                                    ans['responseType'] == 'number' or ans['responseType'] == 'date'
-                                ):   
-                                    inst_cnt = ''
-                                    fetchingQuestiondetails(ans, inst_cnt)
-                                elif ans['responseType'] == 'matrix' and len(ans['value']) > 0:
-                                    inst_cnt =0
-                                    for instances in ans['value']:
-                                        inst_cnt = inst_cnt + 1
-                                        for instance in instances.values():
-                                            fetchingQuestiondetails(instance,inst_cnt)
-                else:                        
-                    infoLogger.info(f"Survey Submission is not in completed status" )
-            else:
-                infoLogger.info(f"survey_Submission_id {surveySubmissionId} is already exists in the sl-survey datasource.")    
+                            # Function to create object for each answer
+                            def creatingObj(answer,quesexternalId,ans_val,instNumber,responseLabel):
+                                surveySubQuestionsObj = {}
 
-            infoLogger.info(f"Completed processing kafka event for the Survey Submission Id : {obSub['_id']}. For Survey Question report ")              
-        
-        except Exception as e:
-            # Log any errors that occur during processing
-            errorLogger.error(e, exc_info=True)
-except Exception as e:
-    # Log any errors that occur during processing
-    errorLogger.error(e, exc_info=True)
+                                surveySubQuestionsObj['surveySubmissionId'] = str(obSub['_id'])
+                                surveySubQuestionsObj['createdBy'] = obSub['createdBy']
+
+                                # Check if 'isAPrivateProgram' key exists
+                                try:
+                                    surveySubQuestionsObj['isAPrivateProgram'] = obSub['isAPrivateProgram']
+                                except KeyError:
+                                    surveySubQuestionsObj['isAPrivateProgram'] = True
+
+                                # Extract solution related information
+                                surveySubQuestionsObj['solutionExternalId'] = obSub['solutionExternalId']
+                                surveySubQuestionsObj['surveyId'] = str(obSub['surveyId'])
+                                surveySubQuestionsObj['solutionId'] = str(obSub["solutionId"])
+                                try:
+                                    if 'solutionInfo' in obSub:
+                                        surveySubQuestionsObj['solutionName'] = obSub['solutionInfo']['name']
+                                    else:
+                                        surveySubQuestionsObj['solutionName'] = ''
+                                except KeyError:
+                                    surveySubQuestionsObj['solutionName'] = ''
+
+                                # Extract survey name
+                                if 'surveyInformation' in obSub :
+                                    if 'name' in obSub['surveyInformation']:
+                                        surveySubQuestionsObj['surveyName'] = obSub['surveyInformation']['name']
+                                    else:
+                                        surveySubQuestionsObj['surveyName'] = ''
+
+                                # Extract question related information
+                                surveySubQuestionsObj['questionId'] = str(answer['qid'])
+                                surveySubQuestionsObj['questionAnswer'] = ans_val
+                                surveySubQuestionsObj['questionResponseType'] = answer['responseType']
+
+                                # Extract response label for number response type
+                                if answer['responseType'] == 'number':
+                                    if responseLabel:
+                                        surveySubQuestionsObj['questionResponseLabelNumber'] = responseLabel
+                                    else:
+                                        surveySubQuestionsObj['questionResponseLabelNumber'] = 0
+                                else:
+                                    surveySubQuestionsObj['questionResponseLabelNumber'] = 0
+
+                                # Extract response label for other response types
+                                try:
+                                    if responseLabel:
+                                        if answer['responseType'] == 'text':
+                                            surveySubQuestionsObj['questionResponseLabel'] = "'"+ re.sub("\n|\"","",responseLabel) +"'"
+                                        else:
+                                            surveySubQuestionsObj['questionResponseLabel'] = responseLabel
+                                    else:
+                                        surveySubQuestionsObj['questionResponseLabel'] = ''
+                                except KeyError :
+                                    surveySubQuestionsObj['questionResponseLabel'] = ''
+
+                                # Extract question details
+                                surveySubQuestionsObj['questionExternalId'] = quesexternalId
+                                surveySubQuestionsObj['questionName'] = answer['question'][0]
+                                surveySubQuestionsObj['questionECM'] = answer['evidenceMethod']
+                                surveySubQuestionsObj['criteriaId'] = str(answer['criteriaId'])
+
+                                # Extract criteria details
+                                try:
+                                    if 'criteria' in obSub.keys():
+                                        for criteria in obSub['criteria']:
+                                            surveySubQuestionsObj['criteriaExternalId'] = criteria['externalId']
+                                            surveySubQuestionsObj['criteriaName'] = criteria['name']
+                                    else:
+                                        surveySubQuestionsObj['criteriaExternalId'] = ''
+                                        surveySubQuestionsObj['criteriaName'] = ''
+
+                                except KeyError:
+                                    surveySubQuestionsObj['criteriaExternalId'] = ''
+                                    surveySubQuestionsObj['criteriaName'] = ''
+
+                                # Extract completion dates
+                                surveySubQuestionsObj['completedDate'] = completedDate
+                                surveySubQuestionsObj['createdAt'] = createdAt
+                                surveySubQuestionsObj['updatedAt'] = updatedAt
+
+                                # Extract remarks and evidence details
+                                if answer['remarks'] :
+                                    surveySubQuestionsObj['remarks'] = "'"+ re.sub("\n|\"","",answer['remarks']) +"'"
+                                else :
+                                    surveySubQuestionsObj['remarks'] = None
+                                if len(answer['fileName']):
+                                    multipleFiles = None
+                                    fileCnt = 1
+                                    for filedetail in answer['fileName']:
+                                        if fileCnt == 1:
+                                            multipleFiles = filedetail['sourcePath']
+                                            fileCnt = fileCnt + 1
+                                        else:
+                                            multipleFiles = multipleFiles + ' , ' + filedetail['sourcePath']
+                                    surveySubQuestionsObj['evidences'] = multipleFiles                                  
+                                    surveySubQuestionsObj['evidenceCount'] = len(answer['fileName'])
+                                else:
+                                    surveySubQuestionsObj['evidences'] = ''                                
+                                    surveySubQuestionsObj['evidenceCount'] = 0
+                                surveySubQuestionsObj['totalEvidences'] = evidence_sub_count
+                                # user profile creation
+                                flatten_userprofile = flatten_json(obSub['userProfile'])
+                                new_dict = {}
+                                for key in flatten_userprofile:
+                                    string_without_integer = re.sub(r'\d+', '', key)
+                                    updated_string = string_without_integer.replace("--", "-")
+                                    # Check if the value associated with the key is not None
+                                    if flatten_userprofile[key] is not None:
+                                        if updated_string in new_dict:
+                                            # Perform addition only if both values are not None
+                                            if new_dict[updated_string] is not None:
+                                                new_dict[updated_string] += "," + str(flatten_userprofile[key])
+                                            else:
+                                                new_dict[updated_string] = str(flatten_userprofile[key])
+                                        else:
+                                            new_dict[updated_string] = str(flatten_userprofile[key])
+
+                                surveySubQuestionsObj['userProfile'] = str(new_dict)
+                        
+                                # Extract parent question details for matrix response type
+                                # if ans['responseType']=='matrix':
+                                #     surveySubQuestionsObj['instanceParentQuestion'] = ans['question'][0]
+                                #     surveySubQuestionsObj['instanceParentId'] = ans['qid']
+                                #     surveySubQuestionsObj['instanceParentResponsetype'] =ans['responseType']
+                                #     surveySubQuestionsObj['instanceParentCriteriaId'] =ans['criteriaId']
+                                #     surveySubQuestionsObj['instanceParentCriteriaExternalId'] = ans['criteriaId']
+                                #     surveySubQuestionsObj['instanceParentCriteriaName'] = None
+                                #     surveySubQuestionsObj['instanceId'] = instNumber
+                                #     surveySubQuestionsObj['instanceParentExternalId'] = quesexternalId
+                                #     surveySubQuestionsObj['instanceParentEcmSequence']= sequenceNumber(
+                                #         surveySubQuestionsObj['instanceParentExternalId'], answer
+                                #     )
+                                # else:
+                                #     surveySubQuestionsObj['instanceParentQuestion'] = ''
+                                #     surveySubQuestionsObj['instanceParentId'] = ''
+                                #     surveySubQuestionsObj['instanceParentResponsetype'] =''
+                                #     surveySubQuestionsObj['instanceId'] = instNumber
+                                #     surveySubQuestionsObj['instanceParentExternalId'] = ''
+                                #     surveySubQuestionsObj['instanceParentEcmSequence'] = '' 
+
+                                # Update object with additional user data
+                                # Commented the bellow line as we don't need userRoleInso in KB
+                                # surveySubQuestionsObj.update(userDataCollector(obSub))
+                                return surveySubQuestionsObj
+
+                            # Function to fetch question details
+                            def fetchingQuestiondetails(ansFn,instNumber):        
+                                try:
+                                    list_message_id_fetch = []
+                                    flag_count_fetch = 0
+                                    # if (len(ansFn['options']) == 0) or (('options' in ansFn.keys()) == False):
+                                    if (len(ansFn['options']) == 0) or (('options' not in ansFn.keys())):
+                                        try:
+                                            orgArr = orgCreator(obSub["userProfile"]["organisations"])
+                                            final_worker = FinalWorker(ansFn,ansFn['externalId'], ansFn['value'], instNumber, ansFn['value'], orgArr, creatingObj)
+                                            message_id,count = final_worker.run()
+                                            list_message_id_fetch.extend(message_id)
+                                            flag_count_fetch = flag_count_fetch + count
+                                        except Exception as e :
+                                            errorLogger.error(e, exc_info=True)
+                                        return list_message_id_fetch,flag_count_fetch
+                                    else:
+                                        labelIndex = 0
+                                        for quesOpt in ansFn['options']:
+                                            try:
+                                                if type(ansFn['value']) == str or type(ansFn['value']) == int:
+                                                    if quesOpt['value'] == ansFn['value'] :
+                                                        orgArr = orgCreator(obSub["userProfile"]["organisations"])
+                                                        final_worker = FinalWorker(ansFn,ansFn['externalId'], ansFn['value'], instNumber, quesOpt['label'], orgArr, creatingObj)
+                                                        message_id,count = final_worker.run() 
+                                                        list_message_id_fetch.extend(message_id)
+                                                        flag_count_fetch = flag_count_fetch + count    
+                                                elif type(ansFn['value']) == list:
+                                                    for ansArr in ansFn['value']:
+                                                        if quesOpt['value'] == ansArr:
+                                                            orgArr = orgCreator(obSub["userProfile"]["organisations"])
+                                                            final_worker = FinalWorker(ansFn,ansFn['externalId'], ansArr, instNumber, quesOpt['label'], orgArr, creatingObj)
+                                                            message_id,count = final_worker.run()
+                                                            list_message_id_fetch.extend(message_id)
+                                                            flag_count_fetch = flag_count_fetch + count
+                                            except KeyError:
+                                                pass
+                                    return list_message_id_fetch,flag_count_fetch
+                                except Exception as e:
+                                    errorLogger.error(e, exc_info=True)
+                                    # Ensure the function returns even in case of an exception
+                                    return [], 0
+
+                            # Check response type and call function to fetch question details
+                            if (
+                                ans['responseType'] == 'text' or ans['responseType'] == 'radio' or 
+                                ans['responseType'] == 'multiselect' or ans['responseType'] == 'slider' or 
+                                ans['responseType'] == 'number' or ans['responseType'] == 'date'
+                            ):   
+                                inst_cnt = ''
+                                message_id,flag_count = fetchingQuestiondetails(ans, inst_cnt)
+                                list_message_id_ext.extend(message_id)
+                                flag_count_ext = flag_count_ext + flag_count
+
+                            elif ans['responseType'] == 'matrix' and len(ans['value']) > 0:
+                                inst_cnt =0
+                                for instances in ans['value']:
+                                    inst_cnt = inst_cnt + 1
+                                    for instance in instances.values():
+                                        message_id,flag_count = fetchingQuestiondetails(instance,inst_cnt)    
+                                        list_message_id_ext.extend(message_id)
+                                        flag_count_ext = flag_count_ext + flag_count       
+            else:
+                infoLogger.info(f"survey_Submission_id {surveySubmissionId} is already exists in the sl-survey datasource.")        
+        else:                        
+            infoLogger.info(f"Survey Submission is not in completed status" )
+
+        infoLogger.info(f"Completed processing kafka event for the Survey Submission Id : {obSub['_id']}. For Survey Question report ")  
+        return list_message_id_ext,flag_count_ext             
+    except Exception as e:
+        # Log any errors that occur during processing
+        infoLogger.info(f"Failed to process obj_creation function")
+        errorLogger.error(f"Failed to process obj_creation function{e}", exc_info=True)
 
 # Main data extraction function
-try:
-    def main_data_extraction(obSub):
-        '''Function to process survey submission data before sending it to Kafka topics'''
-        try:
-            infoLogger.info(f"Starting to process kafka event for the Survey Submission Id : {obSub['_id']}. For Survey Status report")
+
+def main_data_extraction(obSub):
+    '''Function to process survey submission data before sending it to Kafka topics'''
+    try :
+        infoLogger.info(f"Starting to process kafka event for the Survey Submission Id : {obSub['_id']}. For Survey Status report")
+        list_message_id = []
+        flag_count = 0
+        #processing for sl-survey-meta datsource 
+        surveySubmissionId =  str(obSub['_id'])
+        submission_exits_in_meta = check_survey_submission_id_existance(surveySubmissionId,"surveySubmissionId","sl-survey-meta")
+        if submission_exits_in_meta == False : 
+            infoLogger.info(f"No data duplection for the Submission ID : {surveySubmissionId} in sl-survey-meta ")
             # Initialize dictionary for storing survey submission data
             surveySubQuestionsObj = {}
-            survey_status = {}
             
             # Extract various attributes from survey submission object
             surveySubQuestionsObj['surveyId'] = str(obSub.get('surveyId', ''))
@@ -644,7 +585,7 @@ try:
                 surveySubQuestionsObj['isAPrivateProgram'] = obSub['isAPrivateProgram']
             except KeyError:
                 surveySubQuestionsObj['isAPrivateProgram'] = True
-            # user profile creation
+
             flatten_userprofile = flatten_json(obSub['userProfile'])
             new_dict = {}
             for key in flatten_userprofile:
@@ -661,172 +602,145 @@ try:
                     else:
                         new_dict[updated_string] = str(flatten_userprofile[key])
 
-            surveySubQuestionsObj['userProfile'] = str(new_dict)
-
-            # Before attempting to access the list, check if it is non-empty
-            # profile_user_types = obSub.get('userProfile', {}).get('profileUserTypes', [])
-            # if profile_user_types:
-            #     # Access the first element of the list if it exists
-            #     user_type = profile_user_types[0].get('type', None)
-            # else:
-            #     # Handle the case when the list is empty
-            #     user_type = None
-            # surveySubQuestionsObj['user_type'] = user_type
+            surveySubQuestionsObj['userProfile'] = str(new_dict)    
 
             surveySubQuestionsObj['solutionExternalId'] = obSub.get('solutionExternalId', '')
             surveySubQuestionsObj['solutionId'] = obSub.get('solutionId', '')
 
-            # for location in obSub.get('userProfile', {}).get('userLocations', []):
-            #     name = location.get('name')
-            #     type_ = location.get('type')
-            #     if name and type_:
-            #         surveySubQuestionsObj[type_] = name
-            
-            # surveySubQuestionsObj['board_name'] = obSub.get('userProfile', {}).get('framework', {}).get('board', [''])[0]
-
             orgArr = orgCreator(obSub.get('userProfile', {}).get('organisations',None))
             if orgArr:
-                # surveySubQuestionsObj['schoolId'] = orgArr[0].get("organisation_id")
                 surveySubQuestionsObj['organisationName'] = orgArr[0].get("organisationName")
             else:
-                # surveySubQuestionsObj['schoolId'] = None
                 surveySubQuestionsObj['organisationName'] = None
             
+            flag_count += 1
+            try : 
+            # Insert data to sl-observation-meta druid datasource if status is anything 
+                message_id = send_data_to_kafka(surveySubQuestionsObj,config.get("KAFKA", "survey_meta_druid_topic"))
+                list_message_id.append(message_id)
+                infoLogger.info(f"Data with submission_id {surveySubmissionId} is being inserted into the sl-survey-meta datasource.")
+            except Exception as e:
+                errorLogger.error(f"Error sending data for submission_id ({surveySubmissionId}) to sl-survey-meta datasource: {e}", exc_info=True)
             # Insert data to sl-survey-meta druid datasource if status is anything 
-            _id = surveySubQuestionsObj.get('surveySubmissionId', None)
-            try:
-                if _id:
-                        if check_survey_submission_id_existance(_id,"surveySubmissionId","sl-survey-meta"):
-                            infoLogger.info(f"No data duplection for the Submission ID : {_id} in sl-survey-meta datasource")
-                            # Upload survey submission data to Druid topic
-                            producer.send((config.get("KAFKA", "survey_meta_druid_topic")), json.dumps(surveySubQuestionsObj).encode('utf-8'))  
-                            producer.flush()
-                            infoLogger.info(f"Data with submission_id {_id} is being inserted into the sl-survey-meta datasource.")
-                        else:
-                            infoLogger.info(f"Data with submission_id {_id} is already exists in the sl-survey-meta datasource.")
+        else :
+            infoLogger.info(f"Data with submission_id {surveySubmissionId} is already exists in the sl-survey-meta datasource.")    
+
+        # Insert data to sl-survey-status-started druid datasource if status is started
+        if obSub['status'] == 'started':
+            infoLogger.info(f"started extracting keys for sl-survey-status-started datasource")
+            try : 
+                submission_exits_in_started = check_survey_submission_id_existance(surveySubmissionId,"surveySubmissionId","sl-survey-status-started")
+                if submission_exits_in_started == False :
+                    infoLogger.info(f"No data duplection for the Submission ID : {surveySubmissionId} in sl-survey-status-started ")
+                    survey_status = {}
+                    survey_status['surveySubmissionId'] = obSub['_id']
+                    survey_status['startedAt'] = obSub['createdAt']
+                    flag_count += 1
+                    try : 
+                        # Insert data to sl-observation-status-started druid datasource if status is started 
+                        message_id = send_data_to_kafka(survey_status,config.get("KAFKA", "survey_started_druid_topic"))
+                        list_message_id.append(message_id)
+                        infoLogger.info(f"Data with submission_id {surveySubmissionId} is being inserted into the sl-survey-status-started datasource.")
+                    except Exception as e:
+                        errorLogger.error(f"Error sending data for submission_id ({surveySubmissionId}) to sl-survey-status-started datasource: {e}", exc_info=True)
+                else:
+                    infoLogger.info(f"Data with submission_id {surveySubmissionId} is already exists in the sl-survey-status-started datasource.")          
+            except Exception as e:
+                infoLogger.info("failed to ingest data into sl-surevy-status-started datasource")
+
+        elif obSub['status'] == 'inprogress':
+            infoLogger.info(f"started extracting keys for sl-survey-status-inprogress datasource")
+            try : 
+                submission_exits_in_inprogress = check_survey_submission_id_existance(surveySubmissionId,"surveySubmissionId","sl-survey-status-inprogress")
+                if submission_exits_in_inprogress == False : 
+                    infoLogger.info(f"No data duplection for the Submission ID : {surveySubmissionId} in sl-survey-status-inprogress ")
+                    survey_status['surveySubmissionId'] = obSub['_id']
+                    survey_status['inprogressAt'] = obSub['updatedAt']
+                    flag_count += 1
+                    try : 
+                        # Insert data to sl-observation-status-inprogress druid datasource if status is inprogress 
+                        message_id = send_data_to_kafka(survey_status,config.get("KAFKA", "survey_inprogress_druid_topic"))
+                        list_message_id.append(message_id)
+                        infoLogger.info(f"Data with submission_id {surveySubmissionId} is being inserted into the sl-survey-status-inprogress datasource.")
+                    except Exception as e:
+                        errorLogger.error(f"Error sending data for submission_id ({surveySubmissionId}) to sl-survey-status-inprogress datasource: {e}", exc_info=True)
+                else:
+                    infoLogger.info(f"Data with submission_id {surveySubmissionId} is already exists in the sl-survey-status-inprogress datasource.")
             except Exception as e :
-                # Log any errors that occur during data ingestion
-                errorLogger.error("====== An error was found during data ingestion in the sl-survey-meta datasource ======")
+                infoLogger.info("failed to update the sl-survey-status-inprogress datasource")
                 errorLogger.error(e,exc_info=True)
 
+        elif obSub['status'] == 'completed':
+            infoLogger.info(f"started extracting keys for sl-survey-status-completed datasource")
+            try : 
+                submission_exits_in_completed = check_survey_submission_id_existance(surveySubmissionId,"surveySubmissionId","sl-survey-status-completed")
+                if submission_exits_in_completed == False : 
+                    infoLogger.info(f"No data duplection for the Submission ID : {surveySubmissionId} in sl-survey-status-completed")
+                    survey_status = {}
+                    survey_status['surveySubmissionId'] = obSub['_id']
+                    survey_status['completedAt'] = obSub['completedDate']
+                    flag_count += 1
+                    try : 
+                        # Insert data to sl-observation-status-completed druid datasource if status is completed
+                        message_id = send_data_to_kafka(survey_status,config.get("KAFKA", "survey_completed_druid_topic"))
+                        list_message_id.append(message_id)
+                        infoLogger.info(f"Data with submission_id {surveySubmissionId} is being inserted into the sl-survey-status-completed datasource.")
+                    except Exception as e:
+                        errorLogger.error(f"Error sending data for submission_id ({surveySubmissionId}) to sl-survey-status-completed datasource: {e}", exc_info=True)
+                else:
+                    infoLogger.info(f"Data with submission_id {surveySubmissionId} is already exists in the sl-survey-status-completed datasource")
+            except Exception as e :
+                infoLogger.info("failed to ingest data to sl-survey-status-completed datasourec")
+                errorLogger.error(e,exc_info=True)
 
-            # Insert data to sl-survey-status-started druid datasource if status is started
-            if obSub['status'] == 'started':
-                survey_status['surveySubmissionId'] = obSub['_id']
-                survey_status['startedAt'] = obSub['createdAt']
-                _id = survey_status.get('surveySubmissionId', None) 
-                try : 
-                    if _id:
-                        if check_survey_submission_id_existance(_id,"surveySubmissionId","sl-survey-status-started"):
-                            infoLogger.info(f"No data duplection for the Submission ID : {_id} in sl-survey-status-started datasource")
-                            # Upload survey status data to Druid topic
-                            producer.send((config.get("KAFKA", "survey_started_druid_topic")), json.dumps(survey_status).encode('utf-8'))
-                            producer.flush()
-                            infoLogger.info(f"Data with submission_id {_id} is being inserted into the sl-survey-status-started datasource.")
-                        else:       
-                            infoLogger.info(f"Data with submission_id {_id} is already exists in the sl-survey-status-started datasource.")
-                except Exception as e :
-                    # Log any errors that occur during data ingestion
-                    errorLogger.error("====== An error was found during data ingestion in the sl-survey-status-started datasource ======")
-                    errorLogger.error(e,exc_info=True)  
-
-            
-            # Insert data to sl-survey-status-started druid datasource if status is inprogress
-            elif obSub['status'] == 'inprogress':
-                survey_status['surveySubmissionId'] = obSub['_id']
-                survey_status['inprogressAt'] = obSub['updatedAt']
-                _id = survey_status.get('surveySubmissionId', None) 
-                try : 
-                    if _id:
-                        if check_survey_submission_id_existance(_id,"surveySubmissionId","sl-survey-status-inprogress"):
-                            infoLogger.info(f"No data duplection for the Submission ID : {_id} in sl-survey-status-inprogress datasource")
-                            # Upload survey status data to Druid topic
-                            producer.send((config.get("KAFKA", "survey_inprogress_druid_topic")), json.dumps(survey_status).encode('utf-8'))
-                            producer.flush()
-                            infoLogger.info(f"Data with submission_id {_id} is being inserted into the sl-survey-status-inprogress datasource.")
-                        else:       
-                            infoLogger.info(f"Data with submission_id {_id} is already exists in the sl-survey-status-inprogress datasource.")
-                except Exception as e :
-                    # Log any errors that occur during data ingestion
-                    errorLogger.error("====== An error was found during data ingestion in the sl-survey-status-inprogress datasource ======")
-                    errorLogger.error(e,exc_info=True)  
-
-
-            elif obSub['status'] == 'completed':
-                survey_status['surveySubmissionId'] = obSub['_id']
-                survey_status['completedAt'] = obSub['completedDate']
-                _id = survey_status.get('surveySubmissionId', None) 
-                try : 
-                    if _id:
-                        if check_survey_submission_id_existance(_id,"surveySubmissionId","sl-survey-status-completed"):
-                            infoLogger.info(f"No data duplection for the Submission ID : {_id} in sl-survey-status-completed datasource")
-                            # Upload survey status data to Druid topic
-                            producer.send((config.get("KAFKA", "survey_completed_druid_topic")), json.dumps(survey_status).encode('utf-8'))
-                            producer.flush()
-                            infoLogger.info(f"Data with submission_id {_id} is being inserted into the sl-survey-status-completed datasource")
-                        else:       
-                            infoLogger.info(f"Data with submission_id {_id} is already exists in the sl-survey-status-completed datasource")
-                except Exception as e :
-                    # Log any errors that occur during data ingestion
-                    errorLogger.error("====== An error was found during data ingestion in the sl-survey-status-inprogress datasource ======")
-                    errorLogger.error(e,exc_info=True)  
-
-            infoLogger.info(f"Completed processing kafka event for the Survey Submission Id : {obSub['_id']}. For Survey Status report")
-        except Exception as e:
-            # Log any errors that occur during data extraction
-            errorLogger.error(e, exc_info=True)
-except Exception as e:
-    # Log any errors that occur during data extraction
-    errorLogger.error(e, exc_info=True)
-
-
-try:
-    @app.agent(rawTopicName)
-    async def surveyFaust(consumer):
-        '''Faust agent to consume messages from Kafka and process them'''
-        async for msg in consumer:
-            try:
-                msg_val = msg.decode('utf-8')
-                msg_data = json.loads(msg_val)
-                
-                infoLogger.info("========== START OF SURVEY SUBMISSION EVENT PROCESSING ==========")
-                druid_urls = {
-                    'Coordinator':    config.get('DRUID','coordinator_url'),
-                    'Overlord':       config.get('DRUID','overload_url'),
-                    'Historical':     config.get('DRUID','historical_url')
-                }
-
-                health_status = check_all_druid_services_health(druid_urls)
-                health_status_count = 0
-                for service, status in health_status.items():
-                    if status['is_running']:
-                        infoLogger.info(f"{service} is running.")
-                        health_status_count = health_status_count + 1
-                    else:
-                        infoLogger.info(f"{service} is not running. Status code: {status['status_code']}")
-                if health_status_count == 3:
-                    infoLogger.info("ALL SERVICES ARE WORKING IN DRUID")
-                    obj_creation(msg_data)
-                    main_data_extraction(msg_data)
-                else :
-                    pass
-                    infoLogger.info("DRUID IS DOWN")
-                    
-                try : 
-                    surveySubCollec.update_one(
-                        {"_id": ObjectId(msg_data['_id'])},
-                        {"$set": {"datapipeline.processed_date": datetime.datetime.now()}}
-                    )
-                    infoLogger.info("Updated the Mongo survey submission collection")
-                except KeyError as ke :
-                    errorLogger.error(f"KeyError occurred: {ke}")    
-                infoLogger.info("********** END OF SURVEY SUBMISSION EVENT PROCESSING **********")
-            except KeyError as ke:
-                # Log KeyError
-                errorLogger.error(f"KeyError occurred: {ke}")
-except Exception as e:
+        infoLogger.info(f"Completed processing kafka event for the Survey Submission Id : {surveySubmissionId}. For Survey Status report")
+        return list_message_id,flag_count
+    except Exception as e:
     # Log any other exceptions
-    errorLogger.error(f"Error in surveyFaust function: {e}")
+        infoLogger.info("Failed to process main_data_extraction function")
+        errorLogger.error("Failed to process main_data_extraction function {e}",exc_info=True)
+
+
+@app.agent(rawTopicName)
+async def surveyFaust(consumer):
+    '''Faust agent to consume messages from Kafka and process them'''
+    async for msg in consumer:
+        try:
+            msg_val = msg.decode('utf-8')
+            msg_data = json.loads(msg_val)
+            
+            infoLogger.info(f"========== START OF SURVEY SUBMISSION EVENT PROCESSING - {datetime.datetime.now()} ==========")
+            list_message_id = []
+            flag_count = 0
+            list_message_id_obj, flag_count_obj = obj_creation(msg_data)
+            list_message_id.extend(list_message_id_obj)
+            flag_count = flag_count + flag_count_obj
+            list_message_id_main , flag_count_main = main_data_extraction(msg_data)
+            list_message_id.extend(list_message_id_main)
+            flag_count = flag_count + flag_count_main 
+            has_null_values = any(value is None for value in list_message_id)
+            if (has_null_values == False) : 
+                if (len(list_message_id) != 0) and (flag_count != 0):
+                    if len(list_message_id) == flag_count:
+                        try : 
+                            surveySubCollec.update_one(
+                                {"_id": ObjectId(msg_data['_id'])},
+                                {"$set": {"datapipeline.processed_date": datetime.datetime.now()}}
+                                )
+                            infoLogger.info("Updated the Mongo survey submission collection after inserting data into to kafka topic")
+                        except Exception as e :
+                            infoLogger.info(f"Failed to update the Mongo survey submission collection for submissionId {msg_data['_id']}")
+                            errorLogger.error(f"Failed to update the Mongo survey submission collection for submissionId {msg_data['_id']}{e}",exc_info=True)
+                    else:
+                        infoLogger.info("As the number of Kafka message IDs did not align with the number of ingestions, the Mongo survey submission collection was not updated.") 
+                else:
+                    infoLogger.info("Since both Kafka ID count and flag count are zero, the MongoDB observation submission collection will not be updated")    
+            else:
+                infoLogger.info("As list_message_id contains either duplicate value or null values hence the MongoDB observation submission collection will not be updated ")
+            infoLogger.info(f"********** END OF SURVEY SUBMISSION EVENT PROCESSING - {datetime.datetime.now()} **********")
+        except Exception as e:
+            # Log KeyError
+            errorLogger.error(e,exc_info=True)
 
 
 if __name__ == '__main__':
