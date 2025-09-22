@@ -108,7 +108,8 @@ orgInfo_udf = udf(orgName,orgSchema)
 
 successLogger.debug(
         "Program started  " + str(datetime.datetime.now())
-   )	   
+   )	
+successLogger.info("Starting ingestion for the program_id : " + str(program_unique_id))   
 bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"*** Start for {program_unique_id}: {datetime.datetime.now()} ***\n")
 spark = SparkSession.builder.appName("projects").config(
     "spark.driver.memory", "50g"
@@ -872,6 +873,7 @@ for i, j in zip(datasources,ingestion_specs):
         errorLogger.error(start_supervisor.text)
         bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Failed to ingested the data in {i}")
 
+successLogger.info("Sucessfully ingested the data in druid for the program_id : " + str(program_unique_id))
 
 if program_unique_id :
  bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Ingested for {program_unique_id}")
