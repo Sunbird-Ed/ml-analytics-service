@@ -31,9 +31,7 @@ echo "Daily Projects Batch Job Ingestion == Started"
 filename=$projects_program_filename
 n=1
 while read line; do
-	# . /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory 50g --executor-memory 50g /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_batch.py --program_id ${line/,}
-	. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory 50g --executor-memory 50g /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_batch_agg.py --program_id ${line/,}
-	. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory 50g --executor-memory 50g /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_batch_raw.py --program_id ${line/,}
+	. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory 50g --executor-memory 50g /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_batch.py --program_id ${line/,}
 n=$((n+1))
 done < $filename
 echo "Daily Projects Batch Job Ingestion == Completed"
@@ -71,7 +69,7 @@ echo ""
 echo "$(date)"
 echo "====================================="
 echo "Re-check ingested the Program IDs == Started"
-. /opt/sparkjobs/spark_venv/bin/activate && python /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_re_check_ingestion.py
+# . /opt/sparkjobs/spark_venv/bin/activate && python /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_re_check_ingestion.py
 echo "Re-check == Completed"
 echo "*************************************"
 
