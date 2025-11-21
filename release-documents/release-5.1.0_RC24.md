@@ -84,9 +84,8 @@ After execution, verify:
 ### Logging Structure
 ```
 logs/
-└── nvsk/
-    ├── nvsk_success.log
-    └── nvsk_error.log
+├── nvsk_success.log
+└── nvsk_error.log
 ```
 ---
 
