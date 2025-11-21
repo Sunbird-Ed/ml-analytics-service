@@ -4,7 +4,6 @@
 This release introduces key enhancements to the NVSK script in the ML Analytics Service, fulfilling the requirement for expanded reporting capabilities. The updates focus on generating additional CSV reports for better insights into unique leaders/schools and program-wise breakdowns, while improving log management for enhanced traceability.
 
 **Release Date:** November 21, 2025  
-**Version:** 1.1.0  
 **Author:** Vivek-M-08  
 **Related Pull Request:** [#192](https://github.com/Sunbird-Ed/ml-analytics-service/pull/192)  
 **Target Branch:** release-5.1.0
