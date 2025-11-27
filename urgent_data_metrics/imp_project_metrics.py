@@ -159,7 +159,7 @@ spark = SparkSession.builder.appName("nvsk").config(
 
 sc = spark.sparkContext
 
-clientProd = MongoClient(config.get('MONGO', 'mongo_url'))
+clientProd = MongoClient(config.get('MONGO', 'url'))
 db = clientProd[config.get('MONGO', 'database_name')]
 projectsCollec = db[config.get('MONGO', 'projects_collection')]
 
