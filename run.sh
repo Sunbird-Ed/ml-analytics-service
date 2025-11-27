@@ -69,7 +69,7 @@ echo ""
 echo "$(date)"
 echo "====================================="
 echo "Re-check ingested the Program IDs == Started"
-. /opt/sparkjobs/spark_venv/bin/activate && python /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_re_check_ingestion.py
+#. /opt/sparkjobs/spark_venv/bin/activate && python /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_re_check_ingestion.py
 echo "Re-check == Completed"
 echo "*************************************"
 

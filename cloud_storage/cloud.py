@@ -90,6 +90,6 @@ class MultiCloud:
         accessKey = config.get("ORACLE", "access_key"),
         secretAccessKey = config.get("ORACLE", "secret_access_key"),
         endpoint_url = config.get("ORACLE", "endpoint_url"),
-        bucketName = config.get("ORACLE", "bucket_name")
+        bucketName = config.get("ORACLE", "reports_bucket_name")
                 )     
         oracle_service.upload_files(bucketPath = blob_Path, localPath = local_Path, fileName = file_Name)
