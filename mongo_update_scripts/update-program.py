@@ -83,8 +83,10 @@ logging.info(f"Total Programs fetched from mongo: {len(program_ids)}")
 updated_programs_count = 0
 for pid in program_ids:
     matching_solutions = solutions_col.find({
-        "programId": pid
-    }, {"_id": 1})
+            "programId": pid,
+            "isAPrivateProgram": False,
+            "isReusable": False,
+        }, {"_id": 1})
 
     solution_ids = [sol["_id"] for sol in matching_solutions]
 
