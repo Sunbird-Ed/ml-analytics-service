@@ -25,22 +25,8 @@ solutions_collection = config.get("MONGO", "solutions_collection")
 # Logging Setup
 # -------------------------------
 def setup_logging():
-    log_dir = "logs"
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
-
-    retention_period = timedelta(days=7)
-    cutoff_date = datetime.now() - retention_period
-    
-    for log_file in glob.glob(os.path.join(log_dir, "program_update_*.log")):
-        try:
-            file_date_str = log_file.split("_")[-1].replace(".log", "")
-            file_date = datetime.strptime(file_date_str, "%Y-%m-%d")
-            if file_date < cutoff_date:
-                os.remove(log_file)
-                logging.info(f"Deleted old log file: {log_file}")
-        except Exception as e:
-            logging.error(f"Error checking/deleting log file {log_file}: {e}")
 
     today_str = datetime.now().strftime("%Y-%m-%d")
     log_filename = os.path.join(log_dir, f"program_update_{today_str}.log")
