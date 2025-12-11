@@ -238,7 +238,7 @@ projects_schema = StructType([
             StructField('externalId', StringType(), True)
         ])
     ), True),
-    StructField('createdAt', StringType(), True) 
+    StructField('createdAt', TimestampType(), True) 
 ])
 
 # ========================== DATA TRANSFORMATION ==========================
@@ -418,9 +418,90 @@ os.rename(os.path.join(local_path, 'data.csv'), f'{local_path}' + 'micro_improve
 successLogger.info("Report 1 (District-wise summary) completed.")
 
 # ============================================================================
-# REPORT 2: Program-wise Detailed Report
+# REPORT 2: Summary Statistics
 # ============================================================================
-successLogger.info("Generating Report 2: Program-wise Detailed Report...")
+successLogger.info("Generating Report 2: Summary Statistics...")
+
+# Extract year from createdAt field in the existing projects_df
+summary_data_df = projects_df.withColumn(
+    "year",
+    F.year(F.col("createdAt"))
+).filter(F.col("year").isNotNull())
+
+# Count unique leaders per year (before school filtering)
+leaders_by_year = summary_data_df.groupBy("year").agg(
+    countDistinct(F.col("userId")).alias("Number of Unique Leaders on the Improvement Journey")
+)
+
+# Extract school information from userProfile
+schools_summary_df = summary_data_df.select(
+    F.col("year"),
+    F.col("_id").alias("project_id"),
+    F.explode_outer(F.col("userProfile.userLocations")).alias("user_location")
+).filter(
+    (F.col("user_location.type") == "school") & 
+    (F.col("user_location.id").isNotNull())
+).select(
+    F.col("year"),
+    F.col("user_location.id").alias("school_id")
+).distinct()
+
+# Count unique schools per year
+schools_by_year = schools_summary_df.groupBy("year").agg(
+    countDistinct(F.col("school_id")).alias("Number of Unique Schools on the Improvement Journey")
+)
+
+# Join leaders and schools counts
+summary_df = leaders_by_year.join(schools_by_year, "year", "left").withColumn(
+    "execution_date", F.lit(execution_date)
+)
+
+# Reorder columns: Number of Leaders, Number of Schools, Year, execution_date
+summary_df = summary_df.select(
+    F.col("Number of Unique Leaders on the Improvement Journey"),
+    F.col("Number of Unique Schools on the Improvement Journey"),
+    F.col("year").alias("Year"),
+    F.col("execution_date")
+).sort("Year")
+
+summary_local_path = local_path + "summary/"
+if not os.path.exists(summary_local_path):
+    os.makedirs(summary_local_path)
+
+summary_df.coalesce(1).write.format("csv").option("header", True).mode("overwrite").save(summary_local_path)
+
+os.chdir(summary_local_path)
+result = glob.glob(f'*.csv')
+os.rename(f'{summary_local_path}{result[0]}', f'{summary_local_path}improvement_journey_summary.csv')
+
+summary_json_keys = [
+    "Number of Unique Leaders on the Improvement Journey",
+    "Number of Unique Schools on the Improvement Journey",
+    "Year",
+    "execution_date"
+]
+summary_json_data = []
+
+with open(os.path.join(summary_local_path, 'improvement_journey_summary.csv'), 'r') as file:
+    csv_reader = csv.reader(file)
+    next(csv_reader)
+    for row in csv_reader:
+        summary_json_data.append(row)
+
+summary_json = {
+    'keys': summary_json_keys,
+    'tableData': summary_json_data
+}
+
+with open(os.path.join(summary_local_path, 'improvement_journey_summary.json'), 'w') as json_file:
+    json.dump(summary_json, json_file, indent=2)
+
+successLogger.info("Report 2 (Summary statistics) completed.")
+
+# ============================================================================
+# REPORT 3: Program-wise Detailed Report
+# ============================================================================
+successLogger.info("Generating Report 3: Program-wise Detailed Report...")
 
 try:
     programsCollec = db[config.get('MONGO', 'programs_collection')]
@@ -604,143 +685,7 @@ try:
     with open(os.path.join(program_local_path, 'program_wise_improvement.json'), 'w') as json_file:
         json.dump(program_json, json_file, indent=2)
 
-    successLogger.info("Report 2 (Program-wise detailed report) completed.")
-
-except Exception as e:
-    errorLogger.error("Error in Report 2 Logic", exc_info=True)
-
-# ============================================================================
-# REPORT 3: Summary Statistics
-# ============================================================================
-successLogger.info("Generating Report 3: Summary Statistics...")
-
-try:
-    # Execute MongoDB aggregation query for year-wise summary
-    summary_cursor = projectsCollec.aggregate([
-        {
-            "$match": {
-                "isAPrivateProgram": False,
-                "isDeleted": False,
-                "programInformation.name": {
-                    "$regex": "^((?!(?i)(test)).)*$"
-                }
-            }
-        },
-        {
-            "$addFields": {
-                "year": {
-                    "$year": {
-                        "$toDate": "$createdAt"
-                    }
-                }
-            }
-        },
-        {
-            "$group": {
-                "_id": "$year",
-                "uniqueUserCount": {
-                    "$addToSet": "$userId"
-                },
-                "uniqueSchoolLocations": {
-                    "$addToSet": "$userProfile.userLocations"
-                }
-            }
-        },
-        {
-            "$project": {
-                "_id": 0,
-                "Year": "$_id",
-                "uniqueUserCount": {
-                    "$size": "$uniqueUserCount"
-                },
-                "uniqueSchoolCount": {
-                    "$size": {
-                        "$filter": {
-                            "input": {
-                                "$reduce": {
-                                    "input": "$uniqueSchoolLocations",
-                                    "initialValue": [],
-                                    "in": {"$concatArrays": ["$$value", "$$this"]}
-                                }
-                            },
-                            "as": "location",
-                            "cond": {
-                                "$and": [
-                                    {"$eq": ["$$location.type", "school"]},
-                                    {"$ne": ["$$location.id", None]}
-                                ]
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        {
-            "$sort": {
-                "Year": 1
-            }
-        }
-    ])
-
-    # Convert cursor to list
-    summary_results = list(summary_cursor)
-    
-    # Add execution_date to each record
-    for record in summary_results:
-        record['execution_date'] = execution_date
-    
-    # Define schema for summary data
-    summary_schema = StructType([
-        StructField("Year", IntegerType(), True),
-        StructField("uniqueUserCount", IntegerType(), True),
-        StructField("uniqueSchoolCount", IntegerType(), True),
-        StructField("execution_date", StringType(), True)
-    ])
-    
-    # Create DataFrame from MongoDB results
-    summary_df = spark.createDataFrame(summary_results, summary_schema)
-    
-    # Rename columns for better readability
-    summary_df = summary_df.select(
-        F.col("uniqueUserCount").alias("Number of Unique Leaders on the Improvement Journey"),
-        F.col("uniqueSchoolCount").alias("Number of Unique Schools on the Improvement Journey"),
-        F.col("Year").alias("Year"),
-        F.col("execution_date").alias("execution_date")
-    )
-    
-    summary_local_path = local_path + "summary/"
-    if not os.path.exists(summary_local_path):
-        os.makedirs(summary_local_path)
-    
-    summary_df.coalesce(1).write.format("csv").option("header", True).mode("overwrite").save(summary_local_path)
-    
-    os.chdir(summary_local_path)
-    result = glob.glob(f'*.csv')
-    os.rename(f'{summary_local_path}{result[0]}', f'{summary_local_path}improvement_journey_summary.csv')
-    
-    summary_json_keys = [
-        "Number of Unique Leaders on the Improvement Journey",
-        "Number of Unique Schools on the Improvement Journey",
-        "Year",
-        "execution_date"
-    ]
-    summary_json_data = []
-    
-    with open(os.path.join(summary_local_path, 'improvement_journey_summary.csv'), 'r') as file:
-        csv_reader = csv.reader(file)
-        next(csv_reader)
-        for row in csv_reader:
-            summary_json_data.append(row)
-    
-    summary_json = {
-        'keys': summary_json_keys,
-        'tableData': summary_json_data
-    }
-    
-    with open(os.path.join(summary_local_path, 'improvement_journey_summary.json'), 'w') as json_file:
-        json.dump(summary_json, json_file, indent=2)
-    
-    successLogger.info("Report 3 (Summary statistics) completed.")
+    successLogger.info("Report 3 (Program-wise detailed report) completed.")
 
 except Exception as e:
     errorLogger.error("Error in Report 3 Logic", exc_info=True)
