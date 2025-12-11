@@ -1,89 +1,75 @@
 # Release Note - NVSK Script Update
 
-## PR #197: Updated NVSK Script
+## PR #197: Enhanced NVSK Reporting with Year-wise Analytics and Data Quality Improvements
 
 **Author:** Vivek-M-08  
 **Target Branch:** release-5.1.0  
-**Date:** December 9, 2025
+**Date:** December 11, 2025
 
 ---
 
 ## Summary
-This update enhances the NVSK data processing script with improved data quality controls, restructured reporting logic, and the addition of execution date tracking across all reports.
+
+This major update transforms the NVSK data processing script with comprehensive enhancements including year-wise analytics, improved data quality controls, schema optimization, and execution date tracking across all reports. The update enables temporal analysis of program growth and ensures more reliable reporting through enhanced data validation.
 
 ---
 
 ## Key Changes
 
-### 1. **Execution Date Tracking**
-- Added `execution_date` field to all generated reports (district-wise, program-wise, and summary reports)
-- Enables temporal tracking of when each report was generated
-- Execution date is captured at script start and applied consistently across all outputs
+### 1. **Schema Optimization for Date Handling**
+- **Critical Update:** Changed `createdAt` field from `StringType` to `TimestampType` in projects schema
+- Eliminates issues with `java.util.GregorianCalendar` string representations
+- Enables native Spark timestamp operations for accurate year extraction
+- Improves performance and reliability of date-based operations
 
-### 2. **Data Quality Improvements**
-- **Report 1 (District-wise):** Added filtering to exclude records with null or empty state/district names
-- **Report 2 (Program-wise):** Added filtering to exclude records with null or empty state/district names
-- Ensures cleaner, more reliable output data by removing incomplete geographic records
+### 2. **Execution Date Tracking**
+- Added `execution_date` field to all three reports (Report 1, Report 2, Report 3)
+- Captures timestamp at script initialization: `datetime.datetime.now().strftime("%Y-%m-%d")`
+- Enables temporal tracking and audit trail for all generated reports
+- Applied consistently across CSV and JSON outputs
 
-### 3. **Report Restructuring**
-The three reports have been reorganized for better logical flow:
+### 3. **Data Quality Improvements**
+- **Report 1 (District-wise):** Filters out records with null or empty `state_name` or `district_name`
+- **Report 3 (Program-wise):** Filters out records with null or empty `State Name` or `District Name`
+- Implemented using combined conditions: `isNotNull()` and `trim() != ""`
+- Ensures cleaner, more reliable output by removing incomplete geographic records
 
-**Previous Order:**
+### 4. **Restructured Reporting Logic**
+
+**Previous Structure:**
 1. District-wise Micro Improvement Projects
-2. Summary Statistics (Unique Leaders/Schools)
+2. Summary Statistics (Overall totals)
 3. Program-wise Detailed Report
 
-**New Order:**
-1. District-wise Micro Improvement Projects
-2. Program-wise Detailed Report
-3. Summary Statistics (Unique Leaders/Schools)
+**New Structure:**
+1. District-wise Micro Improvement Projects (with execution_date)
+2. Summary Statistics (Year-wise breakdown with execution_date)
+3. Program-wise Detailed Report (with execution_date)
 
-### 4. **Enhanced Summary Statistics (Report 3)**
-- **Major Change:** Summary report now provides year-wise breakdown instead of overall totals
-- Implemented MongoDB aggregation pipeline to calculate unique leaders and schools per year
-- Uses MongoDB's `$group`, `$addFields`, and `$reduce` operations for efficient year-based aggregation
-- Extracts year from project `createdAt` timestamp
-- Filters school locations directly in the aggregation pipeline
-- Output now includes "Year" column alongside unique user and school counts
+### 5. **Enhanced Summary Statistics - Year-wise Analytics (Report 2)**
 
-### 5. **JSON Schema Updates**
-Updated JSON keys across all reports to include the new execution_date field:
-- **Report 1:** Added "execution_date" to district-wise improvement keys
-- **Report 2:** Added "execution_date" to program-wise improvement keys
-- **Report 3:** Added both "Year" and "execution_date" to summary statistics keys
+**Major Transformation:** Summary report now provides year-wise breakdown instead of single overall totals
 
----
+**Implementation Details:**
+- Extracts year directly from `createdAt` timestamp field using `F.year(F.col("createdAt"))`
+- **Unique Leaders Calculation:** Groups by year and counts distinct `userId` values per year
+- **Unique Schools Calculation:** 
+  - Explodes `userProfile.userLocations` array
+  - Filters for school type locations with non-null IDs
+  - Groups by year and counts distinct school IDs per year
+- Joins leader and school counts by year using left join
+- Sorts output chronologically by year
 
-## Technical Details
+**Before:**
+```
+Number of Unique Leaders | Number of Unique Schools
+305                      | 197
+```
 
-### Files Modified
-- `pyspark_project_batch.py` (151 additions, 64 deletions)
-
-### Impact Areas
-1. **Data Quality:** Better filtering reduces noise in location-based reports
-2. **Reporting:** Year-wise summary statistics provide temporal insights into program growth
-3. **Auditability:** Execution dates enable tracking of when reports were generated
-4. **Data Structure:** All output CSVs and JSONs now include execution timestamp
-
-### Database Operations
-- Enhanced MongoDB aggregation in Report 3 with multi-stage pipeline
-- Added `$year` extraction from timestamp fields
-- Implemented `$reduce` operation for nested array processing
-
----
-
-## Output Changes
-
-### Updated CSV/JSON Schemas
-
-**Report 1 - District-wise Micro Improvement:**
-- Added: `execution_date` column
-
-**Report 2 - Program-wise Improvement:**
-- Added: `execution_date` column
-
-**Report 3 - Improvement Journey Summary:**
-- Added: `Year` column (breakdown by year)
-- Added: `execution_date` column
-- Changed from: Single row of overall totals
-- Changed to: Multiple rows showing year-over-year statistics
+**After:**
+```
+Number of Unique Leaders | Number of Unique Schools | Year | execution_date
+156                      | 49                       | 2021 | 2025-12-11
+208                      | 127                      | 2022 | 2025-12-11
+87                       | 60                       | 2023 | 2025-12-11
+```
