@@ -32,7 +32,6 @@ from pyspark.sql.functions import element_at, split, col
 config_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))
 config = ConfigParser(interpolation=ExtendedInterpolation())
 config.read(config_path[0] + "/config.ini")
-bot = SlackClient(config.get("SLACK","token"))
 sys.path.append(config.get("COMMON", "cloud_module_path"))
 
 from cloud import MultiCloud
@@ -108,9 +107,7 @@ orgInfo_udf = udf(orgName,orgSchema)
 
 successLogger.debug(
         "Program started  " + str(datetime.datetime.now())
-   )	
-successLogger.info("Starting ingestion for the program_id : " + str(program_unique_id))   
-bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"*** Start for {program_unique_id}: {datetime.datetime.now()} ***\n")
+   )	   
 spark = SparkSession.builder.appName("projects").config(
     "spark.driver.memory", "50g"
 ).config(
@@ -608,8 +605,7 @@ successLogger.debug(
    )
 entities_df = melt(prj_df_expl_ul,
         id_vars=["_id","exploded_userLocations.name","exploded_userLocations.type","exploded_userLocations.id"],
-        value_vars=["exploded_userLocations.code"]
-    ).select("_id","name","value","type","id").dropDuplicates()
+        value_vars=["exploded_userLocations.code"]).select("_id","name","value","type","id").dropDuplicates()
 prj_df_expl_ul.unpersist()
 entities_df = entities_df.withColumn("variable",F.concat(F.col("type"),F.lit("_externalId")))
 entities_df = entities_df.withColumn("variable1",F.concat(F.col("type"),F.lit("_name")))
@@ -634,8 +630,7 @@ successLogger.debug(
 successLogger.debug(
         "Final Dataframe start time  " + str(datetime.datetime.now())
    )
-projects_df_final = projects_df_cols.join(entities_df_res,projects_df_cols["project_id"]==entities_df_res["_id"],how='left')\
-        .drop(entities_df_res["_id"])
+projects_df_final = projects_df_cols.join(entities_df_res,projects_df_cols["project_id"]==entities_df_res["_id"],how='left').drop(entities_df_res["_id"])
 successLogger.debug(
         "Final Dataframe end time  " + str(datetime.datetime.now())
    )
@@ -648,9 +643,7 @@ necessary_columns = ["state_name","state_externalId","district_name","district_e
 final_df_columns = final_projects_df.columns
 for miss_cols in necessary_columns:
     if miss_cols not in final_df_columns:
-        bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"MISSED: {miss_cols}")
         final_projects_df = final_projects_df.withColumn(miss_cols, lit(None).cast(StringType()))
-        bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"UPDATED: {final_projects_df.columns}")
 
 projects_df_final.unpersist()
 successLogger.debug(
@@ -697,19 +690,6 @@ final_projects_tasks_distinctCnt_prgmlevel.unpersist()
 
 successLogger.debug("Renaming file start time  " + str(datetime.datetime.now()))
 
-for filename in os.listdir(config.get("OUTPUT_DIR", "project")+"/"):
-    if filename.endswith(".json"):
-       if program_unique_id :  
-        os.rename(
-           config.get("OUTPUT_DIR", "project") + "/" + filename,
-           config.get("OUTPUT_DIR", "project") + f"/sl_projects_{program_unique_id}.json"
-        )
-       else :
-        os.rename(
-           config.get("OUTPUT_DIR", "project") + "/" + filename,
-           config.get("OUTPUT_DIR", "project") + "/sl_projects.json"
-        ) 
-
 #projects submission distinct count
 for filename in os.listdir(config.get("OUTPUT_DIR", "projects_distinctCount")+"/"):
     if filename.endswith(".json"):
@@ -741,9 +721,6 @@ for filename in os.listdir(config.get("OUTPUT_DIR", "projects_distinctCount_prgm
 successLogger.debug("Renaming file end time  " + str(datetime.datetime.now())) 
 successLogger.debug("Uploading to Azure start time  " + str(datetime.datetime.now()))
 
-local_path = config.get("OUTPUT_DIR", "project")
-blob_path = config.get("COMMON", "projects_blob_path")
-
 #projects submission distinct count
 local_distinctCnt_path = config.get("OUTPUT_DIR", "projects_distinctCount")
 blob_distinctCnt_path = config.get("COMMON", "projects_distinctCnt_blob_path")
@@ -751,10 +728,6 @@ blob_distinctCnt_path = config.get("COMMON", "projects_distinctCnt_blob_path")
 #projects submission distinct count program level
 local_distinctCnt_prgmlevel_path = config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel")
 blob_distinctCnt_prgmlevel_path = config.get("COMMON", "projects_distinctCnt_prgmlevel_blob_path")
-
-for files in os.listdir(local_path):
-    if "sl_projects.json" in files or f"sl_projects_{program_unique_id}.json" in files:
-        cloud_init.upload_to_cloud(blob_Path = blob_path, local_Path = local_path, file_Name = files)
 
 #projects submission distinct count
 for files in os.listdir(local_distinctCnt_path):
@@ -770,13 +743,11 @@ successLogger.debug("Uploading to azure end time  " + str(datetime.datetime.now(
 successLogger.debug("Removing file start time  " + str(datetime.datetime.now()))
 
 if program_unique_id :
- os.remove(config.get("OUTPUT_DIR", "project") + f"/sl_projects_{program_unique_id}.json")
  #projects submission distinct count
  os.remove(config.get("OUTPUT_DIR", "projects_distinctCount") + f"/ml_projects_distinctCount_{program_unique_id}.json")
  #projects submission distinct count program level
  os.remove(config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel") + f"/ml_projects_distinctCount_prgmlevel_{program_unique_id}.json")
 else :
- os.remove(config.get("OUTPUT_DIR", "project") + "/sl_projects.json")
  #projects submission distinct count
  os.remove(config.get("OUTPUT_DIR", "projects_distinctCount") + "/ml_projects_distinctCount.json")
  #projects submission distinct count program level
@@ -800,7 +771,6 @@ if program_unique_id :
     ml_distinctCnt_projects_spec['spec']['ioConfig'].update({"appendToExisting":True})
 distinctCnt_projects_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_projects_spec), headers=headers)
 if distinctCnt_projects_start_supervisor.status_code == 200:
-    bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Successfully Ingested for {ml_distinctCnt_projects_datasource}")
     successLogger.debug("started the batch ingestion task sucessfully for the datasource " + ml_distinctCnt_projects_datasource)
 else:
     errorLogger.error("failed to start batch ingestion task of ml-project-status " + str(distinctCnt_projects_start_supervisor.status_code))
@@ -817,65 +787,9 @@ if program_unique_id:
     ml_distinctCnt_prgmlevel_projects_spec["spec"]["ioConfig"].update({"appendToExisting":True})
 distinctCnt_prgmlevel_projects_start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(ml_distinctCnt_prgmlevel_projects_spec), headers=headers)
 if distinctCnt_prgmlevel_projects_start_supervisor.status_code == 200:
-    bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Successfully Ingested for {ml_distinctCnt_prgmlevel_projects_datasource}")
     successLogger.debug("started the batch ingestion task sucessfully for the datasource " + ml_distinctCnt_prgmlevel_projects_datasource)
 else:
     errorLogger.error(
             "failed to start batch ingestion task of ml-project-programLevel-status " + str(distinctCnt_prgmlevel_projects_start_supervisor.status_code)
     )
     errorLogger.error(distinctCnt_prgmlevel_projects_start_supervisor.text)
-
-
-dimensionsArr = []
-entitiesArr = ["state_externalId", "block_externalId", "district_externalId", "cluster_externalId", "school_externalId",\
-              "state_name","block_name","district_name","cluster_name","school_name","board_name","state_code", \
-              "block_code", "district_code", "cluster_code", "school_code"]
-dimensionsArr = list(set(entitiesArr))
-
-submissionReportColumnNamesArr = [
-    'project_title', 'project_goal', 'project_created_date', 'project_last_sync',
-    'area_of_improvement', 'status_of_project', 'tasks', 'tasks_date', 'tasks_status',
-    'sub_task', 'sub_task_status', 'sub_task_date', 'task_start_date', 'task_end_date',
-    'sub_task_start_date', 'sub_task_end_date', 'designation', 'project_deleted_flag',
-    'task_evidence', 'task_evidence_status', 'project_id', 'task_id', 'sub_task_id',
-    'project_created_type', 'task_assigned_to', 'channel', 'parent_channel', 'program_id',
-    'program_name', 'project_updated_date', 'createdBy', 'project_title_editable', 
-    'project_duration', 'program_externalId', 'private_program', 'task_deleted_flag',
-    'sub_task_deleted_flag', 'project_terms_and_condition','task_remarks',
-    'organisation_name','project_description','project_completed_date','solution_id',
-    'project_remarks','project_evidence','organisation_id','user_type', 'certificate_id', 
-    'certificate_status','certificate_issued_on','certificate_status_customised','certificate_template_url',{"type":"long","name":"task_count"},{"type":"long","name":"task_evidence_count"},{"type":"long","name":"project_evidence_count"},{"type":"long","name":"task_sequence"}
-]
-
-dimensionsArr.extend(submissionReportColumnNamesArr)
-
-payload = {}
-payload = json.loads(config.get("DRUID","project_injestion_spec"))
-if program_unique_id :
-    current_cloud = re.split("://+", payload["spec"]["ioConfig"]["inputSource"]["uris"][0])[0]
-    uri = re.split("://+", payload["spec"]["ioConfig"]["inputSource"]["uris"][0])[1]
-    edited_uri = re.split(".json", uri)[0]
-    payload["spec"]["ioConfig"]["inputSource"]["uris"][0] = f"{current_cloud}://{edited_uri}_{program_unique_id}.json"
-    payload['spec']['ioConfig'].update({"appendToExisting":True})  
-payload["spec"]["dataSchema"]["dimensionsSpec"]["dimensions"] = dimensionsArr
-datasources = [payload["spec"]["dataSchema"]["dataSource"]]
-ingestion_specs = [json.dumps(payload)]
-
-for i, j in zip(datasources,ingestion_specs):
-    start_supervisor = requests.post(druid_batch_end_point, data=j, headers=headers)
-    successLogger.debug("--- INGEST DATA ---")
-    if start_supervisor.status_code == 200:
-        bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Succesfully ingested the data in {i}")
-        successLogger.debug("started the batch ingestion task sucessfully for the datasource " + i)
-    else:
-        errorLogger.error("failed to start batch ingestion task" + i)
-        errorLogger.error("failed to start batch ingestion task " + str(start_supervisor.status_code))
-        errorLogger.error(start_supervisor.text)
-        bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Failed to ingested the data in {i}")
-
-successLogger.info("Sucessfully ingested the data in druid for the program_id : " + str(program_unique_id))
-
-if program_unique_id :
- bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Ingested for {program_unique_id}")
-else :
- bot.api_call("chat.postMessage",channel=config.get("SLACK","channel"),text=f"Succesfully ingested all program's data")
