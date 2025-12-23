@@ -118,6 +118,10 @@ ml_distinctCnt_survey_status_spec = {{ml_analytics_distinctCnt_survey_status_bat
 
 sl_project_ingestion_spec = {{ml_analytics_sl_project_ingestion_spec}}
 
+ml_distinctCnt_projects_status_spec_agg = {{ ml_analytics_druid_distinctCnt_projects_status_spec_agg}}
+
+ml_distinctCnt_prglevel_projects_status_spec_agg = {{ ml_analytics_druid_distinctCnt_prglevel_projects_status_spec_agg}}
+
 [KAFKA]
 
 url = {{ ml_analytics_kafka_url }}
