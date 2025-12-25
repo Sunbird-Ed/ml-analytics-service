@@ -21,7 +21,26 @@ from pyspark.sql.types import (
     StructType, StructField, StringType, IntegerType, 
     BooleanType, TimestampType, ArrayType
 )
-from unittest.mock import MagicMock
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
+config = ConfigParser(interpolation=ExtendedInterpolation())
+base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+config.read(os.path.join(base_path, "config.ini"))
+NATURE_OF_UPLOAD = "cloud" # "local" or "cloud"
+MONGO_URL = config.get('MONGO', 'url')
+MONGO_DATABASE_NAME = config.get('MONGO', 'database_name')
+MONGO_PROJECTS_COLLECTION = config.get('MONGO', 'projects_collection')
+MONGO_SOLUTIONS_COLLECTION = config.get('MONGO', 'solutions_collection')
+MONGO_PROGRAMACTIVITYLOG_COLLECTION = config.get('MONGO', 'programActivityLog_collection')
+SUCCESS_LOG_PATH = config.get('LOGS', 'sl_project_success')
+ERROR_LOG_PATH = config.get('LOGS', 'sl_project_error')
+DRUID_BATCH_URL = config.get("DRUID", "batch_url")
+SL_PROJECT_LOCAL_INGESTION_SPEC = config.get("DRUID","sl_project_local_ingestion_spec", fallback=None)
+SL_PROJECT_CLOUD_INGESTION_SPEC = config.get("DRUID","sl_project_cloud_ingestion_spec")
+SL_PROJECT_BLOB_PATH = config.get("COMMON", "sl_project_blob_path")
+SL_PROJECT_OUTPUT_DIR = config.get("OUTPUT_DIR", "sl_project")
+CLOUD_MODULE_PATH = config.get("COMMON", "cloud_module_path")
 
 # ---------------------------------------------------------------------------
 # Argument Parsing
@@ -45,13 +64,10 @@ args = parse_args()
 # Configuration
 # ---------------------------------------------------------------------------
 class ConfigManager:
-    def __init__(self, config_file="config.ini"):
-        self.config = ConfigParser(interpolation=ExtendedInterpolation())
-        base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        self.config.read(os.path.join(base_path, config_file))
-        
+    def __init__(self):
         self.success_logger = None
         self.error_logger = None
+        self.config = config
         self._setup_logging()
 
     def _setup_logging(self):
@@ -62,7 +78,7 @@ class ConfigManager:
         
         if not self.success_logger.handlers:
             try:
-                success_log_path = self.config.get('LOGS', 'sl_project_success')
+                success_log_path = SUCCESS_LOG_PATH
                 success_handler = TimedRotatingFileHandler(
                     success_log_path, when="w0", backupCount=4
                 )
@@ -77,7 +93,7 @@ class ConfigManager:
         
         if not self.error_logger.handlers:
             try:
-                error_log_path = self.config.get('LOGS', 'sl_project_error')
+                error_log_path = ERROR_LOG_PATH
                 error_handler = TimedRotatingFileHandler(
                     error_log_path, when="w0", backupCount=4
                 )
@@ -194,7 +210,7 @@ class Utils:
         headers: dict = {'Content-Type': 'application/json'}
         
         # ---- Druid config ----
-        indexer_url: str = self.config.get("DRUID", "batch_url")
+        indexer_url: str = DRUID_BATCH_URL
 
         payload: dict = {
             "type": "kill",
@@ -231,7 +247,7 @@ class Utils:
         headers: dict = {'Content-Type': 'application/json'}
         
         # ---- Druid config ----
-        indexer_url: str = self.config.get("DRUID", "batch_url")
+        indexer_url: str = DRUID_BATCH_URL
 
         payload: dict = {
             "type": "kill",
@@ -246,7 +262,13 @@ class Utils:
         if _default_config and _default_config.success_logger:
             _default_config.success_logger.info(f"Status Code: {response.status_code}")
             _default_config.success_logger.info(f"Response: {response.json()}")
-        time.sleep(600)
+        # time.sleep(600)
+
+    def delete_local_output_file(self, solution_id: str) -> None:
+        if solution_id:
+            os.remove(SL_PROJECT_OUTPUT_DIR + f"/sl_project_{solution_id}.json")
+        else:
+            os.remove(SL_PROJECT_OUTPUT_DIR + "/sl_project.json")
 
 
 # ---------------------------------------------------------------------------
@@ -348,11 +370,11 @@ def get_solution_schema():
 class IngestionManager:
     def __init__(self, config: ConfigManager):
         self.config = config
-        self.client = MongoClient(config.get('MONGO', 'url'))
-        self.db = self.client[config.get('MONGO', 'database_name')]
-        self.projects_collection = self.db[config.get('MONGO', 'projects_collection')]
-        self.solutions_collection = self.db[config.get('MONGO', 'solutions_collection')]
-        self.programActivityLog_collection = self.db[config.get('MONGO', 'programActivityLog_collection')]
+        self.client = MongoClient(MONGO_URL)
+        self.db = self.client[MONGO_DATABASE_NAME]
+        self.projects_collection = self.db[MONGO_PROJECTS_COLLECTION]
+        self.solutions_collection = self.db[MONGO_SOLUTIONS_COLLECTION]
+        self.programActivityLog_collection = self.db[MONGO_PROGRAMACTIVITYLOG_COLLECTION]
         self.success_logger, self.error_logger = config.get_logger()
 
     def get_all_solution_ids(self)-> list:
@@ -655,7 +677,9 @@ def process_project_partition(partition_iterator):
 
 
 def transform_projects_df(projects_df: DataFrame, solution_df: DataFrame, config_manager) -> DataFrame:
-    """Applies Spark transformations to the projects DataFrame."""
+    """
+    Applies Spark transformations to the projects DataFrame.
+    """
     utils = Utils()
     
     projects_df = projects_df.withColumn("project_created_type", F.when(col("projectTemplateId").isNotNull(), "project imported from library").otherwise("user created project"))
@@ -813,14 +837,17 @@ def transform_projects_df(projects_df: DataFrame, solution_df: DataFrame, config
     )
     
     # Aggregations
+    projects_df_cols.cache()
+    
+    # Aggregations
     projects_task_cnt = projects_df_cols.groupBy("project_id").agg(F.countDistinct("task_id").alias("task_count"))
     projects_prj_evi = projects_df_cols.groupBy("project_id").agg(F.countDistinct("project_evidence").alias("project_evidence_count"))
     projects_tsk_evi = projects_df_cols.groupBy("project_id").agg(F.countDistinct("task_evidence").alias("task_evidence_count"))
     
-    projects_df_cols = projects_df_cols.join(projects_task_cnt, "project_id", "left")\
-                                       .join(projects_prj_evi, "project_id", "left")\
-                                       .join(projects_tsk_evi, "project_id", "left")\
-                                       .dropDuplicates()
+    projects_df_cols = projects_df_cols.join(projects_task_cnt, "project_id", "left")
+    projects_df_cols = projects_df_cols.join(projects_prj_evi, "project_id", "left")
+    projects_df_cols = projects_df_cols.join(projects_tsk_evi, "project_id", "left")
+    projects_df_cols = projects_df_cols.dropDuplicates()
 
     # User Locations - Pivot
     entities_df = utils.melt(prj_df_expl_ul,
@@ -893,24 +920,40 @@ def trigger_druid_ingestion(solution_id, config: ConfigManager):
     
     dimensionsArr = list(set(entitiesArr)) + submissionReportColumnNamesArr
     
-    try:
-        druid_spec = config.get("DRUID","sl_project_cloud_ingestion_spec")
-        payload = json.loads(druid_spec)
-        
-        if solution_id:
-            uris = payload["spec"]["ioConfig"]["inputSource"]["uris"]
-            current_cloud = re.split("://+", uris[0])[0]
-            uri_path = re.split("://+", uris[0])[1]
-            edited_uri = re.split(".json", uri_path)[0]
-            payload["spec"]["ioConfig"]["inputSource"]["uris"][0] = f"{current_cloud}://{edited_uri}_{solution_id}.json"
-            payload['spec']['ioConfig'].update({"appendToExisting":True})
-            
-        payload["spec"]["dataSchema"]["dimensionsSpec"]["dimensions"] = dimensionsArr
-        
+    try:        
+        if NATURE_OF_UPLOAD == "local":
+            if solution_id:
+                druid_spec = SL_PROJECT_LOCAL_INGESTION_SPEC
+                payload = json.loads(druid_spec)
+                base_dir_config = payload["spec"]["ioConfig"]["inputSource"]["baseDir"]
+                if isinstance(base_dir_config, list):
+                    base_dir_config = base_dir_config[0]
+                base_dir_path = os.path.dirname(base_dir_config)
+                
+                # Check for filter in the existing payload first
+                file_name_pattern = payload["spec"]["ioConfig"]["inputSource"].get("filter")
+                if not file_name_pattern:
+                    file_name_pattern = os.path.basename(base_dir_config)
+                    
+                file_name_final = f"{os.path.splitext(file_name_pattern)[0]}_{solution_id}.json"
+                
+                payload["spec"]["ioConfig"]["inputSource"]["baseDir"] = base_dir_path
+                payload["spec"]["ioConfig"]["inputSource"]["filter"] = file_name_final    
+                payload["spec"]["dataSchema"]["dimensionsSpec"]["dimensions"] = dimensionsArr
+        else:    
+            if solution_id:
+                druid_spec = SL_PROJECT_CLOUD_INGESTION_SPEC
+                payload = json.loads(druid_spec)
+                uris = payload["spec"]["ioConfig"]["inputSource"]["uris"]
+                current_cloud = re.split("://+", uris[0])[0]
+                uri_path = re.split("://+", uris[0])[1]
+                edited_uri = re.split(".json", uri_path)[0]
+                payload["spec"]["ioConfig"]["inputSource"]["uris"][0] = f"{current_cloud}://{edited_uri}_{solution_id}.json"
+                payload['spec']['ioConfig'].update({"appendToExisting":True})
+
         datasource = payload["spec"]["dataSchema"]["dataSource"]
         headers = {'Content-Type': 'application/json'}
-        druid_batch_end_point = config.get("DRUID", "batch_url")
-              
+        druid_batch_end_point = DRUID_BATCH_URL   
         start_supervisor = requests.post(druid_batch_end_point, data=json.dumps(payload), headers=headers)
         
         if start_supervisor.status_code == 200:
@@ -920,6 +963,7 @@ def trigger_druid_ingestion(solution_id, config: ConfigManager):
             if error_logger:
                 error_logger.error(f"Failed to start batch ingestion task {datasource}. Status: {start_supervisor.status_code}")
                 error_logger.error(start_supervisor.text)
+    
     except Exception as e:
         if error_logger:
             error_logger.error(f"Exception during Druid ingestion trigger: {e}")
@@ -929,9 +973,8 @@ def trigger_druid_ingestion(solution_id, config: ConfigManager):
 # Pipeline
 # ---------------------------------------------------------------------------
 class ProjectPipeline:
-    def __init__(self, config_path="config.ini"):
-
-        self.config = ConfigManager(config_path)
+    def __init__(self):
+        self.config = ConfigManager()
         self.spark = init_spark_session("projects_optimized_project_batch")
         self.utils = Utils()
         self.ingestion: IngestionManager = IngestionManager(self.config)
@@ -968,9 +1011,9 @@ class ProjectPipeline:
 
             final_df = transform_projects_df(projects_df, solution_df, self.config)
            
-            output_dir = self.config.get("OUTPUT_DIR", "sl_project")
-            os.makedirs(output_dir, exist_ok=True)
-            temp_output_dir = os.path.join(output_dir, f"temp_{solution_id}")
+            os.makedirs(SL_PROJECT_OUTPUT_DIR, exist_ok=True)
+
+            temp_output_dir = os.path.join(SL_PROJECT_OUTPUT_DIR, f"temp_{solution_id}")
 
             final_df.coalesce(1).write.format("json").option("ignoreNullFields", "false").mode("overwrite").save(temp_output_dir)
             
@@ -978,7 +1021,7 @@ class ProjectPipeline:
             for filename in os.listdir(temp_output_dir):
                 if filename.endswith(".json"):
                     src = os.path.join(temp_output_dir, filename)
-                    dst = os.path.join(output_dir, output_file_name)
+                    dst = os.path.join(SL_PROJECT_OUTPUT_DIR, output_file_name)
                     if os.path.exists(dst):
                         os.remove(dst)
                     os.rename(src, dst)
@@ -987,7 +1030,9 @@ class ProjectPipeline:
             
             shutil.rmtree(temp_output_dir)
 
-            self.upload_file_to_cloud(output_dir, output_file_name, solution_id)
+            if NATURE_OF_UPLOAD == "cloud":
+                self.upload_file_to_cloud(SL_PROJECT_OUTPUT_DIR, output_file_name, solution_id)
+                self.utils.delete_local_output_file(solution_id)
 
             trigger_druid_ingestion(solution_id, self.config)
 
@@ -995,7 +1040,7 @@ class ProjectPipeline:
                 self.success_logger.info(f"Successfully processed solution {solution_id}")
             
             return len(projects_list)
-
+        
         except Exception as e:
             if self.error_logger:
                 self.error_logger.error(f"Error processing solution {solution_id}", exc_info=True)
@@ -1004,7 +1049,7 @@ class ProjectPipeline:
     def upload_file_to_cloud(self, local_path, file_name, solution_id):
         """Uploads the generated file to cloud storage using settings from config spec."""
         try:
-            blob_path = self.config.get("COMMON", "sl_project_blob_path")
+            blob_path = SL_PROJECT_BLOB_PATH
 
             if self.success_logger:
                 self.success_logger.info(f"Uploading {file_name} to cloud path: {blob_path}")
@@ -1016,7 +1061,7 @@ class ProjectPipeline:
 
     def _initialize_multi_cloud(self):
         """Initializes the MultiCloud instance, ensuring the module path is in sys.path."""
-        cloud_path = self.config.get("COMMON", "cloud_module_path")
+        cloud_path = CLOUD_MODULE_PATH
         if self.success_logger:
             self.success_logger.info(f"Cloud path: {cloud_path}")
         if cloud_path and cloud_path not in sys.path:
@@ -1054,7 +1099,7 @@ def main():
         if success_logger:
             success_logger.info("First time running the Ingestion job")
         pipeline = ProjectPipeline()
-        pipeline.utils.delete_entire_datasource("sl-project")
+        pipeline.utils.delete_entire_datasource("sl_project")
         pipeline.run()
     else:
         if success_logger:
