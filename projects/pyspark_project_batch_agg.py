@@ -40,8 +40,8 @@ SUCCESS_LOG = config.get('LOGS', 'project_success')
 ERROR_LOG = config.get('LOGS', 'project_error')
 ML_DISTINCT_CNT_PROJECTS_STATUS_SPEC = config.get("DRUID","ml_distinctCnt_projects_status_spec")
 ML_DISTINCT_CNT_PRGMLEVEL_PROJECTS_STATUS_SPEC = config.get("DRUID","ml_distinctCnt_prgmlevel_projects_status_spec")
-ML_DISTINCT_CNT_PROJECTS_STATUS_LOCAL_SPEC = config.get("DRUID", "ml_distinctCnt_projects_status_local_spec", fallback=None)
-ML_DISTINCT_CNT_PRGMLEVEL_PROJECTS_STATUS_LOCAL_SPEC = config.get("DRUID", "ml_distinctCnt_prgmlevel_projects_status_local_spec", fallback=None)
+ML_DISTINCT_CNT_PROJECTS_STATUS_LOCAL_SPEC = config.get("DRUID", "ml_distinctCnt_projects_status_local_spec_agg", fallback=None)
+ML_DISTINCT_CNT_PRGMLEVEL_PROJECTS_STATUS_LOCAL_SPEC = config.get("DRUID", "ml_distinctCnt_prgmlevel_projects_status_local_spec_agg", fallback=None)
 PROJECTS_DISTINCT_CNT_OUTPUT_DIR = config.get("OUTPUT_DIR", "projects_distinctCount")
 PROJECTS_DISTINCT_CNT_OUTPUT_DIR_PRGM_LEVEL = config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel")
 PROJECTS_DISTINCT_CNT_BLOB_PATH = config.get("COMMON", "projects_distinctCnt_blob_path")
@@ -61,27 +61,25 @@ class ConfigManager:
         sys.path.append(CLOUD_MODULE_PATH)
 
     def _setup_logging(self):
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s')
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         
         # Success Logger
         self.success_logger = logging.getLogger('success log')
-        self.success_logger.setLevel(logging.DEBUG)
+        self.success_logger.setLevel(logging.INFO)
         if not self.success_logger.handlers:
-            successHandler = RotatingFileHandler(SUCCESS_LOG)
-            successBackuphandler = TimedRotatingFileHandler(SUCCESS_LOG, when="w0",backupCount=1)
+            successHandler = TimedRotatingFileHandler(SUCCESS_LOG, when="w0", backupCount=1)
             successHandler.setFormatter(formatter)
             self.success_logger.addHandler(successHandler)
-            self.success_logger.addHandler(successBackuphandler)
+        self.success_logger.propagate = False
 
         # Error Logger
         self.error_logger = logging.getLogger('error log')
         self.error_logger.setLevel(logging.ERROR)
         if not self.error_logger.handlers:
-            errorHandler = RotatingFileHandler(ERROR_LOG)
-            errorBackuphandler = TimedRotatingFileHandler(ERROR_LOG,when="w0",backupCount=1)
+            errorHandler = TimedRotatingFileHandler(ERROR_LOG, when="w0", backupCount=1)
             errorHandler.setFormatter(formatter)
             self.error_logger.addHandler(errorHandler)
-            self.error_logger.addHandler(errorBackuphandler)
+        self.error_logger.propagate = False
 
     def get(self, section, option, fallback=None):
         return self.config.get(section, option, fallback=fallback)
@@ -142,7 +140,7 @@ class Utils:
         def orgName(val):
             return [
                 {'orgId': org['organisationId'], 'orgName': org["orgName"]}
-                for org in (val or []) if org and (org["isSchool"] == False or org["isSchool"] is None)
+                for org in (val or []) if org and (org["isSchool"] == False)
             ]
         return udf(orgName, orgSchema)
 
@@ -150,168 +148,196 @@ class Utils:
 # Partition Processing
 # ---------------------------------------------------------------------------
 def process_project_partition(partition_iterator):
-    """Flattens project data, handling tasks and subtasks."""
-    
-    def get_defaults(d, key, default=None):
-        return d.get(key) if d.get(key) is not None else default
+    def task_detail(task,del_flg,cntr):
+      if (type(task)==dict) :
+       taskObj = {}
+       taskObj["_id"] = task["_id"]
+       taskObj["tasks"] = task["name"]
+       taskObj["task_sequence"] = cntr
+       taskObj["deleted_flag"] = del_flg
 
-    def task_detail(task, del_flg, cntr):
-        if not isinstance(task, dict): return None
-        
-        # Ternary operator for task evidence status
-        has_evidence = len(task.get("attachments", [])) > 0
-        
-        return {
-            "_id": task.get("_id"),
-            "tasks": task.get("name"),
-            "task_sequence": cntr,
-            "deleted_flag": del_flg,
-            "task_evidence_status": True if has_evidence else False,
-            "assignee": task.get("assignee", ""),
-            "startDate": task.get("startDate", ""),
-            "endDate": task.get("endDate", ""),
-            "syncedAt": task.get("syncedAt"),
-            "status": task.get("status", "")
-        }
+       try:
+          if len(task["attachments"]) > 0:
+              taskObj["task_evidence_status"] = True
+          else:
+              taskObj["task_evidence_status"] = False
+       except:
+          taskObj["task_evidence_status"] =  False
 
-    processed_projects = []
-    
+       try: 
+         taskObj["assignee"] = task["assignee"]
+       except KeyError:
+         taskObj["assignee"] =''
+
+       try:
+         taskObj["startDate"] = task["startDate"]
+       except KeyError:
+         taskObj["startDate"] = ''
+
+       try:
+         taskObj["endDate"] = task["endDate"]
+       except KeyError:
+         taskObj["endDate"] = ''
+
+       taskObj["syncedAt"] = task["syncedAt"]
+       try:
+         taskObj["status"] = task["status"]
+       except:
+         taskObj["status"] = ''
+
+       return taskObj
+
+    prjarr = []
     for prj in partition_iterator:
-        prjinfo = []
-        project_attachments = prj.get("attachments", [])
-        
-        # Process Project Attachments/Remarks
-        if project_attachments:
-            for cnt, attachment in enumerate(project_attachments):
-                prjObj = {}
-                if cnt == 0 and "remarks" in prj:
-                    prjObj["prj_remarks"] = prj["remarks"]
-                
-                attach_type = attachment.get("type")
-                prjObj["prjEvi_type"] = attach_type
-                # Ternary for evidence link/path
-                prjObj["prj_evidence"] = attachment.get("name") if attach_type == "link" else attachment.get("sourcePath")
-                prjinfo.append(prjObj)
-        elif prj.get("remarks"):
-            prjinfo.append({"prj_remarks": prj["remarks"]})
+        # Filters to match pyspark_project_batch.py source query
+        if prj.get("isAPrivateProgram") is not False:
+            continue
+        if prj.get("isDeleted") is not False:
+            continue
 
+        prjinfo = []
+        ## creating project level remarks and evidence obj to avoid repetition
+        try:
+          if prj["attachments"]:
+            for cnt in range(len(prj["attachments"])):
+                prjObj = {}
+                if cnt == 0:
+                    try :
+                        prjObj["prj_remarks"] = prj["remarks"]
+                    except :
+                        KeyError
+                try:
+                    prjObj["prjEvi_type"] = prj["attachments"][cnt]["type"]
+                    if prjObj["prjEvi_type"] == "link":
+                      prjObj["prj_evidence"] = prj["attachments"][cnt]["name"]
+                    else:
+                      prjObj["prj_evidence"] = prj["attachments"][cnt]["sourcePath"]
+                except KeyError:
+                    pass
+                prjinfo.append(prjObj)
+        except KeyError:
+          try :
+            if prj["remarks"]:
+              prjObj = {}
+              prjObj["prj_remarks"] = prj["remarks"]
+              prjinfo.append(prjObj)
+          except KeyError:
+            pass
+        
         taskarr = []
         cntr = 1
-        
-        for task in prj.get("tasks", []):
-            if not isinstance(task, dict): continue
-
-            attachments = task.get("attachments", [])
-            children = task.get("children", [])
-            
-            try:
-                attachLen = len(attachments)
-            except:
-                attachLen = 0
-                
-            try:
-                sub_tskLen = len(children)
-            except:
-                sub_tskLen = 0
-            
-            try:
-                del_flg = task["isDeleted"]
-            except:
-                del_flg = False
-                
-            # Determine max length for looping
+        for  task in prj.get("tasks", []):        
             arr_len = 0
+            try :
+              attachLen = len(task["attachments"])
+            except:
+              attachLen = 0
+            try :
+              sub_tskLen = len(task["children"])
+            except:
+              sub_tskLen = 0
+            try:
+              del_flg = task["isDeleted"]
+            except:
+              del_flg = False
+            ## To get greater length b/w evidence and subtask
             if attachLen > sub_tskLen:
-                arr_len = attachLen
+             arr_len = attachLen        
             elif sub_tskLen > attachLen:
-                arr_len = sub_tskLen
-            elif ((sub_tskLen == attachLen) and (sub_tskLen == 0)):
-                if del_flg == False:
-                    taskObj = task_detail(task, del_flg, cntr)
-                    if "remarks" in task: taskObj["remarks"] = task["remarks"]
-                    taskarr.append(taskObj)
-                arr_len = sub_tskLen # should be 0
+             arr_len = sub_tskLen        
+            elif ((sub_tskLen == attachLen) & (sub_tskLen == 0)):
+              if del_flg == False:
+                taskObj = task_detail(task,del_flg,cntr)
+             
+             ## add remarks value when arrlen is 0
+                try:
+                   taskObj["remarks"] = task["remarks"]
+                except Exception as e:
+                   pass
+
+                taskarr.append(taskObj)
+                arr_len = sub_tskLen  
             elif (sub_tskLen == attachLen):
-                arr_len = sub_tskLen
-
+             arr_len = sub_tskLen
+           
+            ## creating task level remarks and evidence obj to avoid repetition
             for index in range(arr_len):
-                if del_flg == False:
-                    taskObj = task_detail(task, del_flg, cntr)
-                    
-                    # Task Evidence
+              if del_flg == False:
+               taskObj = task_detail(task,del_flg,cntr)
+               try :
+                 taskObj["taskEvi_type"] = task["attachments"][index]["type"]
+                 if taskObj["taskEvi_type"] == "link":
+                     taskObj["task_evidence"] = task["attachments"][index]["name"]
+                 else:
+                     taskObj["task_evidence"] = task["attachments"][index]["sourcePath"]
+               except :
+                   pass
+               try:
+                 taskObj["sub_task"] = task["children"][index]["name"]
+               except :
+                 pass
+               if index == 0:
+                 try:
+                   taskObj["remarks"] = task["remarks"]
+                 except :
+                   pass
+               
+               ## Sub task data    
+               try :
+                 if "children":
                     try:
-                        att = attachments[index]
-                        e_type = att.get("type", "")
-                        taskObj["taskEvi_type"] = e_type
-                        if e_type == "link":
-                                taskObj["task_evidence"] = att.get("name", "")
-                        else:
-                                taskObj["task_evidence"] = att.get("sourcePath", "")
+                      sub_del_flg = task["children"][index]["isDeleted"]
                     except:
+                      sub_del_flg = False                  
+                    if sub_del_flg == False:
+                      taskObj["sub_task_date"] = task["children"][index]["syncedAt"]
+                      taskObj["sub_task_id"] = task["children"][index]["_id"]
+                      taskObj["sub_task_status"] = task["children"][index]["status"]
+                      taskObj["sub_task_deleted_flag"] = sub_del_flg
+                      try:
+                        taskObj["sub_task_start_date"] = task["children"][index]["startDate"]
+                      except KeyError:
+                        taskObj["sub_task_start_date"] = ''
+                      try:
+                        taskObj["sub_task_end_date"] = task["children"][index]["endDate"]
+                      except KeyError:
                         pass
-                    
-                    # Sub Task Name
-                    try:
-                        taskObj["sub_task"] = children[index].get("name", "")
-                    except:
-                        pass
+                      taskarr.append(taskObj)
+                    else:
+                      taskarr.append(taskObj) 
+               except IndexError:
+                taskarr.append(taskObj)
+            cntr = cntr + 1
+        
 
-                    # Remarks
-                    if index == 0:
-                        try:
-                            taskObj["remarks"] = task["remarks"]
-                        except:
-                            pass
-
-                    # Sub Task Details
-                    try:
-                        if children:
-                            children_list = children # Fixed variable reference
-                            try:
-                                sub_del_flg = children_list[index]["isDeleted"]
-                            except:
-                                sub_del_flg = False
-                            
-                            if sub_del_flg == False:
-                                    sub_task = children_list[index]
-                                    taskObj.update({
-                                        "sub_task_date": sub_task.get("syncedAt"),
-                                        "sub_task_id": sub_task.get("_id"),
-                                        "sub_task_status": sub_task.get("status"),
-                                        "sub_task_deleted_flag": sub_del_flg,
-                                        "sub_task_start_date": sub_task.get("startDate", ""),
-                                        "sub_task_end_date": sub_task.get("endDate", None)
-                                    })
-                                    taskarr.append(taskObj)
-                            else:
-                                    taskarr.append(taskObj)
-                    except IndexError:
-                        taskarr.append(taskObj)
-                    except:
-                        taskarr.append(taskObj)
-            
-            cntr += 1
-
-        # Flatten logic: Combine Project Info and Task Info
+        ## Formatting project level remarks and evidence
         prjinfo_len = len(prjinfo)
         taskarr_len = len(taskarr)
-
-        if taskarr_len == 0 and prjinfo_len > 0:
-            taskarr.extend(prjinfo)
-        elif taskarr_len >= prjinfo_len and prjinfo_len > 0:
-                for ind in range(prjinfo_len):
-                    taskarr[ind].update(prjinfo[ind])
-        elif taskarr_len < prjinfo_len:
-                for ind in range(taskarr_len):
-                    taskarr[ind].update(prjinfo[ind])
-                taskarr.extend(prjinfo[taskarr_len:])
-        
+        if ((taskarr_len > prjinfo_len) & (prjinfo_len !=0)) | ((taskarr_len == prjinfo_len) & (prjinfo_len !=0)):
+          for ind in range(len(prjinfo)):
+            taskarr[ind].update(prjinfo[ind])
+        elif (taskarr_len < prjinfo_len):
+          try:
+            for ind in range(len(prjinfo)):
+              prjinfo[ind].update(taskarr[ind])
+              del((taskarr[ind]))
+              taskarr.append(prjinfo[ind])        
+          except IndexError:
+            while(ind < prjinfo_len):
+              taskarr.append(prjinfo[ind])
+              ind = ind + 1
         prj["taskarr"] = taskarr
-        if "tasks" in prj: del prj["tasks"]
         
-        processed_projects.append(prj)
-
-    return iter(processed_projects)
+        ## delete unwanted keys 
+        del_keys = ["tasks"]
+        for key in del_keys:
+          try:
+            del prj[key]         
+          except KeyError:
+            pass
+        prjarr.append(prj)
+    
+    return iter(prjarr)
 
 # ---------------------------------------------------------------------------
 # Schema
@@ -459,7 +485,7 @@ class IngestionManager:
         if program_unique_id:
              project_query["$match"]["$and"].append({"programId": program_unique_id})
 
-        self.success_logger.debug("Mongo Query start time  " + str(datetime.datetime.now()))
+        self.success_logger.info("Mongo Query start time")
         cursor = self.projectsCollec.aggregate(
             [project_query,
             {
@@ -503,7 +529,7 @@ class IngestionManager:
                 }
             }]
         )
-        self.success_logger.debug("Mongo Query end time  " + str(datetime.datetime.now()))
+        self.success_logger.info("Mongo Query end time")
         return cursor
     
     def _process_file_operation(self, output_dir, blob_path, file_suffix, program_unique_id):
@@ -521,7 +547,7 @@ class IngestionManager:
                     os.remove(os.path.join(output_dir, files))
 
     def upload_and_trigger(self, program_unique_id):
-        self.success_logger.debug("Renaming, Uploading, Removing files start time  " + str(datetime.datetime.now()))
+        self.success_logger.info("Renaming, Uploading, Removing files start time")
         
         # Projects Submission Distinct Count
         self._process_file_operation(PROJECTS_DISTINCT_CNT_OUTPUT_DIR, PROJECTS_DISTINCT_CNT_BLOB_PATH, "ml_projects_distinctCount", program_unique_id)
@@ -529,7 +555,7 @@ class IngestionManager:
         # Projects Submission Distinct Count Program Level
         self._process_file_operation(PROJECTS_DISTINCT_CNT_OUTPUT_DIR_PRGM_LEVEL, PROJECTS_DISTINCT_CNT_BLOB_PATH_PRGM_LEVEL, "ml_projects_distinctCount_prgmlevel", program_unique_id)
 
-        self.success_logger.debug("Renaming, Uploading, Removing files end time  " + str(datetime.datetime.now()))
+        self.success_logger.info("Renaming, Uploading, Removing files end time")
         self._trigger_druid(program_unique_id)
 
     def _submit_druid_task(self, cloud_spec_str, local_spec_str, program_unique_id, output_dir=None, file_prefix=None):
@@ -564,7 +590,7 @@ class IngestionManager:
             self.error_logger.error(response.text)
 
     def _trigger_druid(self, program_unique_id):
-        self.success_logger.debug("Ingestion start time  " + str(datetime.datetime.now()))
+        self.success_logger.info("Ingestion start time")
         self._submit_druid_task(
             ML_DISTINCT_CNT_PROJECTS_STATUS_SPEC, 
             ML_DISTINCT_CNT_PROJECTS_STATUS_LOCAL_SPEC,
@@ -585,165 +611,241 @@ class IngestionManager:
 # Data Transformations
 # ---------------------------------------------------------------------------
 def transform_projects_df(projects_df, utils):
-    # Helpers
-    def clean_str(col_name):
-        """Replaces newlines and quotes with empty string."""
-        return F.regexp_replace(F.col(col_name), "\n|\"", "")
-
-    def bool_to_str(cond):
-        """Converts boolean condition to 'true'/'false' string."""
-        return F.when(cond, "true").otherwise("false")
-
-    def evidence_url_builder(evidence_col, type_col):
-        """Builds evidence URL or string based on type."""
-        return F.when(
-            (evidence_col.isNotNull()) & (type_col != "link"),
-            F.concat(F.lit(config_manager.get('ML_SURVEY_SERVICE_URL', 'evidence_base_url')), evidence_col)
-        ).when(
-            (evidence_col.isNotNull()) & (evidence_col != "") & (type_col == "link"),
-            F.concat(F.lit("'"), F.regexp_replace(evidence_col, "\n|\"", ""), F.lit("'"))
-        ).otherwise(evidence_col)
-    
-    # 1. Project Info Transformations
+    # Flattening data
     projects_df = projects_df.withColumn(
         "project_created_type",
-        F.when(F.col("projectTemplateId").isNotNull(), "project imported from library")
-         .otherwise("user created project")
-    ).withColumn(
-        "project_title",
-        F.when(F.col("solutionInformation.name").isNotNull(), 
-               F.regexp_replace(F.col("solutionInformation.name"), "\n|\"", ""))
-         .otherwise(clean_str("title"))
-    ).withColumn(
-        "project_deleted_flag", bool_to_str(F.col("isDeleted") == True)
-    ).withColumn(
-        "private_program", bool_to_str(F.col("isAPrivateProgram") != False) # Logic matched: if true->true, if false->false, else->true
-    ).withColumn(
-        "project_terms_and_condition", bool_to_str(F.col("hasAcceptedTAndC") == True)
-    ).withColumn(
-        "project_evidence_status", F.size(F.col("attachments")) >= 1
-    ).withColumn(
-        "project_completed_date",
-        F.when(F.col("status") == "submitted", F.col("updatedAt")).otherwise(None)
+        F.when(
+            projects_df["projectTemplateId"].isNotNull() == True ,
+            "project imported from library"
+        ).otherwise("user created project")
     )
 
-    # 2. Category Explosion
-    projects_df = projects_df.withColumn("exploded_categories", F.explode_outer(F.col("categories")))
+    projects_df = projects_df.withColumn(
+        "project_title",
+        F.when(
+            projects_df["solutionInformation"]["name"].isNotNull() == True,
+            regexp_replace(projects_df["solutionInformation"]["name"], "\n|\"", "")
+        ).otherwise(regexp_replace(projects_df["title"], "\n|\"", ""))
+    )
+
+    projects_df = projects_df.withColumn(
+        "project_deleted_flag",
+        F.when(
+            (projects_df["isDeleted"].isNotNull() == True) & 
+            (projects_df["isDeleted"] == True),
+            "true"
+        ).when(
+            (projects_df["isDeleted"].isNotNull() == True) & 
+            (projects_df["isDeleted"] == False),
+            "false"
+        ).otherwise("false")
+    )
+
+    projects_df = projects_df.withColumn(
+        "private_program",
+        F.when(
+            (projects_df["isAPrivateProgram"].isNotNull() == True) & 
+            (projects_df["isAPrivateProgram"] == True),
+            "true"
+        ).when(
+            (projects_df["isAPrivateProgram"].isNotNull() == True) & 
+            (projects_df["isAPrivateProgram"] == False),
+            "false"
+        ).otherwise("true")
+    )
+
+    projects_df = projects_df.withColumn(
+        "project_terms_and_condition",
+        F.when(
+            (projects_df["hasAcceptedTAndC"].isNotNull() == True) & 
+            (projects_df["hasAcceptedTAndC"] == True),
+            "true"
+        ).when(
+            (projects_df["hasAcceptedTAndC"].isNotNull() == True) & 
+            (projects_df["hasAcceptedTAndC"] == False),
+            "false"
+        ).otherwise("false")
+    )
+
+    projects_df = projects_df.withColumn(
+                     "project_evidence_status",
+                     F.when(
+                          size(F.col("attachments"))>=1,True
+                     ).otherwise(False)
+    )
+
+    projects_df = projects_df.withColumn(
+        "project_completed_date",
+        F.when(
+            projects_df["status"] == "submitted",
+            projects_df["updatedAt"]
+        ).otherwise(None)
+    )
+    projects_df = projects_df.withColumn(
+        "exploded_categories", F.explode_outer(F.col("categories"))
+    )
+
     category_df = projects_df.groupby('_id').agg(collect_list('exploded_categories.name').alias("category_name"))
     category_df = category_df.withColumn("categories_name", concat_ws(", ", "category_name"))
+
     projects_df = projects_df.join(category_df, "_id", how = "left")
     category_df.unpersist()
-
     projects_df = projects_df.withColumn("parent_channel", F.lit("SHIKSHALOKAM"))
 
-    # 3. Task Explosion and Evidence
-    projects_df = projects_df.withColumn("exploded_taskarr", F.explode_outer(projects_df["taskarr"]))
-
     projects_df = projects_df.withColumn(
-        "task_evidence", 
-        evidence_url_builder(F.col("exploded_taskarr.task_evidence"), F.col("exploded_taskarr.taskEvi_type"))
-    ).withColumn(
-        "project_evidence",
-        evidence_url_builder(F.col("exploded_taskarr.prj_evidence"), F.col("exploded_taskarr.prjEvi_type"))
+        "exploded_taskarr", F.explode_outer(projects_df["taskarr"])
     )
 
     projects_df = projects_df.withColumn(
-        "task_deleted_flag", bool_to_str(F.col("exploded_taskarr.deleted_flag") == True)
-    ).withColumn(
-        "sub_task_deleted_flag", bool_to_str(F.col("exploded_taskarr.sub_task_deleted_flag") == True)
+        "task_evidence",F.when(
+        (projects_df["exploded_taskarr"]["task_evidence"].isNotNull() == True) &
+        (projects_df["exploded_taskarr"]["taskEvi_type"] != "link"),
+            F.concat(
+                F.lit(config.get('ML_SURVEY_SERVICE_URL', 'evidence_base_url')),
+                projects_df["exploded_taskarr"]["task_evidence"]
+            )
+        ).when(
+            (projects_df["exploded_taskarr"]["task_evidence"].isNotNull() == True) & 
+            (projects_df["exploded_taskarr"]["task_evidence"]!="") &
+            (projects_df["exploded_taskarr"]["taskEvi_type"] == "link"),
+                F.concat(
+                    F.lit("'"),
+                    regexp_replace(projects_df["exploded_taskarr"]["task_evidence"], "\n|\"", ""),
+                    F.lit("'")
+                )
+        ).otherwise(projects_df["exploded_taskarr"]["task_evidence"])
     )
 
-    # 4. Organization Logic
-    config_manager.success_logger.debug("Organisation logic start time  " + str(datetime.datetime.now()))
-    projects_df = projects_df.withColumn("orgData", utils.get_org_name_udf()(F.col("userProfile.organisations")))
-    projects_df = projects_df.withColumn("exploded_orgInfo", F.explode_outer(F.col("orgData")))
-    config_manager.success_logger.debug("Organisation logic end time  " + str(datetime.datetime.now()))
-    
-    # 5. Text Cleanup
-    text_cols = {
-        "project_goal": "metaInformation.goal",
-        "program_name": "programInformation.name"
-    }
-    for new_col, src_col in text_cols.items():
-        projects_df = projects_df.withColumn(new_col, clean_str(src_col))
-
-    quoted_text_cols = {
-        "area_of_improvement": "categories_name",
-        "tasks": "exploded_taskarr.tasks",
-        "sub_task": "exploded_taskarr.sub_task",
-        "task_remarks": "exploded_taskarr.remarks",
-        "project_remarks": "exploded_taskarr.prj_remarks",
-        "project_title_editable": "title",
-        "project_description": "description"
-    }
-    
-    for new_col, src_col in quoted_text_cols.items():
-        projects_df = projects_df.withColumn(
-            new_col,
-            F.when(
-                (F.col(src_col).isNotNull()) & (F.col(src_col) != ""),
-                F.concat(F.lit("'"), clean_str(src_col), F.lit("'"))
-            ).otherwise(F.col(src_col))
-        )
-
-    # 6. Evidence Status Aggregation
     projects_df = projects_df.withColumn(
-         "evidence_status",
-         (F.col("project_evidence_status") == True) | 
-         ((F.col("project_evidence_status") == False) & (F.col("exploded_taskarr.task_evidence_status") == True))
-         # Optimized logic covering the combinations
+        "task_deleted_flag",
+        F.when(
+            (projects_df["exploded_taskarr"]["deleted_flag"].isNotNull() == True) &
+            (projects_df["exploded_taskarr"]["deleted_flag"] == True),
+            "true"
+        ).when(
+            (projects_df["exploded_taskarr"]["deleted_flag"].isNotNull() == True) &
+            (projects_df["exploded_taskarr"]["deleted_flag"] == False),
+            "false"
+        ).otherwise("false")
     )
 
-    # 7. User Locations
+    projects_df = projects_df.withColumn(
+        "sub_task_deleted_flag",
+        F.when((
+            projects_df["exploded_taskarr"]["sub_task_deleted_flag"].isNotNull() == True) &
+            (projects_df["exploded_taskarr"]["sub_task_deleted_flag"] == True),
+            "true"
+        ).when(
+            (projects_df["exploded_taskarr"]["sub_task_deleted_flag"].isNotNull() == True) &
+            (projects_df["exploded_taskarr"]["sub_task_deleted_flag"] == False),
+            "false"
+        ).otherwise("false")
+    )
+
+    projects_df = projects_df.withColumn(
+        "project_evidence",F.when(
+        (projects_df["exploded_taskarr"]["prj_evidence"].isNotNull() == True) &
+        (projects_df["exploded_taskarr"]["prjEvi_type"] != "link"),
+            F.concat(
+                F.lit(config.get('ML_SURVEY_SERVICE_URL', 'evidence_base_url')),
+                projects_df["exploded_taskarr"]["prj_evidence"]
+            )
+        ).when(
+            (projects_df["exploded_taskarr"]["prj_evidence"].isNotNull() == True) & 
+            (projects_df["exploded_taskarr"]["prj_evidence"]!="") &
+            (projects_df["exploded_taskarr"]["prjEvi_type"] == "link"),
+                F.concat(
+                    F.lit("'"),
+                    regexp_replace(projects_df["exploded_taskarr"]["prj_evidence"], "\n|\"", ""),
+                    F.lit("'")
+                )
+        ).otherwise(projects_df["exploded_taskarr"]["prj_evidence"])
+    )
+
+    config_manager.success_logger.info(
+            "Organisation logic start time"
+       )
+    projects_df = projects_df.withColumn("orgData",utils.get_org_name_udf()(F.col("userProfile.organisations")))
+    projects_df = projects_df.withColumn("exploded_orgInfo",F.explode_outer(F.col("orgData")))
+    config_manager.success_logger.info(
+            "Organisation logic end time"
+       )
+       
+    projects_df = projects_df.withColumn("project_goal",regexp_replace(F.col("metaInformation.goal"), "\n|\"", ""))
+    projects_df = projects_df.withColumn("area_of_improvement",F.when((F.col("categories_name").isNotNull()) & (F.col("categories_name")!=""),F.concat(F.lit("'"),regexp_replace(F.col("categories_name"), "\n|\"", ""),F.lit("'"))).otherwise(F.col("categories_name")))
+    projects_df = projects_df.withColumn("tasks",F.when((F.col("exploded_taskarr.tasks").isNotNull()) & (F.col("exploded_taskarr.tasks")!=""),F.concat(F.lit("'"),regexp_replace(F.col("exploded_taskarr.tasks"), "\n|\"", ""),F.lit("'"))).otherwise(F.col("exploded_taskarr.tasks")))
+    projects_df = projects_df.withColumn("sub_task",F.when((F.col("exploded_taskarr.sub_task").isNotNull()) & (F.col("exploded_taskarr.sub_task")!=""),F.concat(F.lit("'"),regexp_replace(F.col("exploded_taskarr.sub_task"), "\n|\"", ""),F.lit("'"))).otherwise(F.col("exploded_taskarr.sub_task")))	
+    projects_df = projects_df.withColumn("program_name",regexp_replace(F.col("programInformation.name"), "\n|\"", ""))
+    projects_df = projects_df.withColumn("task_remarks",F.when((F.col("exploded_taskarr.remarks").isNotNull()) & (F.col("exploded_taskarr.remarks")!=""),F.concat(F.lit("'"),regexp_replace(F.col("exploded_taskarr.remarks"), "\n|\"", ""),F.lit("'"))).otherwise(F.col("exploded_taskarr.remarks")))
+    projects_df = projects_df.withColumn("project_remarks",F.when((F.col("exploded_taskarr.prj_remarks").isNotNull()) & (F.col("exploded_taskarr.prj_remarks")!=""),F.concat(F.lit("'"),regexp_replace(F.col("exploded_taskarr.prj_remarks"), "\n|\"", ""),F.lit("'"))).otherwise(F.col("exploded_taskarr.prj_remarks")))
+
+    projects_df = projects_df.withColumn(
+                     "evidence_status",
+                    F.when(
+                        (projects_df["project_evidence_status"]== True) & (projects_df["exploded_taskarr"]["task_evidence_status"]==True),True
+                    ).when(
+                        (projects_df["project_evidence_status"]== True) & (projects_df["exploded_taskarr"]["task_evidence_status"]==False),True
+                    ).when(
+                        (projects_df["project_evidence_status"]== False) & (projects_df["exploded_taskarr"]["task_evidence_status"]==True),True
+                    ).when(
+                        (projects_df["project_evidence_status"]== True) & (projects_df["exploded_taskarr"]["task_evidence_status"]=="null"),True
+                    ).otherwise(False)
+    )
+
     prj_df_expl_ul = projects_df.withColumn(
-        "exploded_userLocations", F.explode_outer(projects_df["userProfile"]["userLocations"])
+       "exploded_userLocations",F.explode_outer(projects_df["userProfile"]["userLocations"])
     )
 
-    # 8. Certificate
+    projects_df = projects_df.withColumn(
+        "project_title_editable", F.when((F.col("title").isNotNull()) & (F.col("title")!=""),F.concat(F.lit("'"),regexp_replace(F.col("title"), "\n|\"", ""),F.lit("'"))).otherwise(F.col("title"))
+    )
+    projects_df = projects_df.withColumn(
+        "project_description", F.when((F.col("description").isNotNull()) & (F.col("description")!=""),F.concat(F.lit("'"),regexp_replace(F.col("description"), "\n|\"", ""),F.lit("'"))).otherwise(F.col("description"))
+    )
+
     pattern = r'(?:.*)YEAR=(\d+).+?MONTH=(\d+).+?DAY_OF_MONTH=(\d+).+?HOUR=(\d+).+?MINUTE=(\d+).+?SECOND=(\d+).+'
     projects_df = projects_df.withColumn('certificate_issued_on', F.regexp_replace(F.col("certificate.issuedOn"), pattern, '$1-$2-$3 $4:$5:$6').cast('timestamp'))
-    projects_df = projects_df.withColumn(
-        'certificate_status_customised', 
-        F.when(
-            (F.col("certificate.eligible") == True) & (F.col("certificate.osid").isNotNull()), 
-            F.lit("Issued")
-        ).otherwise(F.lit(""))
-    )
 
-    # 9. Selection
+    projects_df = projects_df.withColumn('certificate_status_customised', F.when(((F.col("certificate.eligible").isNotNull()) & (F.col("certificate.eligible") == True) & (F.col("certificate.osid").isNotNull())),F.lit("Issued")).otherwise(F.lit("")))
+
     projects_df_cols = projects_df.select(
         projects_df["_id"].alias("project_id"),
-        "project_created_type", "project_title", "project_title_editable",
+        projects_df["project_created_type"],
+        projects_df["project_title"],
+        projects_df["project_title_editable"],
         projects_df["programId"].alias("program_id"),
         projects_df["programExternalId"].alias("program_externalId"),
-        "program_name",
+        projects_df["program_name"],
         projects_df["metaInformation"]["duration"].alias("project_duration"),
         projects_df["syncedAt"].alias("project_last_sync"),
         projects_df["updatedAt"].alias("project_updated_date"),
-        "project_deleted_flag", "area_of_improvement",
+        projects_df["project_deleted_flag"],
+        projects_df["area_of_improvement"],
         projects_df["status"].alias("status_of_project"),
         projects_df["userId"].alias("createdBy"),
-        "project_description", "project_goal", "project_evidence", "parent_channel",
+        projects_df["project_description"],
+        projects_df["project_goal"],projects_df["project_evidence"],
+        projects_df["parent_channel"],
         projects_df["createdAt"].alias("project_created_date"),
         projects_df["exploded_taskarr"]["_id"].alias("task_id"),
-        "tasks", "project_remarks",
+        projects_df["tasks"],projects_df["project_remarks"],
         projects_df["exploded_taskarr"]["assignee"].alias("task_assigned_to"),
         projects_df["exploded_taskarr"]["startDate"].alias("task_start_date"),
         projects_df["exploded_taskarr"]["endDate"].alias("task_end_date"),
-        projects_df["exploded_taskarr"]["syncedAt"].alias("tasks_date"),
-        projects_df["exploded_taskarr"]["status"].alias("tasks_status"),
-        "task_evidence",
+        projects_df["exploded_taskarr"]["syncedAt"].alias("tasks_date"),projects_df["exploded_taskarr"]["status"].alias("tasks_status"),
+        projects_df["task_evidence"],
         projects_df["exploded_taskarr"]["task_evidence_status"].alias("task_evidence_status"),
         projects_df["exploded_taskarr"]["sub_task_id"].alias("sub_task_id"),
-        "sub_task",
+        projects_df["sub_task"],
         projects_df["exploded_taskarr"]["sub_task_status"].alias("sub_task_status"),
         projects_df["exploded_taskarr"]["sub_task_date"].alias("sub_task_date"),
         projects_df["exploded_taskarr"]["sub_task_start_date"].alias("sub_task_start_date"),
         projects_df["exploded_taskarr"]["sub_task_end_date"].alias("sub_task_end_date"),
-        "private_program", "task_deleted_flag", "sub_task_deleted_flag",
-        "project_terms_and_condition", "task_remarks",
-        projects_df["exploded_taskarr"]["task_sequence"].alias("task_sequence"),
-        "project_completed_date",
+        projects_df["private_program"],
+        projects_df["task_deleted_flag"],projects_df["sub_task_deleted_flag"],
+        projects_df["project_terms_and_condition"],
+        projects_df["task_remarks"],projects_df["exploded_taskarr"]["task_sequence"].alias("task_sequence"),
+        projects_df["project_completed_date"],
         projects_df["solutionInformation"]["_id"].alias("solution_id"),
         projects_df["userRoleInformation"]["role"].alias("designation"),
         projects_df["userProfile"]["rootOrgId"].alias("channel"),
@@ -751,74 +853,85 @@ def transform_projects_df(projects_df, utils):
         projects_df["exploded_orgInfo"]["orgName"].alias("organisation_name"),
         projects_df["certificate"]["osid"].alias("certificate_id"),	
         projects_df["certificate"]["status"].alias("certificate_status"),
-        "certificate_status_customised", "certificate_issued_on",
+        projects_df["certificate_status_customised"],		
+        projects_df["certificate_issued_on"],
         projects_df["certificate"]["templateUrl"].alias("certificate_template_url"),
         concat_ws(",",F.col("userProfile.framework.board")).alias("board_name"),
         concat_ws(",",array_distinct(F.col("userProfile.profileUserTypes.type"))).alias("user_type"),
-        "evidence_status"    
+        projects_df["evidence_status"]    
     )
 
-    # 10. Aggregations on IDs
     projects_task_cnt = projects_df_cols.groupBy("project_id").agg(countDistinct(F.col("task_id")).alias("task_count"))
-    projects_prj_evi = projects_df_cols.groupBy("project_id").agg(countDistinct("project_evidence").alias("project_evidence_count"))
-    projects_tsch_evi = projects_df_cols.groupBy("project_id").agg(countDistinct("task_evidence").alias("task_evidence_count"))
-    
-    # Joins
-    projects_df_cols = projects_df_cols.join(projects_task_cnt, ["project_id"], "left") \
-                                     .join(projects_prj_evi, ["project_id"], "left") \
-                                     .join(projects_tsch_evi, ["project_id"], "left")
 
-    config_manager.success_logger.debug("Flattening data end time  " + str(datetime.datetime.now()))
-    
+    projects_prj_evi= projects_df_cols.groupBy("project_id").agg(countDistinct("project_evidence").alias("project_evidence_count"))
+    projects_dff = projects_task_cnt.join(projects_prj_evi,["project_id"],"left")
+
+
+    projects_tsk_evi = projects_df_cols.groupBy("project_id").agg(countDistinct("task_evidence").alias("task_evidence_count"))
+
+    projects_df_cols = projects_df_cols.join(projects_dff,["project_id"],"left")
+    projects_df_cols = projects_df_cols.join(projects_tsk_evi,["project_id"],"left")
+
+    config_manager.success_logger.info(
+            "Flattening data end time"
+       )
     projects_df.unpersist()
-    projects_task_cnt.unpersist()
     projects_prj_evi.unpersist()
-    projects_tsch_evi.unpersist()
-    
+    projects_task_cnt.unpersist()
+    projects_dff.unpersist()
+    projects_task_cnt.unpersist()
+    projects_tsk_evi.unpersist()
     projects_df_cols = projects_df_cols.dropDuplicates()
 
-    # 11. Location Entities (Melt)
-    config_manager.success_logger.debug("Get Entities start time  " + str(datetime.datetime.now()))
+    config_manager.success_logger.info(
+            "Get Entities start time"
+       )
     entities_df = utils.melt(prj_df_expl_ul,
             id_vars=["_id","exploded_userLocations.name","exploded_userLocations.type","exploded_userLocations.id"],
-            value_vars=["exploded_userLocations.code"]).select("_id","name","value","type","id").dropDuplicates()
+            value_vars=["exploded_userLocations.code"]
+        ).select("_id","name","value","type","id").dropDuplicates()
     prj_df_expl_ul.unpersist()
-    
-    entities_df = entities_df.withColumn("variable",F.concat(F.col("type"),F.lit("_externalId"))) \
-                             .withColumn("variable1",F.concat(F.col("type"),F.lit("_name"))) \
-                             .withColumn("variable2",F.concat(F.col("type"),F.lit("_code")))
+    entities_df = entities_df.withColumn("variable",F.concat(F.col("type"),F.lit("_externalId")))
+    entities_df = entities_df.withColumn("variable1",F.concat(F.col("type"),F.lit("_name")))
+    entities_df = entities_df.withColumn("variable2",F.concat(F.col("type"),F.lit("_code")))
 
-    entities_df_id = entities_df.groupBy("_id").pivot("variable").agg(first("id"))
-    entities_df_name = entities_df.groupBy("_id").pivot("variable1").agg(first("name"))
-    entities_df_value = entities_df.groupBy("_id").pivot("variable2").agg(first("value"))
+    entities_df_id=entities_df.groupBy("_id").pivot("variable").agg(first("id"))
 
-    entities_df_res = entities_df_id.join(entities_df_name,["_id"],how='outer') \
-                                    .join(entities_df_value,["_id"],how='outer') \
-                                    .drop('null')
+    entities_df_name=entities_df.groupBy("_id").pivot("variable1").agg(first("name"))
+
+    entities_df_value=entities_df.groupBy("_id").pivot("variable2").agg(first("value"))
+
+    entities_df_med=entities_df_id.join(entities_df_name,["_id"],how='outer')
+    entities_df_res=entities_df_med.join(entities_df_value,["_id"],how='outer')
+    entities_df_res=entities_df_res.drop('null')
+
 
     entities_df.unpersist()
-    config_manager.success_logger.debug("Get Entities end time  " + str(datetime.datetime.now()))
-    
-    # 12. Final Join
-    config_manager.success_logger.debug("Final Dataframe start time  " + str(datetime.datetime.now()))
-    projects_df_final = projects_df_cols.join(entities_df_res, projects_df_cols["project_id"]==entities_df_res["_id"], how='left').drop(entities_df_res["_id"])
-    config_manager.success_logger.debug("Final Dataframe end time  " + str(datetime.datetime.now()))
-    
+    config_manager.success_logger.info(
+            "Get Entities end time"
+       )
+       
+    config_manager.success_logger.info(
+            "Final Dataframe start time"
+       )
+    projects_df_final = projects_df_cols.join(entities_df_res,projects_df_cols["project_id"]==entities_df_res["_id"],how='left')\
+            .drop(entities_df_res["_id"])
+    config_manager.success_logger.info(
+            "Final Dataframe end time"
+       )
     entities_df_res.unpersist()
     projects_df_cols.unpersist()
     final_projects_df = projects_df_final.dropDuplicates()
 
-    # 13. Backfill Nulls
     necessary_columns = ["state_name","state_externalId","district_name","district_externalId","block_name",
                         "block_externalId","organisation_name","organisation_id"]
-    final_df_columns = set(final_projects_df.columns)
-    missing_cols = [c for c in necessary_columns if c not in final_df_columns]
-    
-    if missing_cols:
-         final_projects_df = final_projects_df.select("*", *(lit(None).cast(StringType()).alias(c) for c in missing_cols))
+    final_df_columns = final_projects_df.columns
+    for miss_cols in necessary_columns:
+        if miss_cols not in final_df_columns:
+            config_manager.success_logger.debug(f"MISSED: {miss_cols}")
+            final_projects_df = final_projects_df.withColumn(miss_cols, lit(None).cast(StringType()))
+            config_manager.success_logger.debug(f"UPDATED: {final_projects_df.columns}")
 
-    projects_df_final.unpersist()
-    
     return final_projects_df
 
 # ---------------------------------------------------------------------------
@@ -834,8 +947,8 @@ def main():
     utils = Utils()
     ingestion_manager = IngestionManager(config_manager)
 
-    config_manager.success_logger.debug(
-        "Program started  " + str(datetime.datetime.now())
+    config_manager.success_logger.info(
+        "Program started"
     )	  
 
     spark = init_spark_session()
