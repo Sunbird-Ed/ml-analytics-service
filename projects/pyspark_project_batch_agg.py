@@ -1,9 +1,8 @@
 # -----------------------------------------------------------------
-# Name : pyspark_project_batch_agg_modified.py
-# Author : Shakthiehswari, Ashwini, Snehangsu
-# Description : Extracts the Status of the Project submissions 
-#  either Started / In-Progress / Submitted along with the users 
-#  entity information
+# Name : pyspark_project_batch_agg.py
+# Author : Vivek M , Prashant G
+# Description : Generates aggregated metrics for projects using MongoDB
+# aggregation pipelines directly via Spark MongoDB Connector
 # -----------------------------------------------------------------
 
 import sys
@@ -36,12 +35,12 @@ NATURE_OF_UPLOAD = "cloud" # "local" or "cloud"
 CLOUD_MODULE_PATH = config.get("COMMON", "cloud_module_path")
 MONGO_URL = config.get('MONGO', 'url')
 MONGO_DATABASE_NAME = config.get('MONGO', 'database_name')
-SUCCESS_LOG = config.get('LOGS', 'project_success')
-ERROR_LOG = config.get('LOGS', 'project_error')
+SUCCESS_LOG = config.get('LOGS', 'project_agg_success')
+ERROR_LOG = config.get('LOGS', 'project_agg_error')
 ML_DISTINCT_CNT_PROJECTS_STATUS_SPEC = config.get("DRUID","ml_distinctCnt_projects_status_spec")
-ML_DISTINCT_CNT_PRGMLEVEL_PROJECTS_STATUS_SPEC = config.get("DRUID","ml_distinctCnt_prgmlevel_projects_status_spec")
+ML_DISTINCT_CNT_PRGMLEVEL_PROJECTS_STATUS_SPEC = config.get("DRUID","ml_distinctCnt_prglevel_projects_status_spec")
 ML_DISTINCT_CNT_PROJECTS_STATUS_LOCAL_SPEC = config.get("DRUID", "ml_distinctCnt_projects_status_local_spec_agg", fallback=None)
-ML_DISTINCT_CNT_PRGMLEVEL_PROJECTS_STATUS_LOCAL_SPEC = config.get("DRUID", "ml_distinctCnt_prgmlevel_projects_status_local_spec_agg", fallback=None)
+ML_DISTINCT_CNT_PRGMLEVEL_PROJECTS_STATUS_LOCAL_SPEC = config.get("DRUID", "ml_distinctCnt_prglevel_projects_status_local_spec_agg", fallback=None)
 PROJECTS_DISTINCT_CNT_OUTPUT_DIR = config.get("OUTPUT_DIR", "projects_distinctCount")
 PROJECTS_DISTINCT_CNT_OUTPUT_DIR_PRGM_LEVEL = config.get("OUTPUT_DIR", "projects_distinctCount_prgmlevel")
 PROJECTS_DISTINCT_CNT_BLOB_PATH = config.get("COMMON", "projects_distinctCnt_blob_path")
@@ -94,7 +93,7 @@ from cloud import MultiCloud
 # ---------------------------------------------------------------------------
 # Spark Setup
 # ---------------------------------------------------------------------------
-def init_spark_session(app_name="projects"):
+def init_spark_session(app_name="pyspark_project_batch_agg"):
     return SparkSession.builder.appName(app_name).config(
         "spark.driver.memory", "50g"
     ).config(
@@ -570,6 +569,7 @@ class IngestionManager:
                 
                 spec["spec"]["ioConfig"]["inputSource"]["baseDir"] = base_dir_path
                 spec["spec"]["ioConfig"]["inputSource"]["filter"] = file_name_final
+                spec["spec"]["ioConfig"]["appendToExisting"] = True
         else:
             druid_spec = cloud_spec_str
             spec = json.loads(druid_spec)

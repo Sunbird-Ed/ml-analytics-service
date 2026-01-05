@@ -14,50 +14,50 @@ echo "Gather Program IDs == Started"
 echo "Gather == Completed"
 echo "*************************************"
 
-# PROJECT: Deletion
-echo ""
-echo "$(date)"
-echo "====================================="
-echo "Daily Projects Batch Job Ingestion == Started"
-. /opt/sparkjobs/spark_venv/bin/activate && python /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_deletion_batch.py
-echo "Daily Projects Batch Job Ingestion == Completed"
-echo "*************************************"
+# # PROJECT: Deletion
+# echo ""
+# echo "$(date)"
+# echo "====================================="
+# echo "Daily Projects Batch Job Ingestion == Started"
+# . /opt/sparkjobs/spark_venv/bin/activate && python /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_deletion_batch.py
+# echo "Daily Projects Batch Job Ingestion == Completed"
+# echo "*************************************"
+
+# # PROJECT: Ingestion Program-wise
+# echo ""
+# echo "$(date)"
+# echo "====================================="
+# echo "Daily Projects Batch Job Ingestion == Started"
+# filename=$projects_program_filename
+# n=1
+# while read line; do
+# 	. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory 50g --executor-memory 50g /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_batch.py --program_id ${line/,}
+# n=$((n+1))
+# done < $filename
+# echo "Daily Projects Batch Job Ingestion == Completed"
+# echo "*************************************"
 
 # PROJECT: Ingestion Program-wise
 echo ""
 echo "$(date)"
 echo "====================================="
-echo "Daily Projects Batch Job Ingestion == Started"
-filename=$projects_program_filename
-n=1
-while read line; do
-	. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory 50g --executor-memory 50g /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_batch.py --program_id ${line/,}
-n=$((n+1))
-done < $filename
-echo "Daily Projects Batch Job Ingestion == Completed"
-echo "*************************************"
-
-# PROJECT: Ingestion Program-wise
-echo ""
-echo "$(date)"
-echo "====================================="
-echo "Daily Projects Batch Job Ingestion == Started"
+echo "Daily Projects Batch Job Ingestion For Aggregated Data Source == Started"
 filename=$projects_program_filename
 n=1
 while read line; do
 	. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory 50g --executor-memory 50g /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_batch_agg.py --program_id ${line/,}
 n=$((n+1))
 done < $filename
-echo "Daily Projects Batch Job Ingestion == Completed"
+echo "Daily Projects Batch Job Ingestion For Aggregated Data Source == Completed"
 echo "*************************************"
 
 # PROJECT: sl_project ingestion solution wise
 echo ""
 echo "$(date)"
 echo "====================================="
-echo "Daily Projects Batch Job Ingestion == Started"
-. /opt/sparkjobs/spark_venv/bin/activate && python /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_batch_raw.py
-echo "Daily Projects Batch Job Ingestion == Completed"
+echo "Daily Projects Batch Job Ingestion For Raw Data Source == Started"
+. /opt/sparkjobs/spark_venv/bin/activate && /opt/sparkjobs/spark_venv/lib/python3.8/site-packages/pyspark/bin/spark-submit --driver-memory 50g --executor-memory 50g /opt/sparkjobs/ml-analytics-service/projects/pyspark_project_batch_raw.py
+echo "Daily Projects Batch Job Ingestion For Raw Data Source == Completed"
 echo "*************************************"
 
 # OBSERVATION : Deletion and Ingestion
