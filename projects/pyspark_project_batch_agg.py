@@ -484,7 +484,6 @@ class IngestionManager:
         if program_unique_id:
              project_query["$match"]["$and"].append({"programId": program_unique_id})
 
-        self.success_logger.info("Mongo Query start time")
         cursor = self.projectsCollec.aggregate(
             [project_query,
             {
@@ -545,9 +544,7 @@ class IngestionManager:
                     self.cloud_init.upload_to_cloud(blob_Path=blob_path, local_Path=output_dir, file_Name=files)
                     os.remove(os.path.join(output_dir, files))
 
-    def upload_and_trigger(self, program_unique_id):
-        self.success_logger.info("Renaming, Uploading, Removing files start time")
-        
+    def upload_and_trigger(self, program_unique_id):        
         # Projects Submission Distinct Count
         self._process_file_operation(PROJECTS_DISTINCT_CNT_OUTPUT_DIR, PROJECTS_DISTINCT_CNT_BLOB_PATH, "ml_projects_distinctCount", program_unique_id)
 
@@ -590,7 +587,6 @@ class IngestionManager:
             self.error_logger.error(response.text)
 
     def _trigger_druid(self, program_unique_id):
-        self.success_logger.info("Ingestion start time")
         self._submit_druid_task(
             ML_DISTINCT_CNT_PROJECTS_STATUS_SPEC, 
             ML_DISTINCT_CNT_PROJECTS_STATUS_LOCAL_SPEC,
@@ -762,9 +758,6 @@ def transform_projects_df(projects_df, utils):
         ).otherwise(projects_df["exploded_taskarr"]["prj_evidence"])
     )
 
-    config_manager.success_logger.info(
-            "Organisation logic start time"
-       )
     projects_df = projects_df.withColumn("orgData",utils.get_org_name_udf()(F.col("userProfile.organisations")))
     projects_df = projects_df.withColumn("exploded_orgInfo",F.explode_outer(F.col("orgData")))
     config_manager.success_logger.info(
@@ -883,9 +876,6 @@ def transform_projects_df(projects_df, utils):
     projects_tsk_evi.unpersist()
     projects_df_cols = projects_df_cols.dropDuplicates()
 
-    config_manager.success_logger.info(
-            "Get Entities start time"
-       )
     entities_df = utils.melt(prj_df_expl_ul,
             id_vars=["_id","exploded_userLocations.name","exploded_userLocations.type","exploded_userLocations.id"],
             value_vars=["exploded_userLocations.code"]
@@ -911,9 +901,6 @@ def transform_projects_df(projects_df, utils):
             "Get Entities end time"
        )
        
-    config_manager.success_logger.info(
-            "Final Dataframe start time"
-       )
     projects_df_final = projects_df_cols.join(entities_df_res,projects_df_cols["project_id"]==entities_df_res["_id"],how='left')\
             .drop(entities_df_res["_id"])
     config_manager.success_logger.info(
@@ -947,12 +934,9 @@ def main():
     utils = Utils()
     ingestion_manager = IngestionManager(config_manager)
 
-    config_manager.success_logger.info(
-        "Program started"
-    )	  
-
     spark = init_spark_session()
     
+    config_manager.success_logger.info("---started processing program id: {}---".format(program_unique_id))
     # Mongo Fetch
     projects_cursorMongo = ingestion_manager.fetch_projects(program_unique_id)
     

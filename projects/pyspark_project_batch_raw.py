@@ -33,13 +33,13 @@ MONGO_DATABASE_NAME = config.get('MONGO', 'database_name')
 MONGO_PROJECTS_COLLECTION = config.get('MONGO', 'projects_collection')
 MONGO_SOLUTIONS_COLLECTION = config.get('MONGO', 'solutions_collection')
 MONGO_PROGRAMACTIVITYLOG_COLLECTION = config.get('MONGO', 'programActivityLog_collection')
-SUCCESS_LOG_PATH = config.get('LOGS', 'sl_project_success')
-ERROR_LOG_PATH = config.get('LOGS', 'sl_project_error')
+SUCCESS_LOG_PATH = config.get('LOGS', 'project_raw_success')
+ERROR_LOG_PATH = config.get('LOGS', 'project_raw_error')
 DRUID_BATCH_URL = config.get("DRUID", "batch_url")
-SL_PROJECT_LOCAL_INGESTION_SPEC = config.get("DRUID","sl_project_local_ingestion_spec", fallback=None)
+SL_PROJECT_LOCAL_INGESTION_SPEC = config.get("DRUID","project_local_ingestion_spec", fallback=None)
 SL_PROJECT_CLOUD_INGESTION_SPEC = config.get("DRUID","project_injestion_spec")
-SL_PROJECT_BLOB_PATH = config.get("COMMON", "sl_project_blob_path")
-SL_PROJECT_OUTPUT_DIR = config.get("OUTPUT_DIR", "sl_project")
+SL_PROJECT_BLOB_PATH = config.get("COMMON", "projects_blob_path")
+SL_PROJECT_OUTPUT_DIR = config.get("OUTPUT_DIR", "project")
 CLOUD_MODULE_PATH = config.get("COMMON", "cloud_module_path")
 
 # ---------------------------------------------------------------------------
@@ -51,7 +51,7 @@ def parse_args():
     )
 
     parser.add_argument(
-        "--is-first-time",
+        "--is_first_time",
         required=False,
         type=bool,
         help="pass True if it is first time running the Ingestion job else False",
@@ -187,7 +187,7 @@ class Utils:
         if config_manager and config_manager.success_logger:
             config_manager.success_logger.info(f"Status Code: {response.status_code}")
             config_manager.success_logger.info(f"Response: {response.json()}")
-        time.sleep(120)
+        # time.sleep(120)
 
 
     def to_utc(self, dt) -> datetime:
@@ -225,7 +225,7 @@ class Utils:
         if config_manager and config_manager.success_logger:
             config_manager.success_logger.info(f"Status Code: {response.status_code}")
             config_manager.success_logger.info(f"Response: {response.json()}")
-        time.sleep(600)
+        # time.sleep(600)
 
     def delete_local_output_file(self, solution_id: str) -> None:
         if solution_id:
@@ -362,12 +362,13 @@ class IngestionManager:
     def fetch_recent_updated_solution_ids(self) -> dict:
         today = datetime.now().date()
         three_days_ago = today - timedelta(days=3)
-        today_str = today.strftime("%Y-%m-%d")
-        three_days_ago_str = three_days_ago.strftime("%Y-%m-%d")
         query = {
             "date": {
-                "$gte": three_days_ago_str,
-                "$lte": today_str
+                "$gte": three_days_ago.strftime("%Y-%m-%d"),
+                "$lte": today.strftime("%Y-%m-%d")
+            },
+            "improvementProjectStatus.completedAt": {
+                "$exists": False
             }
         }
         records = list(self.programActivityLog_collection.find(query))   
@@ -670,8 +671,6 @@ def process_project_partition(partition_iterator):
 
 
 def transform_projects_df(projects_df, utils):
-    if config_manager.success_logger:
-        config_manager.success_logger.info("Flattening data started")
     # Flattening data
     projects_df = projects_df.withColumn(
         "project_created_type",
@@ -1082,7 +1081,6 @@ class ProjectPipeline:
     def process_solution(self, solution_id: str):
         if self.success_logger:
             self.success_logger.info(f"***** Spark Job Started for Solution ID: {solution_id} *****")
-            self.success_logger.info(f"Starting ingestion - Mode: ARCHIVE, Solution ID: {solution_id}")
 
         try:
             solution_doc = self.ingestion.fetch_solution_details(solution_id)
@@ -1095,21 +1093,12 @@ class ProjectPipeline:
             solution_df = self.spark.createDataFrame(solution_list, get_solution_schema())
             solution_df = solution_df.withColumnRenamed("_id", "solution_id") \
                                      .withColumnRenamed("createdAt", "solution_created_at")
+            
+            self.success_logger.info("The solution is created at: {solution_created_at}".format(solution_created_at=solution_doc['createdAt']))
 
             projects_list = self.ingestion.fetch_projects_for_solution(solution_id)
-            if self.success_logger:
-                self.success_logger.info("Mongo Query started")
-            if not projects_list:
-                if self.success_logger:
-                    self.success_logger.info(f"Mongo Query completed and found total records: 0")
-                    self.success_logger.warning(f"No projects found for solution {solution_id} Skipping.")
-                return 0
 
-            if self.success_logger:
-                self.success_logger.info(f"Mongo Query completed and found total records: {len(projects_list)}")
-                self.success_logger.info("Applying mapPartitions (task flattening)")
-
-            prj_rdd = self.spark.sparkContext.parallelize(projects_list, 8)
+            prj_rdd = self.spark.sparkContext.parallelize(projects_list)
             processed_rdd = prj_rdd.mapPartitions(process_project_partition)
 
             if self.success_logger:
@@ -1119,7 +1108,6 @@ class ProjectPipeline:
 
             final_df = transform_projects_df(projects_df, self.utils)
 
-            # Join with solution_df to add solution_created_at for Druid ingestion
             final_df = final_df.join(F.broadcast(solution_df), "solution_id", "left")
 
             if self.success_logger:
@@ -1222,6 +1210,10 @@ def main():
             success_logger.info("Not first time running the Ingestion job")
         pipeline = ProjectPipeline()
         updated_solution_ids:dict= pipeline.ingestion.fetch_recent_updated_solution_ids()
+        if len(updated_solution_ids) == 0:
+            if success_logger:
+                success_logger.info("No recent updates found")
+            return
         if success_logger:
             success_logger.info(f"Recently updated solution IDs: {updated_solution_ids}")
         for log_id, sol_ids in updated_solution_ids.items():
