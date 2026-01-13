@@ -53,6 +53,12 @@ CLOUD_MODULE_PATH = config.get("COMMON", "cloud_module_path")
 DRUID_SQL_URL = config.get("DRUID", "sql_url")
 
 # ---------------------------------------------------------------------------
+# Global variables
+# ---------------------------------------------------------------------------
+existing_ids = {}
+solution_map = {}
+
+# ---------------------------------------------------------------------------
 # Argument Parsing
 # ---------------------------------------------------------------------------
 def parse_args():
@@ -121,13 +127,13 @@ from cloud import MultiCloud
 # ---------------------------------------------------------------------------
 def init_spark_session(app_name="pyspark_project_batch_raw"):
     return SparkSession.builder.appName(app_name).config(
-        "spark.driver.memory", "50g"
+        "spark.driver.memory", "2g"
     ).config(
-        "spark.executor.memory", "100g"
+        "spark.executor.memory", "4g"
     ).config(
         "spark.memory.offHeap.enabled", True
     ).config(
-        "spark.memory.offHeap.size", "32g"
+        "spark.memory.offHeap.size", "4g"
     ).config(
         "spark.eventLog.enabled", False
     ).getOrCreate()
@@ -242,46 +248,64 @@ class Utils:
         else:
             os.remove(SL_PROJECT_OUTPUT_DIR + "/sl_project.json")
 
-    def get_druid_solutions_by_created_at(self, created_at) -> list:
+    def get_druid_solutionId_and_createdAt_map(self) -> dict:
         """
-        Query Druid to check if solutions with the given createdAt already exist.
-        Returns a list of solution_ids found.
+        Query Druid to fetch solution_id and solution_created_at.
+        Returns a dict mapping solution_id -> solution_created_at.
         """
-        if isinstance(created_at, datetime):
-            # Ensure we are working with UTC first
-            if created_at.tzinfo is None:
-                created_at = created_at.replace(tzinfo=timezone.utc)
-            else:
-                created_at = created_at.astimezone(timezone.utc)
-            
-            # Convert to IST (UTC + 5:30)
-            ist_timezone = timezone(timedelta(hours=5, minutes=30))
-            created_at_ist = created_at.astimezone(ist_timezone)
-            
-            # Format as ISO 8601 with milliseconds
-            query_date = created_at_ist.isoformat(timespec='milliseconds')
-        else:
-            query_date = str(created_at)
+
+        # Convert datetime to IST ISO format with milliseconds (same as original logic)
+        # if isinstance(created_at, datetime):
+        #     if created_at.tzinfo is None:
+        #         created_at = created_at.replace(tzinfo=timezone.utc)
+        #     else:
+        #         created_at = created_at.astimezone(timezone.utc)
+
+        #     ist_timezone = timezone(timedelta(hours=5, minutes=30))
+        #     created_at_ist = created_at.astimezone(ist_timezone)
+
+        #     query_date = created_at_ist.isoformat(timespec='milliseconds')
+        # else:
+        #     query_date = str(created_at)
 
         headers = {'Content-Type': 'application/json'}
-        query = f'SELECT DISTINCT solution_id FROM "{DATASOURCE_NAME}" WHERE solution_created_at = \'{query_date}\''
-        if config_manager.success_logger:
-            config_manager.success_logger.info(f"Querying Druid with date: {query_date}")
         
+        # Fetch both solution_id AND solution_created_at
+        query = (
+            f'SELECT DISTINCT solution_id, solution_created_at '
+            f'FROM "{DATASOURCE_NAME}" '
+        )
+
+        if config_manager.success_logger:
+            config_manager.success_logger.info(f"Querying Druid to fetch the solution_map: {query}")
+
         payload = {"query": query}
+
         try:
             response = requests.post(DRUID_SQL_URL, headers=headers, json=payload)
             response.raise_for_status()
             results = response.json()
-            existing_ids = [row['solution_id'] for row in results if 'solution_id' in row]
+
+            # Build dictionary: {solution_id: solution_created_at}
+            solution_map = {
+                row['solution_id']: row.get('solution_created_at')
+                for row in results
+                if 'solution_id' in row
+            }
+
             if config_manager.success_logger:
-                config_manager.success_logger.info(f"Druid check for {query_date} returned: {existing_ids}")
-            return existing_ids
+                config_manager.success_logger.info(
+                    f"successfully fetched solution_map"
+                )
+
+            return solution_map
+
         except Exception as e:
             if config_manager.error_logger:
-                config_manager.error_logger.error(f"Error querying Druid for createdAt {query_date}: {e}")
-            return []
-
+                config_manager.error_logger.error(
+                    f"Error querying Druid for solution_map: {e}"
+                )
+        return {}
 
 # ---------------------------------------------------------------------------
 # Schemas
@@ -1314,17 +1338,20 @@ def main():
     except:
         pass
 
+    pipeline = ProjectPipeline()
+    existing_ids:dict = pipeline.utils.get_druid_solutionId_and_createdAt_map()
+    
     if args.is_first_time:
         if success_logger:
             success_logger.info("First time running the Ingestion job")
-        pipeline = ProjectPipeline()
         pipeline.utils.delete_entire_datasource(DATASOURCE_NAME)
         pipeline.run()
     else:
         if success_logger:
             success_logger.info("Not first time running the Ingestion job")
-        pipeline = ProjectPipeline()
-        updated_solution_ids:dict= pipeline.ingestion.fetch_recent_updated_solution_ids()
+
+        updated_solution_ids:dict = pipeline.ingestion.fetch_recent_updated_solution_ids()
+
         if len(updated_solution_ids) == 0:
             if success_logger:
                 success_logger.info("No recent updates found")
@@ -1342,19 +1369,9 @@ def main():
                     success_logger.info(f"==========================================================")
                 sol_details = pipeline.ingestion.fetch_solution_details(sol_id)
                 if sol_details:
-                    # Pass the datetime object directly; let the function handle formatting
-                    existing_ids = pipeline.utils.get_druid_solutions_by_created_at(sol_details['createdAt'])
-                    if len(existing_ids) == 0: #retry for 3 time with 10 min gap if no existing ids found
-                        retry_count = 0
-                        while retry_count < 3:
-                            time.sleep(60)  # wait for 2 minutes
-                            existing_ids = pipeline.utils.get_druid_solutions_by_created_at(sol_details['createdAt'])
-                            if len(existing_ids) > 0:
-                                break
-                            retry_count += 1
-                       
-                    if len(existing_ids) > 0 and sol_id not in existing_ids:
-                        log_message = f"Duplicate createdAt found for {existing_ids}"
+                    if sol_details['createdAt'] in existing_ids.values() and sol_id not in solution_map.keys():
+                        list_of_sol_ids = [key for key, value in existing_ids.items() if value == sol_details['createdAt']]
+                        log_message = f"Duplicate createdAt found for {list_of_sol_ids}"
                         if success_logger:
                             success_logger.info(log_message)
                         try:
@@ -1369,26 +1386,75 @@ def main():
                             ) 
                         except Exception as e:
                             if error_logger:
-                                error_logger.error(f"Failed to update log for solution {sol_id}: {e}")
-                    elif len(existing_ids) == 1 and sol_id in existing_ids:
+                                error_logger.error(f"Failed to update program activity log for {sol_id}: {e}")
+                    elif sol_id in existing_ids.keys():
                         pipeline.utils.segement_deletion(sol_details['createdAt'], DATASOURCE_NAME)
                         count = pipeline.process_solution(sol_id)
                         if count is None: count = 0
                         total_processed_projects += count
                         pipeline.ingestion.update_program_activity_progress(log_id, sol_id, count)
+                        existing_ids[sol_id] = sol_details['createdAt']
                         if success_logger:
                             success_logger.info(f"Processed Solution ID: {sol_id}, count: {count}")
                         else:
                             error_logger.error(f"Failed to process solution {sol_id}")
-                    elif len(existing_ids) == 0:
+                    else:
                         count = pipeline.process_solution(sol_id)
                         if count is None: count = 0
                         total_processed_projects += count
                         pipeline.ingestion.update_program_activity_progress(log_id, sol_id, count)
+                        existing_ids[sol_id] = sol_details['createdAt']
                         if success_logger:
                             success_logger.info(f"Processed Solution ID: {sol_id}, count: {count}")
                         else:
                             error_logger.error(f"Failed to process solution {sol_id}")
+
+
+                    # if len(existing_ids) == 0: #retry for 3 time with 10 min gap if no existing ids found
+                    #     retry_count = 0
+                    #     while retry_count < 3:
+                    #         time.sleep(60)  # wait for 2 minutes
+                    #         existing_ids = pipeline.utils.get_druid_solutionId_and_createdAt_map()
+                    #         if len(existing_ids) > 0:
+                    #             break
+                    #         retry_count += 1
+                       
+                    # if len(existing_ids) > 0 and sol_id not in existing_ids:
+                    #     log_message = f"Duplicate createdAt found for {existing_ids}"
+                    #     if success_logger:
+                    #         success_logger.info(log_message)
+                    #     try:
+                    #         progress_entry = {
+                    #             "processedSolutionId": sol_id,
+                    #             "log_message": log_message,
+                    #             "processedAt": datetime.now()
+                    #         }
+                    #         pipeline.ingestion.programActivityLog_collection.update_one(
+                    #             {"_id": ObjectId(log_id)},
+                    #             {"$push": {"improvementProjectStatus.progressData": progress_entry}}
+                    #         ) 
+                    #     except Exception as e:
+                    #         if error_logger:
+                    #             error_logger.error(f"Failed to update log for solution {sol_id}: {e}")
+                    # elif len(existing_ids) == 1 and sol_id in existing_ids:
+                    #     pipeline.utils.segement_deletion(sol_details['createdAt'], DATASOURCE_NAME)
+                    #     count = pipeline.process_solution(sol_id)
+                    #     if count is None: count = 0
+                    #     total_processed_projects += count
+                    #     pipeline.ingestion.update_program_activity_progress(log_id, sol_id, count)
+                    #     if success_logger:
+                    #         success_logger.info(f"Processed Solution ID: {sol_id}, count: {count}")
+                    #     else:
+                    #         error_logger.error(f"Failed to process solution {sol_id}")
+                    # elif len(existing_ids) == 0:
+                    #     count = pipeline.process_solution(sol_id)
+                    #     if count is None: count = 0
+                    #     total_processed_projects += count
+                    #     pipeline.ingestion.update_program_activity_progress(log_id, sol_id, count)
+                    #     if success_logger:
+                    #         success_logger.info(f"Processed Solution ID: {sol_id}, count: {count}")
+                    #     else:
+                    #         error_logger.error(f"Failed to process solution {sol_id}")
                 else:
                     if error_logger:
                         error_logger.error(f"Solution details not found for {sol_id}, skipping.")
