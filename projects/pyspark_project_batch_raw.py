@@ -125,15 +125,15 @@ from cloud import MultiCloud
 # ---------------------------------------------------------------------------
 # Spark Setup
 # ---------------------------------------------------------------------------
-def init_spark_session(app_name="pyspark_project_batch_raw"):
+def init_spark_session(app_name="pyspark_project_batch_agg"):
     return SparkSession.builder.appName(app_name).config(
-        "spark.driver.memory", "2g"
+        "spark.driver.memory", "50g"
     ).config(
-        "spark.executor.memory", "4g"
+        "spark.executor.memory", "100g"
     ).config(
         "spark.memory.offHeap.enabled", True
     ).config(
-        "spark.memory.offHeap.size", "4g"
+        "spark.memory.offHeap.size", "32g"
     ).config(
         "spark.eventLog.enabled", False
     ).getOrCreate()
@@ -197,11 +197,14 @@ class Utils:
             "interval": interval,
             "markAsUnused": True
         }
+        
+        if config_manager and config_manager.success_logger:
+            config_manager.success_logger.info(f"Querying druid to get the segment Id for interval: {interval} and datasource: {datasources}")
 
         response: requests.Response = requests.post(indexer_url, headers=headers, json=payload)
 
         if config_manager and config_manager.success_logger:
-            config_manager.success_logger.info(f"Druid query response: {response.json()}")
+            config_manager.success_logger.info(f"Druid segement Id query response: {response.json()}")
         # time.sleep(120)
 
 
@@ -250,24 +253,9 @@ class Utils:
 
     def get_druid_solutionId_and_createdAt_map(self) -> dict:
         """
-        Query Druid to fetch solution_id and solution_created_at.
+        Query Druid to fetch solution_id and solution_created_at .
         Returns a dict mapping solution_id -> solution_created_at.
         """
-
-        # Convert datetime to IST ISO format with milliseconds (same as original logic)
-        # if isinstance(created_at, datetime):
-        #     if created_at.tzinfo is None:
-        #         created_at = created_at.replace(tzinfo=timezone.utc)
-        #     else:
-        #         created_at = created_at.astimezone(timezone.utc)
-
-        #     ist_timezone = timezone(timedelta(hours=5, minutes=30))
-        #     created_at_ist = created_at.astimezone(ist_timezone)
-
-        #     query_date = created_at_ist.isoformat(timespec='milliseconds')
-        # else:
-        #     query_date = str(created_at)
-
         headers = {'Content-Type': 'application/json'}
         
         # Fetch both solution_id AND solution_created_at
@@ -275,9 +263,6 @@ class Utils:
             f'SELECT DISTINCT solution_id, solution_created_at '
             f'FROM "{DATASOURCE_NAME}" '
         )
-
-        if config_manager.success_logger:
-            config_manager.success_logger.info(f"Querying Druid to fetch the solution_map: {query}")
 
         payload = {"query": query}
 
@@ -295,7 +280,7 @@ class Utils:
 
             if config_manager.success_logger:
                 config_manager.success_logger.info(
-                    f"successfully fetched solution_map"
+                    f"Successfully fetched solutions data from Druid. Total solutions fetched: {len(solution_map)}"
                 )
 
             return solution_map
@@ -303,7 +288,7 @@ class Utils:
         except Exception as e:
             if config_manager.error_logger:
                 config_manager.error_logger.error(
-                    f"Error querying Druid for solution_map: {e}"
+                    f"Error querying Druid for solutions data: {e}"
                 )
         return {}
 
@@ -498,7 +483,7 @@ class IngestionManager:
 
             records_obj[str(record.get("_id"))] = list(unique_solution_ids)  
             if self.success_logger:    
-                self.success_logger.info(f"List of solution ids: {records_obj}")
+                self.success_logger.info(f"List of solution ids from programActivityLog collection: {records_obj}")
         return records_obj
 
     def update_program_activity_status_start(self, log_id: str):
@@ -1171,10 +1156,10 @@ def trigger_druid_ingestion(solution_id, config: ConfigManager):
         
         if start_supervisor.status_code == 200:
             if success_logger:
-                success_logger.info(f"Started the batch ingestion task successfully for the datasource {datasource}")
+                success_logger.info(f"Started the batch ingestion task successfully for the datasource: {datasource}")
         else:
             if error_logger:
-                error_logger.error(f"Failed to start batch ingestion task {datasource}. Status: {start_supervisor.status_code}")
+                error_logger.error(f"Failed to start batch ingestion task for datasource: {datasource}. Status: {start_supervisor.status_code}")
                 error_logger.error(start_supervisor.text)
     
     except Exception as e:
@@ -1198,7 +1183,7 @@ class ProjectPipeline:
 
     def process_solution(self, solution_id: str):
         if self.success_logger:
-            self.success_logger.info(f"***** Spark Job Started for Solution ID: {solution_id} *****")
+            self.success_logger.info(f"Spark Job Started for Solution ID: {solution_id}")
 
         try:
             solution_doc = self.ingestion.fetch_solution_details(solution_id)
@@ -1220,7 +1205,7 @@ class ProjectPipeline:
             processed_rdd = prj_rdd.mapPartitions(process_project_partition)
 
             if self.success_logger:
-                self.success_logger.info("Completed mapPartitions")
+                self.success_logger.info("Completed mapPartitions processing")
 
             projects_df = self.spark.createDataFrame(processed_rdd, get_projects_schema())
 
@@ -1229,7 +1214,7 @@ class ProjectPipeline:
             final_df = final_df.join(F.broadcast(solution_df), "solution_id", "left")
 
             if self.success_logger:
-                self.success_logger.info("Final Dataframe is ready to be written to json")
+                self.success_logger.info("Final Dataframe is ready to be written to JSON")
 
             os.makedirs(SL_PROJECT_OUTPUT_DIR, exist_ok=True)
 
@@ -1245,7 +1230,7 @@ class ProjectPipeline:
                     if os.path.exists(dst):
                         os.remove(dst)
                     os.rename(src, dst)
-                    if self.success_logger: self.success_logger.info(f"Renamed output file to: {output_file_name}")
+                    if self.success_logger: self.success_logger.info(f"Rename output file to: {output_file_name}")
                     break
             
             shutil.rmtree(temp_output_dir)
@@ -1255,11 +1240,6 @@ class ProjectPipeline:
                 self.utils.delete_local_output_file(solution_id)
 
             trigger_druid_ingestion(solution_id, self.config)
-
-            if self.success_logger:
-                self.success_logger.info(f"==============================================================")
-                self.success_logger.info(f"Successfully processed solution {solution_id}")
-                self.success_logger.info(f"==============================================================")
             return len(projects_list)
         
         except Exception as e:
@@ -1299,24 +1279,28 @@ class ProjectPipeline:
         
         total_solutions = sum(len(ids) for ids in solution_id_and_createdAt_map.values())
         if self.success_logger:
-            self.success_logger.info(f"Total Solution IDs gathered: {total_solutions}")
-        
+            self.success_logger.info(f"Total Solution IDs gathered: {len(solution_id_and_createdAt_map)}")
         for created_at, solution_ids in solution_id_and_createdAt_map.items():
             if len(solution_ids) > 1:
                 first_sol_id = solution_ids[0]
                 if self.success_logger:
                     self.success_logger.info(f"=======================================================================")
-                    self.success_logger.info(f"Processing Solution ID: {first_sol_id} (Shared createdAt: {created_at})")
+                    self.success_logger.info(f"Processing Solution ID: {first_sol_id} (createdAt: {created_at})")
                     self.success_logger.info(f"=======================================================================")
                 try:
-                    self.process_solution(first_sol_id)
+                    count = self.process_solution(first_sol_id)
+                    if self.success_logger:
+                        self.success_logger.info(f"Processed Solution ID: {first_sol_id}, With Project Count: {count}")
+                    else:
+                        self.error_logger.error(f"Failed To Process Solution ID: {first_sol_id}")
+
                 except Exception as e:
                     if self.error_logger:
-                        self.error_logger.error(f"Failed to process {first_sol_id}: {e}")
+                        self.error_logger.error(f"Failed to process Solution ID: {first_sol_id}: {e}")
                 
                 remaining_ids = solution_ids[1:]
                 if self.success_logger:
-                    self.success_logger.info(f"Skipping remaining IDs with same createdAt {created_at}: {remaining_ids}")
+                    self.success_logger.info(f"Duplicate createdAt timestamp found for another solution with ids: {remaining_ids}")
 
             elif len(solution_ids) == 1:
                 sol_id = solution_ids[0]
@@ -1325,10 +1309,14 @@ class ProjectPipeline:
                     self.success_logger.info(f"Processing Solution ID: {sol_id} with createdAt: {created_at}")
                     self.success_logger.info(f"=============================================================")
                 try:
-                    self.process_solution(sol_id)
+                    count = self.process_solution(sol_id)
+                    if self.success_logger:
+                        self.success_logger.info(f"Processed Solution ID: {sol_id}, With Project Count: {count}")
+                    else:
+                        self.error_logger.error(f"Failed To Process Solution ID: {sol_id}")
                 except Exception as e:
                     if self.error_logger:
-                        self.error_logger.error(f"Failed to process {sol_id}: {e}")
+                        self.error_logger.error(f"Failed to process Solution ID: {sol_id}: {e}")
 
 def main():
     success_logger = None
@@ -1343,22 +1331,22 @@ def main():
     
     if args.is_first_time:
         if success_logger:
-            success_logger.info("First time running the Ingestion job")
+            success_logger.info("Inserting Complete Project Data - First Time Load")
         pipeline.utils.delete_entire_datasource(DATASOURCE_NAME)
         pipeline.run()
     else:
         if success_logger:
-            success_logger.info("Not first time running the Ingestion job")
+            success_logger.info("Daily Project Data Ingestion - Incremental Load")
 
         updated_solution_ids:dict = pipeline.ingestion.fetch_recent_updated_solution_ids()
 
         if len(updated_solution_ids) == 0:
             if success_logger:
-                success_logger.info("No recent updates found")
+                success_logger.info("No recent project updates found in mongoDB. Exiting...")
             return
         for log_id, sol_ids in updated_solution_ids.items():
             if success_logger:
-                success_logger.info(f"Processing Log ID: {log_id}")
+                success_logger.info(f"Processing Document ID: {log_id}")
             pipeline.ingestion.update_program_activity_status_start(log_id)
             total_processed_projects = 0
             
@@ -1369,9 +1357,9 @@ def main():
                     success_logger.info(f"==========================================================")
                 sol_details = pipeline.ingestion.fetch_solution_details(sol_id)
                 if sol_details:
-                    if sol_details['createdAt'] in existing_ids.values() and sol_id not in solution_map.keys():
-                        list_of_sol_ids = [key for key, value in existing_ids.items() if value == sol_details['createdAt']]
-                        log_message = f"Duplicate createdAt found for {list_of_sol_ids}"
+                    if sol_details['createdAt'] in existing_ids.values() and sol_id not in existing_ids.keys():
+                        list_of_sol_id = [key for key, value in existing_ids.items() if value == sol_details['createdAt']]
+                        log_message = f"Duplicate createdAt timestamp found for another solution with id : {list_of_sol_id}"
                         if success_logger:
                             success_logger.info(log_message)
                         try:
@@ -1395,9 +1383,9 @@ def main():
                         pipeline.ingestion.update_program_activity_progress(log_id, sol_id, count)
                         existing_ids[sol_id] = sol_details['createdAt']
                         if success_logger:
-                            success_logger.info(f"Processed Solution ID: {sol_id}, count: {count}")
+                            success_logger.info(f"Processed Solution ID: {sol_id}, With Project Count: {count}")
                         else:
-                            error_logger.error(f"Failed to process solution {sol_id}")
+                            error_logger.error(f"Failed To Process Solution ID: {sol_id}")
                     else:
                         count = pipeline.process_solution(sol_id)
                         if count is None: count = 0
@@ -1405,56 +1393,9 @@ def main():
                         pipeline.ingestion.update_program_activity_progress(log_id, sol_id, count)
                         existing_ids[sol_id] = sol_details['createdAt']
                         if success_logger:
-                            success_logger.info(f"Processed Solution ID: {sol_id}, count: {count}")
+                            success_logger.info(f"Processed Solution ID: {sol_id}, With Project Count: {count}")
                         else:
-                            error_logger.error(f"Failed to process solution {sol_id}")
-
-
-                    # if len(existing_ids) == 0: #retry for 3 time with 10 min gap if no existing ids found
-                    #     retry_count = 0
-                    #     while retry_count < 3:
-                    #         time.sleep(60)  # wait for 2 minutes
-                    #         existing_ids = pipeline.utils.get_druid_solutionId_and_createdAt_map()
-                    #         if len(existing_ids) > 0:
-                    #             break
-                    #         retry_count += 1
-                       
-                    # if len(existing_ids) > 0 and sol_id not in existing_ids:
-                    #     log_message = f"Duplicate createdAt found for {existing_ids}"
-                    #     if success_logger:
-                    #         success_logger.info(log_message)
-                    #     try:
-                    #         progress_entry = {
-                    #             "processedSolutionId": sol_id,
-                    #             "log_message": log_message,
-                    #             "processedAt": datetime.now()
-                    #         }
-                    #         pipeline.ingestion.programActivityLog_collection.update_one(
-                    #             {"_id": ObjectId(log_id)},
-                    #             {"$push": {"improvementProjectStatus.progressData": progress_entry}}
-                    #         ) 
-                    #     except Exception as e:
-                    #         if error_logger:
-                    #             error_logger.error(f"Failed to update log for solution {sol_id}: {e}")
-                    # elif len(existing_ids) == 1 and sol_id in existing_ids:
-                    #     pipeline.utils.segement_deletion(sol_details['createdAt'], DATASOURCE_NAME)
-                    #     count = pipeline.process_solution(sol_id)
-                    #     if count is None: count = 0
-                    #     total_processed_projects += count
-                    #     pipeline.ingestion.update_program_activity_progress(log_id, sol_id, count)
-                    #     if success_logger:
-                    #         success_logger.info(f"Processed Solution ID: {sol_id}, count: {count}")
-                    #     else:
-                    #         error_logger.error(f"Failed to process solution {sol_id}")
-                    # elif len(existing_ids) == 0:
-                    #     count = pipeline.process_solution(sol_id)
-                    #     if count is None: count = 0
-                    #     total_processed_projects += count
-                    #     pipeline.ingestion.update_program_activity_progress(log_id, sol_id, count)
-                    #     if success_logger:
-                    #         success_logger.info(f"Processed Solution ID: {sol_id}, count: {count}")
-                    #     else:
-                    #         error_logger.error(f"Failed to process solution {sol_id}")
+                            error_logger.error(f"Failed To Process Solution ID: {sol_id}")
                 else:
                     if error_logger:
                         error_logger.error(f"Solution details not found for {sol_id}, skipping.")

@@ -527,7 +527,7 @@ class IngestionManager:
                 }
             }]
         )
-        self.success_logger.info("Mongo Query end time")
+        self.success_logger.info("Mongo Query to fetch projects executed successfully.")
         return cursor
     
     def _process_file_operation(self, output_dir, blob_path, file_suffix, program_unique_id):
@@ -581,9 +581,9 @@ class IngestionManager:
         response = requests.post(DRUID_BATCH_URL, data=json.dumps(spec), headers={'Content-Type': 'application/json'})
         
         if response.status_code == 200:
-            self.success_logger.debug(f"started the batch ingestion task sucessfully for the datasource {datasource}")
+            self.success_logger.debug(f"Started the batch ingestion task successfully for the datasource: {datasource}")
         else:
-            self.error_logger.error(f"failed to start batch ingestion task of {datasource} {response.status_code}")
+            self.error_logger.error(f"Failed to start the batch ingestion task for datasource: {datasource} {response.status_code}")
             self.error_logger.error(response.text)
 
     def _trigger_druid(self, program_unique_id):
@@ -760,9 +760,7 @@ def transform_projects_df(projects_df, utils):
 
     projects_df = projects_df.withColumn("orgData",utils.get_org_name_udf()(F.col("userProfile.organisations")))
     projects_df = projects_df.withColumn("exploded_orgInfo",F.explode_outer(F.col("orgData")))
-    config_manager.success_logger.info(
-            "Organisation logic end time"
-       )
+    config_manager.success_logger.info("Organisation logic processed successfully.")
        
     projects_df = projects_df.withColumn("project_goal",regexp_replace(F.col("metaInformation.goal"), "\n|\"", ""))
     projects_df = projects_df.withColumn("area_of_improvement",F.when((F.col("categories_name").isNotNull()) & (F.col("categories_name")!=""),F.concat(F.lit("'"),regexp_replace(F.col("categories_name"), "\n|\"", ""),F.lit("'"))).otherwise(F.col("categories_name")))
@@ -865,9 +863,7 @@ def transform_projects_df(projects_df, utils):
     projects_df_cols = projects_df_cols.join(projects_dff,["project_id"],"left")
     projects_df_cols = projects_df_cols.join(projects_tsk_evi,["project_id"],"left")
 
-    config_manager.success_logger.info(
-            "Flattening data end time"
-       )
+    config_manager.success_logger.info("Flattening data completed successfully.")
     projects_df.unpersist()
     projects_prj_evi.unpersist()
     projects_task_cnt.unpersist()
@@ -897,15 +893,11 @@ def transform_projects_df(projects_df, utils):
 
 
     entities_df.unpersist()
-    config_manager.success_logger.info(
-            "Get Entities end time"
-       )
+    config_manager.success_logger.info("Get Entities completed successfully.")
        
     projects_df_final = projects_df_cols.join(entities_df_res,projects_df_cols["project_id"]==entities_df_res["_id"],how='left')\
             .drop(entities_df_res["_id"])
-    config_manager.success_logger.info(
-            "Final Dataframe end time"
-       )
+    config_manager.success_logger.info("Final Dataframe created successfully.")
     entities_df_res.unpersist()
     projects_df_cols.unpersist()
     final_projects_df = projects_df_final.dropDuplicates()
@@ -936,17 +928,19 @@ def main():
 
     spark = init_spark_session()
     
-    config_manager.success_logger.info("---started processing program id: {}---".format(program_unique_id))
+    config_manager.success_logger.info(f"Started Processing Program Id: {program_unique_id}")
     # Mongo Fetch
     projects_cursorMongo = ingestion_manager.fetch_projects(program_unique_id)
     
     # Processing partitions
     func_return = process_project_partition(projects_cursorMongo)
+    config_manager.success_logger.info(f"Successfully completed map partition")
     
     prj_rdd = spark.sparkContext.parallelize(list(func_return)) 
     
     projects_df = spark.createDataFrame(prj_rdd, get_projects_schema())
-    
+    config_manager.success_logger.info(f"Created DataFrame from RDD")
+
     prj_rdd.unpersist()
 
     final_projects_df = transform_projects_df(projects_df, utils)
