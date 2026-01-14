@@ -68,6 +68,7 @@ survey_submissions_collection = {{ ml_analytics_mongo_survey_submissions_collect
 
 survey_collection = {{ ml_analytics_mongo_survey_collection }}
 
+programActivityLog_collection = {{ ml_analytics_mongo_programActivityLog_collection }}
 
 [DRUID]
 
@@ -115,6 +116,7 @@ intervals = {{ml_analytics_druid_interval_list}}
 
 ml_distinctCnt_survey_status_spec = {{ml_analytics_distinctCnt_survey_status_batch_ingestion_spec}}
 
+
 [KAFKA]
 
 url = {{ ml_analytics_kafka_url }}
@@ -161,6 +163,18 @@ survey_evidence_streaming_error = {{ ml_analytics_survey_log_folder_path }}/evid
 survey_streaming_success = {{ ml_analytics_survey_log_folder_path }}/success.log
 
 survey_streaming_error = {{ ml_analytics_survey_log_folder_path }}/error.log
+
+sl_project_success = {{ ml_analytics_sl_project_log_folder_path }}/success.log
+
+sl_project_error = {{ ml_analytics_sl_project_log_folder_path }}/error.log
+
+project_agg_success = {{ ml_analytics_sl_project_log_folder_path }}/project_agg_success.log
+
+project_agg_error = {{ ml_analytics_sl_project_log_folder_path }}/project_agg_error.log
+
+project_raw_success = {{ ml_analytics_sl_project_log_folder_path }}/project_raw_success.log
+
+project_raw_error = {{ ml_analytics_sl_project_log_folder_path }}/project_raw_error.log
 
 
 [ORACLE]
@@ -245,6 +259,7 @@ program_text_file = {{ml_analytics_project_program}}
 
 survey_distinctCount_status = {{ml_analytics_survey_distinctCount_status_filepath}}
 
+
 [SLACK]
 
 token = {{ml_slack_token}}
@@ -296,5 +311,3 @@ cname_url = {{ ml_analytics_cname_url }}
 nvsk_imp_projects_data_local_path = {{ ml_analytics_nvsk_imp_projects_data_local_path }}
 
 nvsk_imp_projects_data_blob_path = {{ ml_analytics_nvsk_imp_projects_data_blob_path }}
-
-survey_distinctCount_blob_path = {{ ml_analytics_survey_distinctCount_blob_path }}
