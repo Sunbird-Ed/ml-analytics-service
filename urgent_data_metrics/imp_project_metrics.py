@@ -64,6 +64,9 @@ errorLogger.addHandler(errorHandler)
 
 successLogger.info("NVSK processing started.")
 
+# Add execution date
+execution_date = datetime.datetime.now().strftime("%Y-%m-%d")
+
 # ========================== HELPER FUNCTIONS ==========================
 try:
     def convert_to_row(d: dict) -> Row:
@@ -235,7 +238,7 @@ projects_schema = StructType([
             StructField('externalId', StringType(), True)
         ])
     ), True),
-    StructField('createdAt', StringType(), True) 
+    StructField('createdAt', TimestampType(), True) 
 ])
 
 # ========================== DATA TRANSFORMATION ==========================
@@ -378,7 +381,9 @@ district_final_df = district_final_df.join(state_id_mapping, district_final_df["
 # Join to get the State names from District ids 
 district_final_df = district_final_df.join(district_id_mapping, district_final_df["district"] == district_id_mapping["id"], "left")
 # Select only relevant fields to prepare the final DF , Sort it wrt state names
-final_data_to_csv = district_final_df.select("state_name", "district_name", "Total_Micro_Improvement_Projects","Total_Micro_Improvement_Started", "Total_Micro_Improvement_InProgress", "Total_Micro_Improvement_Submitted", "Total_Micro_Improvement_Submitted_With_Evidence").sort("state_name", "district_name")
+final_data_to_csv = district_final_df.select("state_name", "district_name", "Total_Micro_Improvement_Projects","Total_Micro_Improvement_Started", "Total_Micro_Improvement_InProgress", "Total_Micro_Improvement_Submitted", "Total_Micro_Improvement_Submitted_With_Evidence").withColumn("execution_date", F.lit(execution_date)).sort("state_name", "district_name")
+# Filter out rows where state_name or district_name is null or empty
+final_data_to_csv = final_data_to_csv.filter((F.col("state_name").isNotNull()) & (F.trim(F.col("state_name")) != "") & (F.col("district_name").isNotNull()) & (F.trim(F.col("district_name")) != ""))
 # DF To file
 local_path = config.get("COMMON", "nvsk_imp_projects_data_local_path")
 blob_path = config.get("COMMON", "nvsk_imp_projects_data_blob_path")
@@ -393,7 +398,7 @@ result = glob.glob(f'*.{extension}')
 os.rename(f'{path}' + f'{result[0]}', f'{path}' + 'data.csv')
 
 # Create JSON
-json_keys = ["state_name", "district_name", "Total_Micro_Improvement_Projects", "Total_Micro_Improvement_Started", "Total_Micro_Improvement_InProgress", "Total_Micro_Improvement_Submitted","Total_Micro_Improvement_Submitted_With_Evidence"]
+json_keys = ["state_name", "district_name", "Total_Micro_Improvement_Projects", "Total_Micro_Improvement_Started", "Total_Micro_Improvement_InProgress", "Total_Micro_Improvement_Submitted","Total_Micro_Improvement_Submitted_With_Evidence","execution_date"]
 jsonTableData = []
 with open(os.path.join(local_path, 'data.csv'), 'r') as file:
     csv_reader = csv.reader(file)
@@ -417,25 +422,47 @@ successLogger.info("Report 1 (District-wise summary) completed.")
 # ============================================================================
 successLogger.info("Generating Report 2: Summary Statistics...")
 
-unique_leaders = projects_df.select("userId").distinct().count()
+# Extract year from createdAt field in the existing projects_df
+summary_data_df = projects_df.withColumn(
+    "year",
+    F.year(F.col("createdAt"))
+).filter(F.col("year").isNotNull())
 
-unique_schools_df = projects_df.select(
+# Count unique leaders per year (before school filtering)
+leaders_by_year = summary_data_df.groupBy("year").agg(
+    countDistinct(F.col("userId")).alias("Number of Unique Leaders on the Improvement Journey")
+)
+
+# Extract school information from userProfile
+schools_summary_df = summary_data_df.select(
+    F.col("year"),
+    F.col("_id").alias("project_id"),
     F.explode_outer(F.col("userProfile.userLocations")).alias("user_location")
 ).filter(
-    (F.col("user_location.type") == "school") & (F.col("user_location.id").isNotNull())
+    (F.col("user_location.type") == "school") & 
+    (F.col("user_location.id").isNotNull())
 ).select(
+    F.col("year"),
     F.col("user_location.id").alias("school_id")
 ).distinct()
 
-unique_schools = unique_schools_df.count()
+# Count unique schools per year
+schools_by_year = schools_summary_df.groupBy("year").agg(
+    countDistinct(F.col("school_id")).alias("Number of Unique Schools on the Improvement Journey")
+)
 
-summary_data = [(unique_leaders, unique_schools)]
-summary_schema = StructType([
-    StructField("Number of Unique Leaders on the Improvement Journey", IntegerType(), True),
-    StructField("Number of Unique Schools on the Improvement Journey", IntegerType(), True)
-])
+# Join leaders and schools counts
+summary_df = leaders_by_year.join(schools_by_year, "year", "left").withColumn(
+    "execution_date", F.lit(execution_date)
+)
 
-summary_df = spark.createDataFrame(summary_data, summary_schema)
+# Reorder columns: Number of Leaders, Number of Schools, Year, execution_date
+summary_df = summary_df.select(
+    F.col("Number of Unique Leaders on the Improvement Journey"),
+    F.col("Number of Unique Schools on the Improvement Journey"),
+    F.col("year").alias("Year"),
+    F.col("execution_date")
+).sort("Year")
 
 summary_local_path = local_path + "summary/"
 if not os.path.exists(summary_local_path):
@@ -449,7 +476,9 @@ os.rename(f'{summary_local_path}{result[0]}', f'{summary_local_path}improvement_
 
 summary_json_keys = [
     "Number of Unique Leaders on the Improvement Journey",
-    "Number of Unique Schools on the Improvement Journey"
+    "Number of Unique Schools on the Improvement Journey",
+    "Year",
+    "execution_date"
 ]
 summary_json_data = []
 
@@ -617,7 +646,10 @@ try:
         F.col("Unique_schools_in_program").alias("Unique Schools In Program"),
         F.col("Unique_schools_completed").alias("Unique Schools Completed"),
         F.col("program_year").alias("Year")
-    ).sort("State Name", "District Name", "Program Name")
+    ).withColumn("execution_date", F.lit(execution_date)).sort("State Name", "District Name", "Program Name")
+
+    # Filter out rows where state_name or district_name is null or empty
+    program_final_df = program_final_df.filter((F.col("State Name").isNotNull()) & (F.trim(F.col("State Name")) != "") & (F.col("District Name").isNotNull()) & (F.trim(F.col("District Name")) != ""))
 
     program_local_path = local_path + "program_details/"
     if not os.path.exists(program_local_path):
@@ -635,7 +667,7 @@ try:
         "Total Micro Improvement InProgress", "Total Micro Improvement Submitted",
         "Total Micro Improvement Submitted With Evidence",
         "Unique Users In Program", "Unique Users Completed",
-        "Unique Schools In Program", "Unique Schools Completed", "Year"
+        "Unique Schools In Program", "Unique Schools Completed", "Year", "execution_date"
     ]
     program_json_data = []
 
