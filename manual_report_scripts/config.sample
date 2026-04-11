@@ -1,0 +1,260 @@
+{
+  "druid_url": "http://localhost:8082",
+  "pairs": [
+    {
+      "program_id": "605083ba09b7bd61555580fb",
+      "solution_id": "5ff9dc1b9259097d48017bbe"
+    },
+    {
+      "program_id": "62205480a81abe61c07e5058",
+      "solution_id": "62206042a81abe61c07e505b"
+    }
+  ],
+  "ml-task-detail-exhaust": {
+    "id": "ml-task-detail-exhaust",
+    "labels": {
+      "block_name": "Block",
+      "board_name": "Declared Board",
+      "project_title_editable": "Project Title",
+      "task_evidence": "Task Evidence",
+      "project_completed_date": "Project completion date of the user",
+      "designation": "User sub type",
+      "project_created_date": "Project start date of the user",
+      "project_duration": "Project Duration",
+      "project_evidence": "Project Evidence",
+      "status_of_project": "Project Status",
+      "sub_task": "Sub-Tasks",
+      "tasks": "Tasks",
+      "project_id": "Project ID",
+      "project_description": "Project Objective",
+      "user_type": "User Type",
+      "program_externalId": "Program ID",
+      "organisation_name": "Org Name",
+      "createdBy": "UUID",
+      "area_of_improvement": "Category",
+      "school_name": "School Name",
+      "district_name": "District",
+      "program_name": "Program Name",
+      "project_remarks": "Project Remarks",
+      "school_code": "School ID",
+      "state_name": "Declared State",
+      "task_remarks": "Task Remarks"
+    },
+    "quoteColumns": [
+      "Project Title",
+      "Project Objective",
+      "Category",
+      "Tasks",
+      "Task Remarks",
+      "Sub-Tasks",
+      "Project Remarks"
+    ],
+    "dateRange": {
+      "interval": {
+        "startDate": "1901-01-01",
+        "endDate": "2101-01-01"
+      },
+      "granularity": "all",
+      "intervalSlider": 0
+    },
+    "metrics": [
+      {
+        "metric": "total_content_plays_on_portal",
+        "label": "total_content_plays_on_portal",
+        "druidQuery": {
+          "intervals": "1901-01-01T00:00+00:00/2101-01-01T00:00:00+00:00",
+          "dataSource": "sl-project",
+          "columns": [
+            "createdBy",
+            "user_type",
+            "designation",
+            "state_name",
+            "district_name",
+            "block_name",
+            "school_name",
+            "school_code",
+            "board_name",
+            "organisation_name",
+            "program_name",
+            "program_externalId",
+            "project_id",
+            "project_title_editable",
+            "project_description",
+            "area_of_improvement",
+            "project_created_date",
+            "project_completed_date",
+            "project_duration",
+            "status_of_project",
+            "tasks",
+            "sub_task",
+            "task_evidence",
+            "task_remarks",
+            "project_evidence",
+            "project_remarks"
+          ],
+          "queryType": "scan"
+        }
+      }
+    ],
+    "output": [
+      {
+        "zip": false,
+        "label": "",
+        "dims": [
+          "date"
+        ],
+        "fileParameters": [
+          "id",
+          "dims"
+        ],
+        "metrics": [
+          "createdBy",
+          "user_type",
+          "designation",
+          "state_name",
+          "district_name",
+          "block_name",
+          "school_name",
+          "school_code",
+          "board_name",
+          "organisation_name",
+          "program_name",
+          "program_externalId",
+          "project_id",
+          "project_title_editable",
+          "project_description",
+          "area_of_improvement",
+          "project_created_date",
+          "project_completed_date",
+          "project_duration",
+          "status_of_project",
+          "tasks",
+          "sub_task",
+          "task_evidence",
+          "task_remarks",
+          "project_evidence",
+          "project_remarks"
+        ],
+        "type": "csv"
+      }
+    ],
+    "sort": [
+      "UUID",
+      "Program ID",
+      "Project ID",
+      "Tasks"
+    ],
+    "queryType": "scan"
+  },
+  "ml-project-status-exhaust": {
+    "id": "ml-project-status-exhaust",
+    "labels": {
+      "block_name": "Block",
+      "board_name": "Declared Board",
+      "project_title_editable": "Project Title",
+      "project_completed_date": "Project completion date of the user",
+      "designation": "User sub type",
+      "project_created_date": "Project start date of the user",
+      "project_last_sync": "Project last Synced date",
+      "project_duration": "Project Duration",
+      "status_of_project": "Project Status",
+      "project_id": "Project ID",
+      "project_description": "Project Objective",
+      "user_type": "User Type",
+      "program_externalId": "Program ID",
+      "organisation_name": "Org Name",
+      "certificate_status_customised": "Certificate Status",
+      "createdBy": "UUID",
+      "school_name": "School Name",
+      "district_name": "District",
+      "program_name": "Program Name",
+      "school_code": "School ID",
+      "state_name": "Declared State"
+    },
+    "dateRange": {
+      "interval": {
+        "startDate": "1901-01-01",
+        "endDate": "2101-01-01"
+      },
+      "granularity": "all",
+      "intervalSlider": 0
+    },
+    "metrics": [
+      {
+        "metric": "total_content_plays_on_portal",
+        "label": "total_content_plays_on_portal",
+        "druidQuery": {
+          "intervals": "1901-01-01T00:00+00:00/2101-01-01T00:00:00+00:00",
+          "dataSource": "sl-project",
+          "columns": [
+            "createdBy",
+            "user_type",
+            "designation",
+            "state_name",
+            "district_name",
+            "block_name",
+            "school_name",
+            "school_code",
+            "board_name",
+            "organisation_name",
+            "program_name",
+            "program_externalId",
+            "project_id",
+            "project_title_editable",
+            "project_description",
+            "project_created_date",
+            "project_completed_date",
+            "project_duration",
+            "project_last_sync",
+            "status_of_project",
+            "certificate_status_customised"
+          ],
+          "queryType": "scan"
+        }
+      }
+    ],
+    "output": [
+      {
+        "zip": false,
+        "label": "",
+        "dims": [
+          "date"
+        ],
+        "fileParameters": [
+          "id",
+          "dims"
+        ],
+        "metrics": [
+          "createdBy",
+          "user_type",
+          "designation",
+          "state_name",
+          "district_name",
+          "block_name",
+          "school_name",
+          "school_code",
+          "board_name",
+          "organisation_name",
+          "program_name",
+          "program_externalId",
+          "project_id",
+          "project_title_editable",
+          "project_description",
+          "project_created_date",
+          "project_completed_date",
+          "project_duration",
+          "project_last_sync",
+          "status_of_project",
+          "certificate_status_customised"
+        ],
+        "type": "csv"
+      }
+    ],
+    "sort": [
+      "UUID",
+      "Program ID",
+      "Project ID"
+    ],
+    "queryType": "scan"
+  }
+}
